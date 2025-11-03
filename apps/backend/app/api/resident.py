@@ -19,7 +19,7 @@ from app.schemas.request import (
     ResidentTimelineEntry,
     RequestNotePublic,
 )
-from app.services.ai import classify_request
+from app.services.ai import analyze_request_photo, classify_request
 from app.services.files import save_upload_file
 from app.services.jurisdiction import check_jurisdiction
 
@@ -65,7 +65,7 @@ async def submit_request(
         external_metadata={
             "jurisdiction_message": jurisdiction.message,
             "jurisdiction_is_external": jurisdiction.is_external,
-            "ai_raw_response": ai_payload,
+            "ai_triage": ai_payload,
         },
     )
 
@@ -80,6 +80,10 @@ async def submit_request(
                 label="Initial Photo",
             )
         )
+        analysis = analyze_request_photo(stored_path, data.description)
+        if analysis:
+            request.external_metadata = request.external_metadata or {}
+            request.external_metadata["initial_photo_analysis"] = analysis
 
     session.add(request)
     await session.flush()

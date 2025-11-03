@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
+import mimetypes
 from pathlib import Path
 from typing import Any
 
@@ -83,6 +85,72 @@ def classify_request(description: str, category_code: str | None) -> tuple[Reque
         priority = fallback_priority
 
     return priority, department, parsed
+
+
+def analyze_request_photo(file_path: str, description: str | None = None) -> dict[str, Any] | None:
+    endpoint = settings.google_vertex_ai_endpoint or _build_gemini_endpoint()
+    if not endpoint:
+        logger.info("Gemini endpoint not configured; skipping photo analysis")
+        return None
+
+    access_token = _get_google_access_token()
+    headers = {"Content-Type": "application/json"}
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+
+    abs_path = Path(settings.uploads_dir) / file_path if not file_path.startswith("/") else Path(file_path)
+    if not abs_path.exists():
+        logger.warning("Attachment for analysis not found: %s", abs_path)
+        return None
+
+    mime_type, _ = mimetypes.guess_type(abs_path.name)
+    if not mime_type:
+        mime_type = "image/jpeg"
+
+    image_bytes = abs_path.read_bytes()
+    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    prompt = (
+        "Review the uploaded photo for a municipal service request. "
+        "Return JSON with fields: issue_type (string), qualitative_summary (string), estimated_severity (one of low, medium, high, emergency), "
+        "estimated_depth_cm (number, null if unknown), recommended_action (string), confidence (0-1)."
+    )
+    if description:
+        prompt += f"\nResident description: {description}"
+
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": prompt},
+                    {
+                        "inlineData": {
+                            "mimeType": mime_type,
+                            "data": image_b64,
+                        }
+                    },
+                ],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.1,
+            "topP": 0.2,
+            "maxOutputTokens": 512,
+            "responseMimeType": "application/json",
+        },
+    }
+
+    try:
+        with httpx.Client(timeout=20.0) as client:
+            response = client.post(endpoint, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+    except Exception as exc:  # pragma: no cover - best effort integration
+        logger.warning("Gemini photo analysis failed: %s", exc)
+        return None
+
+    return _parse_gemini_response(data)
 
 
 def _build_prompt(description: str, category_code: str | None) -> str:
