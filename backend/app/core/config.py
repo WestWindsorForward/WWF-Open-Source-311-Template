@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     vault_addr: str | None = None
     vault_token: str | None = None
     vault_kv_mount: str = "secret"
+    otel_enabled: bool = False
+    otel_endpoint: str | None = None
+    otel_headers: str | None = None
 
     developer_report_email: str = "311reports@westwindsorforward.org"
     heartbeat_day_of_week: int = 0  # Monday

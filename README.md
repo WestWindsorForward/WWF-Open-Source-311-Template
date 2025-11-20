@@ -43,6 +43,11 @@ docker compose up --build
 
 Caddy will expose everything on `http://localhost` with `/api/*` routed to FastAPI.
 
+## Database Migrations
+
+- Schema managed via Alembic (`backend/alembic`). Run `./scripts/run_migrations.sh` to apply the latest revision.
+- Generate new migrations with `alembic revision --autogenerate -m "your message"` inside `backend/`.
+
 ## Custom Domains
 
 To serve the stack from `311.yourtown.gov` (with automatic HTTPS), set `APP_DOMAIN` and `TLS_EMAIL` in `infrastructure/.env`, point your DNS record to the server, and restart the Compose stack. See `docs/CUSTOM_DOMAIN.md` for detailed instructions.
@@ -54,3 +59,16 @@ To serve the stack from `311.yourtown.gov` (with automatic HTTPS), set `APP_DOMA
 - **Attachment scanning**: All uploads are scanned by ClamAV (provided via the `clamav` service).
 - **Audit trails**: Admin/staff actions are persisted to `audit_events` for compliance reviews.
 - See `docs/SECURITY_HARDENING.md` for configuration details.
+
+## Observability
+
+- JSON logs with per-request correlation IDs (forward-friendly to ELK/Loki).
+- Prometheus metrics exposed at `/metrics` with latency/error counters.
+- Optional OpenTelemetry tracing via OTLP exporter (`OTEL_*` env vars).
+- Details and integration tips in `docs/OBSERVABILITY.md`.
+
+## CI/CD & Deployments
+
+- GitHub Actions pipeline (`.github/workflows/ci.yml`) runs backend & frontend builds on every push/PR.
+- Production guidance for Kubernetes manifests lives in `infrastructure/kubernetes/`.
+- Backup/DR procedures and release playbooks are in `docs/BACKUP_AND_DR.md` and `docs/CI_CD.md`.

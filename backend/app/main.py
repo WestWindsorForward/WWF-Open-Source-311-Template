@@ -2,21 +2,31 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.routes import admin, auth, open311, resident, staff
 from app.core.config import settings
+from app.core.logging import configure_logging
+from app.core.telemetry import configure_tracing
 from app.db.base import Base
 from app.db.session import engine
+from app.middleware.request_id import RequestIDMiddleware
+
+configure_logging()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    instrumentator = Instrumentator().instrument(app)
+    instrumentator.expose(app)
+    configure_tracing(app)
     yield
 
 
 app = FastAPI(title=settings.project_name, lifespan=lifespan)
+app.add_middleware(RequestIDMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

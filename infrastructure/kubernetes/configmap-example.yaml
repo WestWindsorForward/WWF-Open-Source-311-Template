@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: township-config
+  namespace: default
+data:
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@township-postgres:5432/township
+  REDIS_URL: redis://township-redis:6379/0
+  CLAMAV_HOST: clamav.default.svc.cluster.local
+  CLAMAV_PORT: "3310"
+  RATE_LIMIT_RESIDENT_PER_MINUTE: "30"
+  RATE_LIMIT_PUBLIC_PER_MINUTE: "60"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: township-secrets
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: change-me
+  JWT_SECRET_KEY: supersecret
+  ADMIN_API_KEY: dev-admin-key

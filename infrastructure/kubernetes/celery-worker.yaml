@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: township-celery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: township-celery
+  template:
+    metadata:
+      labels:
+        app: township-celery
+    spec:
+      containers:
+        - name: celery-worker
+          image: ghcr.io/your-org/township-backend:latest
+          command: ["celery", "-A", "app.workers.celery_app.celery_app", "worker", "-l", "info"]
+          envFrom:
+            - secretRef:
+                name: township-secrets
+            - configMapRef:
+                name: township-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: township-celery-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: township-celery-beat
+  template:
+    metadata:
+      labels:
+        app: township-celery-beat
+    spec:
+      containers:
+        - name: celery-beat
+          image: ghcr.io/your-org/township-backend:latest
+          command: ["celery", "-A", "app.workers.celery_app.celery_app", "beat", "-l", "info"]
+          envFrom:
+            - secretRef:
+                name: township-secrets
+            - configMapRef:
+                name: township-config

@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: township-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: township-frontend
+  template:
+    metadata:
+      labels:
+        app: township-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/your-org/township-frontend:latest
+          ports:
+            - containerPort: 4173
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: township-frontend
+spec:
+  selector:
+    app: township-frontend
+  ports:
+    - port: 80
+      targetPort: 4173
