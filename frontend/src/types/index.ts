@@ -1,3 +1,5 @@
+export type UserRole = "resident" | "staff" | "admin";
+
 export type Branding = {
   town_name?: string;
   hero_text?: string;
@@ -33,4 +35,19 @@ export type ServiceRequest = {
   ai_analysis?: Record<string, unknown> | null;
   jurisdiction_warning?: string | null;
   created_at: string;
+};
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  display_name: string;
+  role: UserRole;
+  department?: string | null;
+};
+
+export type TokenResponse = {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
 };

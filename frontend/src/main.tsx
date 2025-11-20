@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import "./index.css";
 import App from "./App";
+import { AuthBootstrapper } from "./components/AuthBootstrapper";
+import { RequireRole } from "./components/RequireRole";
+import { LoginPage } from "./pages/LoginPage";
 import { AdminConsole } from "./pages/AdminConsole";
 import { ResidentPortal } from "./pages/ResidentPortal";
 import { StaffCommandCenter } from "./pages/StaffCommandCenter";
@@ -17,8 +20,23 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <ResidentPortal /> },
-      { path: "admin", element: <AdminConsole /> },
-      { path: "staff", element: <StaffCommandCenter /> },
+      { path: "login", element: <LoginPage /> },
+      {
+        path: "admin",
+        element: (
+          <RequireRole roles={["admin"]}>
+            <AdminConsole />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "staff",
+        element: (
+          <RequireRole roles={["admin", "staff"]}>
+            <StaffCommandCenter />
+          </RequireRole>
+        ),
+      },
     ],
   },
 ]);
@@ -26,7 +44,9 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <AuthBootstrapper>
+        <RouterProvider router={router} />
+      </AuthBootstrapper>
     </QueryClientProvider>
   </StrictMode>,
 );

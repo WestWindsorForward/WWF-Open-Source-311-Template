@@ -16,9 +16,7 @@ export const useStaffRequests = () =>
   useQuery({
     queryKey: ["staff-requests"],
     queryFn: async () => {
-      const { data } = await client.get<ServiceRequest[]>("/api/staff/requests", {
-        headers: { "X-Admin-Key": import.meta.env.VITE_ADMIN_KEY ?? "dev-admin-key" },
-      });
+      const { data } = await client.get<ServiceRequest[]>("/api/staff/requests");
       return data;
     },
   });
@@ -42,13 +40,7 @@ export const useUpdateStaffRequest = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: Record<string, unknown> }) => {
-      const { data } = await client.patch<ServiceRequest>(
-        `/api/staff/requests/${id}`,
-        payload,
-        {
-          headers: { "X-Admin-Key": import.meta.env.VITE_ADMIN_KEY ?? "dev-admin-key" },
-        },
-      );
+      const { data } = await client.patch<ServiceRequest>(`/api/staff/requests/${id}`, payload);
       return data;
     },
     onSuccess: () => {

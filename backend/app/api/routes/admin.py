@@ -2,15 +2,16 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, require_admin
+from app.api.deps import get_db, require_roles
 from app.models.issue import IssueCategory
 from app.models.settings import ApiCredential, BrandingAsset, GeoBoundary, NotificationTemplate, TownshipSetting
+from app.models.user import UserRole
 from app.schemas.issue import IssueCategoryCreate, IssueCategoryRead, IssueCategoryUpdate
 from app.schemas.settings import BrandingUpdate, GeoBoundaryUpload, SecretsPayload
 from app.services import gis
 from app.utils.storage import save_file
 
-router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(require_roles(UserRole.admin))])
 
 
 @router.get("/branding", response_model=dict)

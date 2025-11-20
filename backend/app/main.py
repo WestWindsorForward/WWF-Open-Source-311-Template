@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import admin, open311, resident, staff
+from app.api.routes import admin, auth, open311, resident, staff
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
@@ -30,6 +30,7 @@ app.include_router(open311.router)
 app.include_router(resident.router, prefix=settings.api_v1_prefix)
 app.include_router(admin.router, prefix=settings.api_v1_prefix)
 app.include_router(staff.router, prefix=settings.api_v1_prefix)
+app.include_router(auth.router)
 
 
 @app.get("/health", tags=["Health"])

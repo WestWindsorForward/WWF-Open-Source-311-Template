@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
     admin_api_key: str = "dev-admin-key"
+    refresh_token_expire_days: int = 30
 
     storage_dir: str = "./storage"
 

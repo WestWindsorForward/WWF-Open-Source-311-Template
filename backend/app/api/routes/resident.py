@@ -2,14 +2,15 @@ import secrets
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi import Form as FastAPIForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_optional_user
 from app.models.issue import IssueCategory, RequestAttachment, ServiceRequest, ServiceStatus
 from app.models.settings import BrandingAsset, TownshipSetting
+from app.models.user import User, UserRole
 from app.schemas.issue import ServiceRequestRead
 from app.services import gis
 from app.services.ai import analyze_request
@@ -60,6 +61,7 @@ async def create_resident_request(
     resident_phone: Annotated[str | None, FastAPIForm(None)] = None,
     media: UploadFile | None = File(None),
     session: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ) -> ServiceRequestRead:
     stmt = select(IssueCategory).where(IssueCategory.slug == service_code)
     result = await session.execute(stmt)
@@ -92,6 +94,7 @@ async def create_resident_request(
         category_id=category.id,
         ai_analysis=ai_result,
         metadata=metadata,
+        resident_id=current_user.id if current_user else None,
     )
 
     session.add(request)
@@ -112,11 +115,29 @@ async def create_resident_request(
     return ServiceRequestRead.model_validate(request)
 
 
+@router.get("/requests", response_model=list[ServiceRequestRead])
+async def list_my_requests(
+    current_user: User | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> list[ServiceRequestRead]:
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    stmt = select(ServiceRequest).where(ServiceRequest.resident_id == current_user.id).order_by(ServiceRequest.created_at.desc())
+    result = await session.execute(stmt)
+    return [ServiceRequestRead.model_validate(req) for req in result.scalars().all()]
+
+
 @router.get("/requests/{external_id}", response_model=ServiceRequestRead)
-async def get_resident_request(external_id: str, session: AsyncSession = Depends(get_db)) -> ServiceRequestRead:
+async def get_resident_request(
+    external_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+) -> ServiceRequestRead:
     stmt = select(ServiceRequest).where(ServiceRequest.external_id == external_id)
     result = await session.execute(stmt)
     request = result.scalar_one_or_none()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
+    if current_user and current_user.role == UserRole.resident and request.resident_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this request")
     return ServiceRequestRead.model_validate(request)

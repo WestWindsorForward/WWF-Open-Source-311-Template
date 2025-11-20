@@ -30,3 +30,4 @@ class User(Base, TimestampMixin):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     submitted_requests = relationship("ServiceRequest", back_populates="resident", cascade="all,delete", foreign_keys="ServiceRequest.resident_id")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all,delete-orphan")

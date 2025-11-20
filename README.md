@@ -24,7 +24,14 @@ npm install
 npm run dev
 ```
 
-Set environment variables using `backend/.env.example`. Default admin API key: `dev-admin-key`.
+Set environment variables using `backend/.env.example`. (`ADMIN_API_KEY` remains for legacy tooling, but runtime auth now relies on JWT access/refresh tokens.)
+
+## Authentication
+
+- Residents can self-register via `POST /api/auth/register` (or through the UI when available).
+- Staff/Admins authenticate via `/api/auth/login` (handled by the `/login` page in the frontend). Responses include short-lived access tokens plus refresh tokens.
+- Protected APIs now require `Authorization: Bearer <access_token>`; refresh tokens can be rotated via `POST /api/auth/refresh`.
+- Admins can invite staff accounts through `POST /api/auth/invite` (requires admin role).
 
 ## Docker Compose
 

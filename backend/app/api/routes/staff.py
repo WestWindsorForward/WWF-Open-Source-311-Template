@@ -7,15 +7,20 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, require_admin
+from app.api.deps import get_db, require_roles
 from app.models.issue import RequestAttachment, ServiceRequest, ServiceStatus
+from app.models.user import UserRole
 from app.schemas.issue import ServiceRequestRead
 from app.services.notifications import notify_resident
 from app.services.pdf import generate_case_pdf
 from app.services.webhook import broadcast_status_change
 from app.utils.storage import save_file
 
-router = APIRouter(prefix="/staff", tags=["Staff"], dependencies=[Depends(require_admin)])
+router = APIRouter(
+    prefix="/staff",
+    tags=["Staff"],
+    dependencies=[Depends(require_roles(UserRole.staff, UserRole.admin))],
+)
 
 
 @router.get("/requests", response_model=list[ServiceRequestRead])

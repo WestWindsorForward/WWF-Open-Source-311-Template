@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import client from "../api/client";
 import { useResidentConfig } from "../api/hooks";
@@ -12,28 +12,28 @@ export function AdminPanel() {
     secondary_color: config?.branding?.secondary_color ?? "#38bdf8",
   });
 
+  useEffect(() => {
+    if (!config?.branding) return;
+    setFormState({
+      town_name: config.branding.town_name ?? "",
+      hero_text: config.branding.hero_text ?? "",
+      primary_color: config.branding.primary_color ?? "#0f172a",
+      secondary_color: config.branding.secondary_color ?? "#38bdf8",
+    });
+  }, [config]);
+
   const updateBranding = async () => {
-    await client.put(
-      "/api/admin/branding",
-      formState,
-      { headers: { "X-Admin-Key": import.meta.env.VITE_ADMIN_KEY ?? "dev-admin-key" } },
-    );
+    await client.put("/api/admin/branding", formState);
     refetch();
   };
 
   const addCategory = async (payload: { slug: string; name: string }) => {
-    await client.post(
-      "/api/admin/categories",
-      { ...payload, default_priority: "medium" },
-      { headers: { "X-Admin-Key": import.meta.env.VITE_ADMIN_KEY ?? "dev-admin-key" } },
-    );
+    await client.post("/api/admin/categories", { ...payload, default_priority: "medium" });
     refetch();
   };
 
   const storeSecret = async (payload: { provider: string; key: string; secret: string }) => {
-    await client.post("/api/admin/secrets", payload, {
-      headers: { "X-Admin-Key": import.meta.env.VITE_ADMIN_KEY ?? "dev-admin-key" },
-    });
+    await client.post("/api/admin/secrets", payload);
   };
 
   return (
