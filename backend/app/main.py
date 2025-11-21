@@ -14,18 +14,19 @@ from app.middleware.request_id import RequestIDMiddleware
 
 configure_logging()
 
+instrumentator = Instrumentator()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    instrumentator = Instrumentator().instrument(app)
     instrumentator.expose(app)
     configure_tracing(app)
     yield
 
 
 app = FastAPI(title=settings.project_name, lifespan=lifespan)
+instrumentator.instrument(app)
 app.add_middleware(RequestIDMiddleware)
 
 app.add_middleware(
