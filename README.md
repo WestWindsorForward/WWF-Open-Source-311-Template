@@ -46,6 +46,7 @@ Caddy will expose everything on `http://localhost` with `/api/*` routed to FastA
 ## Database Migrations
 
 - Schema managed via Alembic (`backend/alembic`). Run `./scripts/run_migrations.sh` to apply the latest revision.
+  - The script auto-detects whether `alembic` is installed locally; if not, it runs `docker-compose run backend alembic upgrade head`.
 - Generate new migrations with `alembic revision --autogenerate -m "your message"` inside `backend/`.
 
 ## Custom Domains
