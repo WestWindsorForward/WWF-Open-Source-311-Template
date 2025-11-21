@@ -19,7 +19,9 @@ services:
       - redis_data:/data
 
   clamav:
-    image: clamav/clamav:stable
+    image: mkodockx/docker-clamav:alpine
+    environment:
+      CLAMD_STARTUP_TIMEOUT: 60
     healthcheck:
       test: ["CMD", "clamdscan", "--version"]
       interval: 30s
