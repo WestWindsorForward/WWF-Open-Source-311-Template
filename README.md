@@ -70,6 +70,16 @@ If anything looks off after setup, run:
 
 This gathers container status, health checks, pg connectivity, Alembic head info, and tail logs for backend + Caddy so you can zero in on the failure fast.
 
+## Plug-and-Play Appliance Option
+
+For towns that prefer an importable VM over shell scripts, use the appliance tools in `appliance/`:
+
+- Build or download the pre-hardened image for your hypervisor (Scale HC3, VMware, Hyper-V, etc.).
+- On first boot, the console wizard (`appliance/first_boot.py`) collects admin credentials + domain, runs the bootstrapper, and prints the login URL.
+- Future updates still run on the town’s servers with `townshipctl` commands (backed by `scripts/setup_township.sh`).
+
+See `appliance/README.md` for build instructions and operational guidance. This keeps everything open-source and on-prem while giving municipalities a plug-and-play experience.
+
 ## Docker Compose (manual)
 
 ```bash
