@@ -3,7 +3,7 @@ import axios from "axios";
 import { authSelectors, useAuthStore } from "../store/auth";
 import type { TokenResponse } from "../types";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const baseURL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const client = axios.create({ baseURL });
 const refreshClient = axios.create({ baseURL });

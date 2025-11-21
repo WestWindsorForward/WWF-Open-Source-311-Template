@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr
@@ -24,7 +25,7 @@ class RegisterRequest(BaseModel):
 
 
 class UserReadWithRole(BaseModel):
-    id: str
+    id: uuid.UUID
     email: EmailStr
     display_name: str
     role: UserRole
