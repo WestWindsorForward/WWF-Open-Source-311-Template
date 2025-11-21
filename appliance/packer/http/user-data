@@ -1,0 +1,22 @@
+#cloud-config
+autoinstall:
+  version: 1
+  identity:
+    hostname: township-appliance
+    username: township
+    password: "$6$X9dR5iQ3$qoZZY4HbK1JrVN6a8GN28AL5OHnqd7qV3CyMfCVxYvBy06SnVAk0nnBYnOVrlaR271GGBqBPdZiZsaAJ+lZe1"
+  ssh:
+    install-server: true
+  storage:
+    layout:
+      name: direct
+  locale: en_US
+  keyboard:
+    layout: us
+  packages:
+    - cloud-init
+    - qemu-guest-agent
+  late-commands:
+    - curtin in-target --target=/target -- systemctl enable qemu-guest-agent
+    - curtin in-target --target=/target -- sed -i 's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="console=ttyS0,115200n8"/' /etc/default/grub
+    - curtin in-target --target=/target -- update-grub

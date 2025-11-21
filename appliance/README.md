@@ -33,6 +33,27 @@ This directory contains tooling that turns the Township stack into a pre-configu
 
 4. Shut down the VM and export it as the format your towns expect (Scale HC3 template, VMware OVA, Hyper-V VHDX, etc.).
 
+### Automated builds with Packer
+
+To produce QCOW2/VMDK/VHDX/RAW artifacts in one shot:
+
+```bash
+cd appliance/packer
+./build_all.sh
+```
+
+Requirements: HashiCorp Packer v1.10+, `qemu-img`, and enough disk space (~10 GB per artifact). The script:
+
+- Uses Ubuntu 22.04 autoinstall to seed an OS with a pre-created `township` administrator account (password `township`, rotated on first boot).
+- Installs Docker + prerequisites, copies the current repo into `/opt/township`, and enables the first-boot wizard.
+- Emits images under `appliance/packer/build/`:
+  - `*.qcow2` for KVM/Proxmox/Scale
+  - `*.vmdk` for VMware/ESXi
+  - `*.vhdx` for Hyper-V
+  - `*.raw` for environments that need raw disks (convertible to Scale HC3 VDI)
+
+You can then import each file into the target hypervisor or wrap it into its native template format (OVA, XVA, etc.).
+
 ## Operating the Appliance
 
 1. Import the image into the town’s infrastructure and power it on.
