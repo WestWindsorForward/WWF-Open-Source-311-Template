@@ -7,8 +7,11 @@ from typing import Any, TypedDict
 
 from vertexai import generative_models, init as vertexai_init
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
 from app.services import runtime_config
+from app.services.secrets import get_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +24,36 @@ class AIAnalysis(TypedDict, total=False):
     raw: dict[str, Any]
 
 
-async def analyze_request(description: str, media_urls: list[str] | None = None) -> AIAnalysis:
+async def analyze_request(
+    description: str,
+    media_urls: list[str] | None = None,
+    *,
+    session: AsyncSession | None = None,
+) -> AIAnalysis:
     """Run an AI triage workflow; fall back to heuristic if Vertex AI unavailable."""
 
     vertex_project = await runtime_config.get_value("vertex_ai_project", settings.vertex_ai_project)
     vertex_model = await runtime_config.get_value("vertex_ai_model", settings.vertex_ai_model)
     vertex_location = await runtime_config.get_value("vertex_ai_location", settings.vertex_ai_location)
+    service_account_info: dict[str, Any] | None = None
+    if session:
+        cred = await get_credentials(session, "vertex-ai")
+        if cred and cred.secret:
+            try:
+                service_account_info = json.loads(cred.secret)
+            except json.JSONDecodeError:
+                logger.warning("Vertex AI secret is not valid JSON; falling back to ADC.")
+
     if vertex_project and vertex_model:
         try:
             def _call_vertex() -> AIAnalysis:
-                vertexai_init(project=vertex_project, location=vertex_location)
+                kwargs: dict[str, Any] = {"project": vertex_project, "location": vertex_location}
+                if service_account_info:
+                    from google.oauth2 import service_account
+
+                    credentials = service_account.Credentials.from_service_account_info(service_account_info)
+                    kwargs["credentials"] = credentials
+                vertexai_init(**kwargs)
                 model = generative_models.GenerativeModel(vertex_model)
                 prompt = (
                     "You are triaging civic service requests. "

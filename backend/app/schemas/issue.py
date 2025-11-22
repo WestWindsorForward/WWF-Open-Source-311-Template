@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from typing import Any
@@ -64,23 +66,6 @@ class RequestAttachmentRead(BaseModel):
         from_attributes = True
 
 
-class ServiceRequestRead(ServiceRequestBase):
-    id: uuid.UUID
-    external_id: str
-    priority: ServicePriority
-    status: ServiceStatus
-    ai_analysis: dict[str, Any] | None = None
-    jurisdiction_warning: str | None = None
-    category_id: int | None = None
-    attachments: list[RequestAttachmentRead] = []
-    updates: list["RequestUpdateRead"] = []
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
 class RequestUpdateRead(BaseModel):
     id: int
     request_id: uuid.UUID
@@ -90,7 +75,30 @@ class RequestUpdateRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-      class Config:
+    class Config:
+        from_attributes = True
+
+
+class RequestUpdateCreate(BaseModel):
+    notes: str
+    public: bool = False
+    status_override: ServiceStatus | None = None
+
+
+class ServiceRequestRead(ServiceRequestBase):
+    id: uuid.UUID
+    external_id: str
+    priority: ServicePriority
+    status: ServiceStatus
+    ai_analysis: dict[str, Any] | None = None
+    jurisdiction_warning: str | None = None
+    category_id: int | None = None
+    attachments: list[RequestAttachmentRead] = []
+    updates: list[RequestUpdateRead] = []
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
         from_attributes = True
 
 

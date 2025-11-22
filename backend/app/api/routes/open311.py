@@ -56,7 +56,7 @@ async def create_request(payload: Open311RequestCreate, session: AsyncSession = 
     if not allowed:
         raise HTTPException(status_code=400, detail="Location outside township boundary")
 
-    ai_result = await analyze_request(payload.description, payload.media_url)
+    ai_result = await analyze_request(payload.description, payload.media_url, session=session)
 
     external_id = f"SR-{datetime.utcnow().strftime('%Y%m%d')}-{secrets.token_hex(3)}"
     request = ServiceRequest(
@@ -69,6 +69,7 @@ async def create_request(payload: Open311RequestCreate, session: AsyncSession = 
         priority=category.default_priority,
         status=ServiceStatus.received,
         category_id=category.id,
+        assigned_department=category.default_department_slug,
         jurisdiction_warning=warning,
         ai_analysis=ai_result,
         meta={

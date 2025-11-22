@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_db, require_roles
-from app.models.issue import RequestAttachment, ServiceRequest, ServiceStatus
+from app.models.issue import RequestAttachment, RequestUpdate, ServiceRequest, ServiceStatus
 from app.models.user import User, UserRole
-from app.schemas.issue import ServiceRequestRead
+from app.schemas.issue import RequestUpdateCreate, RequestUpdateRead, ServiceRequestRead
 from app.services import antivirus
 from app.services.audit import log_event
 from app.services.notifications import notify_resident
@@ -109,3 +109,60 @@ async def export_pdf(request_id: uuid.UUID, session: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Request not found")
     path = generate_case_pdf(request, Path("storage/pdfs"))
     return FileResponse(path)
+
+
+@router.post("/requests/{request_id}/comments", response_model=RequestUpdateRead)
+async def add_request_comment(
+    request_id: uuid.UUID,
+    payload: RequestUpdateCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.staff, UserRole.admin)),
+) -> RequestUpdateRead:
+    service_request = await session.get(ServiceRequest, request_id)
+    if not service_request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    update = RequestUpdate(
+        request_id=service_request.id,
+        author_id=current_user.id,
+        notes=payload.notes,
+        public=payload.public,
+        status_override=payload.status_override,
+    )
+    session.add(update)
+    if payload.status_override:
+        service_request.status = payload.status_override
+    await session.commit()
+    await session.refresh(update)
+    await session.refresh(service_request, attribute_names=["updates"])
+    await log_event(
+        session,
+        action="service_request.comment",
+        actor=current_user,
+        entity_type="service_request",
+        entity_id=str(service_request.id),
+        request=request,
+        metadata=payload.model_dump(),
+    )
+    return RequestUpdateRead.model_validate(update)
+
+
+@router.get("/requests/{request_id}/attachments/{attachment_id}")
+async def download_attachment(
+    request_id: uuid.UUID,
+    attachment_id: int,
+    session: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.staff, UserRole.admin)),
+) -> FileResponse:
+    stmt = (
+        select(RequestAttachment)
+        .where(RequestAttachment.id == attachment_id, RequestAttachment.request_id == request_id)
+    )
+    result = await session.execute(stmt)
+    attachment = result.scalar_one_or_none()
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    file_path = attachment.file_path
+    if not Path(file_path).exists():
+        raise HTTPException(status_code=404, detail="File missing on disk")
+    return FileResponse(file_path, media_type=attachment.content_type or "application/octet-stream")

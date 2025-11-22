@@ -4,15 +4,18 @@ import { logoutSession } from "./api/auth";
 import { useAuthStore } from "./store/auth";
 
 export default function App() {
-  const navItems = [
-    { to: "/", label: "Resident Portal" },
-    { to: "/admin", label: "Township Settings" },
-    { to: "/staff", label: "Staff Command Center" },
-  ];
   const user = useAuthStore((state) => state.user);
   const tokens = useAuthStore((state) => state.tokens);
   const clearSession = useAuthStore((state) => state.clearSession);
   const navigate = useNavigate();
+
+  const navItems =
+    !user || user.role === "resident"
+      ? []
+      : [
+          ...(user.role === "admin" ? [{ to: "/admin", label: "Township Settings" }] : []),
+          { to: "/staff", label: "Staff Command Center" },
+        ];
 
   const handleLogout = async () => {
     try {
@@ -27,6 +30,8 @@ export default function App() {
     }
   };
 
+  const showStaffSignIn = !user || user.role === "resident";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-white pb-16">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
@@ -36,21 +41,23 @@ export default function App() {
             <h1 className="text-xl font-semibold text-slate-900">Request Management</h1>
           </div>
           <div className="flex flex-1 items-center justify-end gap-4">
-            <nav className="flex gap-2 text-sm font-medium text-slate-600">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 transition ${
-                      isActive ? "bg-slate-900 text-white" : "hover:bg-slate-100"
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
+            {navItems.length > 0 && (
+              <nav className="flex gap-2 text-sm font-medium text-slate-600">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `rounded-full px-4 py-2 transition ${
+                        isActive ? "bg-slate-900 text-white" : "hover:bg-slate-100"
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
             {user ? (
               <div className="flex items-center gap-3 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
                 <span>{user.display_name}</span>
@@ -64,14 +71,11 @@ export default function App() {
                   Logout
                 </button>
               </div>
-            ) : (
-              <NavLink
-                to="/login"
-                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Sign in
+            ) : showStaffSignIn ? (
+              <NavLink to="/login" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                Staff Sign In
               </NavLink>
-            )}
+            ) : null}
           </div>
         </div>
       </header>

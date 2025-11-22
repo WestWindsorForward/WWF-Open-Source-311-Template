@@ -1,9 +1,11 @@
 import secrets
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi import Form as FastAPIForm
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -17,6 +19,7 @@ from app.schemas.issue import ServiceRequestRead
 from app.services import antivirus, gis, runtime_config as runtime_config_service
 from app.services.ai import analyze_request
 from app.services.notifications import notify_resident
+from app.services.pdf import generate_case_pdf
 from app.utils.storage import save_upload
 from app.workers.tasks import ai_triage_task
 
@@ -86,7 +89,7 @@ async def create_resident_request(
     if not allowed:
         raise HTTPException(status_code=400, detail="Location outside township boundary")
 
-    ai_result = await analyze_request(description)
+    ai_result = await analyze_request(description, session=session)
 
     metadata = {
         "resident_email": resident_email,
@@ -177,3 +180,38 @@ async def recent_requests(limit: int = 5, session: AsyncSession = Depends(get_db
     )
     result = await session.execute(stmt)
     return [ServiceRequestRead.model_validate(req) for req in result.scalars().all()]
+
+
+@router.get("/requests/{external_id}/attachments/{attachment_id}")
+async def download_public_attachment(
+    external_id: str,
+    attachment_id: int,
+    session: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    stmt = (
+        select(ServiceRequest)
+        .options(selectinload(ServiceRequest.attachments))
+        .where(ServiceRequest.external_id == external_id)
+    )
+    result = await session.execute(stmt)
+    request = result.scalar_one_or_none()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    attachment = next((att for att in request.attachments if att.id == attachment_id), None)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    path = Path(attachment.file_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File missing on disk")
+    return FileResponse(str(path), media_type=attachment.content_type or "application/octet-stream")
+
+
+@router.get("/requests/{external_id}/pdf")
+async def download_public_pdf(external_id: str, session: AsyncSession = Depends(get_db)) -> FileResponse:
+    stmt = select(ServiceRequest).where(ServiceRequest.external_id == external_id)
+    result = await session.execute(stmt)
+    request = result.scalar_one_or_none()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    path = generate_case_pdf(request, Path("storage/pdfs"))
+    return FileResponse(path)

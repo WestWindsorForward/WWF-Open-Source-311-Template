@@ -25,6 +25,7 @@ export function RequestForm({ categories, mapsApiKey }: Props) {
     defaultValues: { service_code: categories[0]?.slug ?? "" },
   });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const createRequest = useCreateResidentRequest();
 
   const onSubmit = handleSubmit((values) => {
@@ -36,10 +37,14 @@ export function RequestForm({ categories, mapsApiKey }: Props) {
       formData.append("latitude", coords.lat.toString());
       formData.append("longitude", coords.lng.toString());
     }
+    if (attachment) {
+      formData.append("media", attachment);
+    }
     createRequest.mutate(formData, {
       onSuccess: () => {
         reset();
         setCoords(null);
+        setAttachment(null);
       },
     });
   });
@@ -121,6 +126,16 @@ export function RequestForm({ categories, mapsApiKey }: Props) {
           </p>
         )}
       </div>
+
+        <label className="text-sm font-medium text-slate-600">
+          Photo (optional)
+          <input
+            type="file"
+            accept="image/*"
+            className="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-2"
+            onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
+          />
+        </label>
 
       <button
         type="submit"
