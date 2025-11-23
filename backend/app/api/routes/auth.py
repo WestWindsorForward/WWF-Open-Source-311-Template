@@ -94,15 +94,21 @@ async def login(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(payload: RefreshRequest, session: AsyncSession = Depends(get_db)) -> TokenResponse:
     token_hash_value = hash_token(payload.refresh_token)
-    stmt = select(RefreshToken).where(RefreshToken.token_hash == token_hash_value, RefreshToken.revoked.is_(False))
+    stmt = (
+        select(RefreshToken, User)
+        .join(User, RefreshToken.user_id == User.id)
+        .where(RefreshToken.token_hash == token_hash_value, RefreshToken.revoked.is_(False))
+    )
     result = await session.execute(stmt)
-    record = result.scalar_one_or_none()
-    if not record or record.expires_at < datetime.now(timezone.utc):
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+    record, user = row
+    if record.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
     record.revoked = True
     await session.flush()
-    user = record.user
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User no longer active")
 
