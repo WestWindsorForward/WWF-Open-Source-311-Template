@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.db.session import get_session
-from app.models.user import User, UserRole
+from app.models.user import StaffDepartmentLink, User, UserRole
 from app.services import rate_limit as rate_limit_service, runtime_config as runtime_config_service
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_prefix}/auth/login")
@@ -32,7 +32,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: AsyncSe
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
     stmt = (
         select(User)
-        .options(selectinload(User.departments))
+        .options(
+            selectinload(User.department_links).selectinload(StaffDepartmentLink.department)
+        )
         .where(User.id == uuid.UUID(sub))
     )
     result = await session.execute(stmt)
@@ -57,7 +59,9 @@ async def get_optional_user(
         return None
     stmt = (
         select(User)
-        .options(selectinload(User.departments))
+        .options(
+            selectinload(User.department_links).selectinload(StaffDepartmentLink.department)
+        )
         .where(User.id == uuid.UUID(sub))
     )
     result = await session.execute(stmt)
