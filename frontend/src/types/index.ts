@@ -2,11 +2,13 @@ export type UserRole = "resident" | "staff" | "admin";
 
 export type Branding = {
   town_name?: string;
+  site_title?: string;
   hero_text?: string;
   primary_color?: string;
   secondary_color?: string;
   logo_url?: string;
   seal_url?: string;
+  favicon_url?: string;
 };
 
 export type IssueCategory = {

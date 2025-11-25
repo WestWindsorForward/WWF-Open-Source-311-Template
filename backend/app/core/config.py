@@ -7,11 +7,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class BrandingConfig(BaseModel):
     town_name: str = "Your Township"
+    site_title: str = "Township Request Management System"
     hero_text: str = "Welcome to Your Township Request Portal"
     primary_color: str = "#0F172A"
     secondary_color: str = "#38BDF8"
     logo_url: str | None = None
     seal_url: str | None = None
+    favicon_url: str | None = None
 
 
 class Settings(BaseSettings):

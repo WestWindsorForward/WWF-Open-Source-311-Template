@@ -7,6 +7,7 @@ from app.models.settings import BoundaryKind, JurisdictionLevel
 
 class BrandingUpdate(BaseModel):
     town_name: str | None = None
+    site_title: str | None = None
     hero_text: str | None = None
     primary_color: str | None = None
     secondary_color: str | None = None

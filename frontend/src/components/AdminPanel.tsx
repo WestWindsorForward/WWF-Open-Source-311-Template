@@ -3,6 +3,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react
 
 import client from "../api/client";
 import {
+  useAdminCategories,
   useBoundaries,
   useDepartments,
   useResidentConfig,
@@ -10,7 +11,15 @@ import {
   useStaffDirectory,
   useStaffRequests,
 } from "../api/hooks";
-import type { Department, IssueCategory, ResidentConfig, SecretSummary, StaffUser } from "../types";
+import type {
+  AdminCategory,
+  Department,
+  IssueCategory,
+  ResidentConfig,
+  SecretSummary,
+  ServiceRequest,
+  StaffUser,
+} from "../types";
 
 type DepartmentFormState = {
   slug: string;
@@ -50,14 +59,18 @@ export function AdminPanel() {
   const staffQuery = useStaffDirectory();
   const secretsQuery = useSecrets();
   const boundariesQuery = useBoundaries();
+  const adminCategoriesQuery = useAdminCategories();
+  const requestsQuery = useStaffRequests();
 
   const [brandingForm, setBrandingForm] = useState({
     town_name: residentConfig?.branding?.town_name ?? "",
+    site_title: residentConfig?.branding?.site_title ?? "",
     hero_text: residentConfig?.branding?.hero_text ?? "",
     primary_color: residentConfig?.branding?.primary_color ?? "#0f172a",
     secondary_color: residentConfig?.branding?.secondary_color ?? "#38bdf8",
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [faviconFile, setFaviconFile] = useState<File | null>(null);
   const [newDepartment, setNewDepartment] = useState<DepartmentFormState>({
     slug: "",
     name: "",
@@ -120,13 +133,14 @@ export function AdminPanel() {
     if (!residentConfig?.branding) return;
     setBrandingForm({
       town_name: residentConfig.branding.town_name ?? "",
+      site_title: residentConfig.branding.site_title ?? "",
       hero_text: residentConfig.branding.hero_text ?? "",
       primary_color: residentConfig.branding.primary_color ?? "#0f172a",
       secondary_color: residentConfig.branding.secondary_color ?? "#38bdf8",
     });
   }, [residentConfig]);
 
-    const runtimeConfigQuery = useQuery({
+  const runtimeConfigQuery = useQuery({
     queryKey: ["runtime-config"],
     queryFn: async () => {
       const { data } = await client.get<Record<string, unknown>>("/api/admin/runtime-config");
@@ -134,16 +148,15 @@ export function AdminPanel() {
     },
   });
 
-    const runtimeMutation = useMutation({
-    mutationFn: async (payload: Record<string, unknown>) =>
-      client.put("/api/admin/runtime-config", payload),
-      onSuccess: () => {
-        runtimeConfigQuery.refetch();
-        runtimeSuccess.flash();
-      },
+  const runtimeMutation = useMutation({
+    mutationFn: async (payload: Record<string, unknown>) => client.put("/api/admin/runtime-config", payload),
+    onSuccess: () => {
+      runtimeConfigQuery.refetch();
+      runtimeSuccess.flash();
+    },
   });
 
-    const brandingMutation = useMutation({
+  const brandingMutation = useMutation({
     mutationFn: async () => {
       await client.put("/api/admin/branding", brandingForm);
       if (logoFile) {
@@ -153,30 +166,39 @@ export function AdminPanel() {
           headers: { "Content-Type": "multipart/form-data" },
         });
       }
-      },
-      onSuccess: () => {
-        refetch();
-        brandingSuccess.flash();
-      },
+      if (faviconFile) {
+        const formData = new FormData();
+        formData.append("file", faviconFile);
+        await client.post("/api/admin/branding/assets/favicon", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+    },
+    onSuccess: () => {
+      refetch();
+      setLogoFile(null);
+      setFaviconFile(null);
+      brandingSuccess.flash();
+    },
   });
 
   const departmentMutation = useMutation({
-    mutationFn: async (payload: typeof newDepartment) =>
-      client.post("/api/admin/departments", payload),
-      onSuccess: () => {
+    mutationFn: async (payload: typeof newDepartment) => client.post("/api/admin/departments", payload),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["departments"] });
       setNewDepartment({ slug: "", name: "", description: "", contact_email: "", contact_phone: "" });
-        departmentSuccess.flash();
+      departmentSuccess.flash();
     },
   });
 
   const categoryMutation = useMutation({
     mutationFn: async (payload: typeof newCategory) =>
       client.post("/api/admin/categories", { ...payload, default_priority: "medium" }),
-      onSuccess: () => {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
       setNewCategory({ slug: "", name: "", description: "", default_department_slug: "" });
       refetch();
-        categorySuccess.flash();
+      categorySuccess.flash();
     },
   });
 
@@ -191,7 +213,7 @@ export function AdminPanel() {
         geojson: JSON.parse(payload.geojson),
         service_code_filters: payload.service_code_filters ?? [],
       }),
-      onSuccess: () => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
       setNewBoundary({
         name: "Primary Boundary",
@@ -202,7 +224,7 @@ export function AdminPanel() {
         geojson: "",
         service_code_filters: [],
       });
-        boundarySuccess.flash();
+      boundarySuccess.flash();
     },
   });
 
@@ -236,10 +258,10 @@ export function AdminPanel() {
 
   const staffMutation = useMutation({
     mutationFn: async (payload: typeof newStaff) => client.post("/api/admin/staff", payload),
-      onSuccess: () => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff-directory"] });
       setNewStaff({ email: "", display_name: "", role: "staff", department: "", phone_number: "", password: "" });
-        staffSuccess.flash();
+      staffSuccess.flash();
     },
   });
 
@@ -253,10 +275,10 @@ export function AdminPanel() {
         metadata,
       });
     },
-      onSuccess: () => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["secrets"] });
       setSecretForm((prev) => ({ ...prev, key: "", secret: "", notes: "" }));
-        secretSuccess.flash();
+      secretSuccess.flash();
     },
   });
 
@@ -268,6 +290,7 @@ export function AdminPanel() {
   const deleteCategoryMutation = useMutation({
     mutationFn: async (categoryId: number) => client.delete(`/api/admin/categories/${categoryId}`),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
       refetch();
       queryClient.invalidateQueries({ queryKey: ["departments"] });
     },
@@ -290,7 +313,10 @@ export function AdminPanel() {
 
   const deleteRequestMutation = useMutation({
     mutationFn: async (requestId: string) => client.delete(`/api/admin/requests/${requestId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-requests"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-requests"], exact: false });
+    },
   });
 
   const handleDepartmentDelete = (departmentId: string) => {
@@ -327,8 +353,10 @@ export function AdminPanel() {
   const boundaries = boundariesQuery.data ?? [];
   const staff = staffQuery.data ?? [];
   const secrets = secretsQuery.data ?? [];
-
-  const categories = useMemo(() => residentConfig?.categories ?? [], [residentConfig]);
+  const residentCategories = useMemo(() => residentConfig?.categories ?? [], [residentConfig]);
+  const adminCategories = adminCategoriesQuery.data ?? [];
+  const categoryOptions: IssueCategory[] =
+    residentCategories.length > 0 ? residentCategories : adminCategories;
   const serviceRequests = requestsQuery.data ?? [];
 
   return (
@@ -337,7 +365,7 @@ export function AdminPanel() {
           title="Resident Portal Snapshot"
           description="Verify what residents currently see on the public site."
         >
-          <PortalPreview branding={residentConfig?.branding} categories={categories} />
+          <PortalPreview branding={residentConfig?.branding} categories={residentCategories} />
         </Section>
 
         <Section title="Branding & Logo" description="Update live colors, hero copy, and upload a township seal or logo.">
@@ -358,26 +386,39 @@ export function AdminPanel() {
             </label>
           ))}
         </div>
-          <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-end md:gap-4">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="text-sm text-slate-600">
-            Township Logo
+            Township logo
             <input
               type="file"
               accept="image/*"
               className="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-2"
               onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)}
             />
+            <p className="text-xs text-slate-500">Appears in the site header and resident portal preview.</p>
           </label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => brandingMutation.mutate()}
-                className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-                disabled={brandingMutation.isPending}
-              >
-                {brandingMutation.isPending ? "Saving..." : "Save Branding"}
-              </button>
-              <SaveBadge show={brandingSuccess.isVisible} label="Branding published" />
-            </div>
+          <label className="text-sm text-slate-600">
+            Browser favicon
+            <input
+              type="file"
+              accept="image/png,image/x-icon,image/svg+xml"
+              className="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-2"
+              onChange={(event) => setFaviconFile(event.target.files?.[0] ?? null)}
+            />
+            <p className="text-xs text-slate-500">Use a square image (64px+) to update the tab icon.</p>
+          </label>
+        </div>
+        <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-end md:gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => brandingMutation.mutate()}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+              disabled={brandingMutation.isPending}
+            >
+              {brandingMutation.isPending ? "Saving..." : "Save Branding"}
+            </button>
+            <SaveBadge show={brandingSuccess.isVisible} label="Branding published" />
+          </div>
         </div>
       </Section>
 
@@ -457,7 +498,7 @@ export function AdminPanel() {
                 value={googleBoundaryForm.service_code_filters}
                 onChange={handleGoogleBoundaryCategoryChange}
               >
-                {categories.map((category) => (
+                {categoryOptions.map((category) => (
                   <option key={category.slug} value={category.slug}>
                     {category.name}
                   </option>
@@ -541,7 +582,7 @@ export function AdminPanel() {
               value={newBoundary.service_code_filters}
               onChange={handleBoundaryCategoryChange}
             >
-              {categories.map((category) => (
+              {categoryOptions.map((category) => (
                 <option key={category.slug} value={category.slug}>
                   {category.name}
                 </option>
@@ -641,19 +682,23 @@ export function AdminPanel() {
           onChange={setNewDepartment}
           onSubmit={() => departmentMutation.mutate(newDepartment)}
           isSubmitting={departmentMutation.isPending}
-            saveBadge={<SaveBadge show={departmentSuccess.isVisible} />}
+          onDelete={handleDepartmentDelete}
+          isDeleting={deleteDepartmentMutation.isPending}
+          saveBadge={<SaveBadge show={departmentSuccess.isVisible} />}
         />
       </Section>
 
       <Section title="Categories" description="Link categories to departments so routing stays automated.">
           <CategoryForm
           form={newCategory}
-          categories={categories}
+          categories={adminCategories}
           departments={departments}
           onChange={setNewCategory}
           onSubmit={() => categoryMutation.mutate(newCategory)}
           isSubmitting={categoryMutation.isPending}
-            saveBadge={<SaveBadge show={categorySuccess.isVisible} />}
+          onDelete={handleCategoryDelete}
+          isDeleting={deleteCategoryMutation.isPending}
+          saveBadge={<SaveBadge show={categorySuccess.isVisible} />}
         />
       </Section>
 
@@ -668,7 +713,21 @@ export function AdminPanel() {
           onChange={setNewStaff}
           onSubmit={() => staffMutation.mutate(newStaff)}
           isSubmitting={staffMutation.isPending}
-            saveBadge={<SaveBadge show={staffSuccess.isVisible} label="Invite sent" />}
+          onDelete={handleStaffDelete}
+          isDeleting={deleteStaffMutation.isPending}
+          saveBadge={<SaveBadge show={staffSuccess.isVisible} label="Invite sent" />}
+        />
+      </Section>
+
+      <Section
+        title="Service Requests"
+        description="Review recent submissions, copy resident links, or delete duplicates before they sync anywhere else."
+      >
+        <RequestsAdminList
+          requests={serviceRequests}
+          isLoading={requestsQuery.isLoading}
+          isDeleting={deleteRequestMutation.isPending}
+          onDelete={handleRequestDelete}
         />
       </Section>
 
@@ -695,7 +754,9 @@ export function AdminPanel() {
           onChange={setSecretForm}
           onSubmit={() => secretMutation.mutate(secretForm)}
           isSubmitting={secretMutation.isPending}
-            statusBadge={<SaveBadge show={secretSuccess.isVisible} label="Secret stored" />}
+          onDelete={handleSecretDelete}
+          isDeleting={deleteSecretMutation.isPending}
+          statusBadge={<SaveBadge show={secretSuccess.isVisible} label="Secret stored" />}
         />
       </Section>
     </div>
@@ -728,6 +789,8 @@ function DepartmentForm({
   onSubmit,
   departments,
   isSubmitting,
+  onDelete,
+  isDeleting,
   saveBadge,
 }: {
   form: DepartmentFormState;
@@ -735,6 +798,8 @@ function DepartmentForm({
   onSubmit: () => void;
   departments: Department[];
   isSubmitting: boolean;
+  onDelete: (departmentId: string) => void;
+  isDeleting: boolean;
   saveBadge?: ReactNode;
 }) {
   const fields: Array<{ label: string; key: keyof typeof form; type?: string }> = [
@@ -773,9 +838,19 @@ function DepartmentForm({
       {departments.length > 0 && (
         <ul className="divide-y divide-slate-200 rounded-xl border border-slate-100">
           {departments.map((dept) => (
-            <li key={dept.id} className="p-3 text-sm">
-              <p className="font-medium">{dept.name}</p>
-              <p className="text-xs uppercase text-slate-500">{dept.slug}</p>
+            <li key={dept.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+              <div>
+                <p className="font-medium">{dept.name}</p>
+                <p className="text-xs uppercase text-slate-500">{dept.slug}</p>
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                onClick={() => onDelete(dept.id)}
+                disabled={isDeleting}
+              >
+                Delete
+              </button>
             </li>
           ))}
         </ul>
@@ -791,14 +866,18 @@ function CategoryForm({
   categories,
   departments,
   isSubmitting,
+  onDelete,
+  isDeleting,
   saveBadge,
 }: {
   form: CategoryFormState;
   onChange: (values: CategoryFormState) => void;
   onSubmit: () => void;
-  categories: IssueCategory[];
+  categories: AdminCategory[];
   departments: Department[];
   isSubmitting: boolean;
+  onDelete: (categoryId: number) => void;
+  isDeleting: boolean;
   saveBadge?: ReactNode;
 }) {
   return (
@@ -857,17 +936,23 @@ function CategoryForm({
       {categories.length > 0 && (
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
           {categories.map((category) => (
-            <li key={category.slug} className="p-3 text-sm">
-              <div className="flex items-center justify-between">
+            <li key={category.id} className="p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-medium">{category.name}</p>
                   <p className="text-xs uppercase text-slate-500">{category.slug}</p>
+                  {category.department_name && (
+                    <p className="text-[11px] text-slate-500">Dept: {category.department_name}</p>
+                  )}
                 </div>
-                {category.department_name && (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                    {category.department_name}
-                  </span>
-                )}
+                <button
+                  type="button"
+                  className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                  onClick={() => onDelete(category.id)}
+                  disabled={isDeleting}
+                >
+                  Delete
+                </button>
               </div>
             </li>
           ))}
@@ -884,6 +969,8 @@ function StaffManager({
   onChange,
   onSubmit,
   isSubmitting,
+  onDelete,
+  isDeleting,
   saveBadge,
 }: {
   staff: StaffUser[];
@@ -892,6 +979,8 @@ function StaffManager({
   onChange: (values: StaffFormState) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  onDelete: (staffId: string) => void;
+  isDeleting: boolean;
   saveBadge?: ReactNode;
 }) {
   return (
@@ -971,14 +1060,24 @@ function StaffManager({
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
           {staff.map((member) => (
             <li key={member.id} className="p-3 text-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-medium">{member.display_name}</p>
                   <p className="text-xs uppercase text-slate-500">{member.email}</p>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs uppercase text-slate-600">
-                  {member.role}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs uppercase text-slate-600">
+                    {member.role}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                    onClick={() => onDelete(member.id)}
+                    disabled={isDeleting}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </li>
           ))}
@@ -1205,10 +1304,12 @@ interface SecretsFormProps {
   onChange: (values: SecretFormState) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  onDelete: (secretId: string) => void;
+  isDeleting: boolean;
   statusBadge?: ReactNode;
 }
 
-function SecretsForm({ form, secrets, onChange, onSubmit, isSubmitting, statusBadge }: SecretsFormProps) {
+function SecretsForm({ form, secrets, onChange, onSubmit, isSubmitting, onDelete, isDeleting, statusBadge }: SecretsFormProps) {
   const canSubmit = form.provider.trim() && form.key.trim() && form.secret.trim();
 
   return (
@@ -1284,7 +1385,7 @@ function SecretsForm({ form, secrets, onChange, onSubmit, isSubmitting, statusBa
                   ? (secret.metadata["notes"] as string)
                   : undefined;
               return (
-                <li key={secret.id} className="flex items-center justify-between gap-4 p-4 text-sm">
+                <li key={secret.id} className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm">
                   <div>
                     <p className="font-semibold text-slate-700">{secret.provider}</p>
                     <p className="text-xs text-slate-500">
@@ -1292,13 +1393,100 @@ function SecretsForm({ form, secrets, onChange, onSubmit, isSubmitting, statusBa
                       {notes ? ` · ${notes}` : ""}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">••••••</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">••••••</span>
+                    <button
+                      type="button"
+                      className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                      onClick={() => onDelete(secret.id)}
+                      disabled={isDeleting}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+interface RequestsAdminListProps {
+  requests: ServiceRequest[];
+  isLoading: boolean;
+  isDeleting: boolean;
+  onDelete: (requestId: string) => void;
+}
+
+function RequestsAdminList({ requests, isLoading, isDeleting, onDelete }: RequestsAdminListProps) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const handleCopy = async (externalId: string) => {
+    const shareUrl = `${window.location.origin}/?request=${externalId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedId(externalId);
+      window.setTimeout(() => setCopiedId(null), 2500);
+    } catch {
+      window.prompt("Copy request link", shareUrl);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />;
+  }
+
+  if (requests.length === 0) {
+    return <p className="text-sm text-slate-500">No requests have been submitted yet.</p>;
+  }
+
+  const recent = requests.slice(0, 8);
+
+  return (
+    <div className="space-y-3">
+      {recent.map((request) => (
+        <div key={request.id} className="rounded-2xl border border-slate-200 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-800">
+                {request.description || "No description provided"}
+              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{request.status}</p>
+              <p className="text-xs text-slate-500">
+                #{request.external_id} · {request.service_code} ·{" "}
+                {new Date(request.created_at).toLocaleString()}
+              </p>
+              {request.jurisdiction_warning && (
+                <p className="text-xs text-amber-600">{request.jurisdiction_warning}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                onClick={() => handleCopy(request.external_id)}
+              >
+                {copiedId === request.external_id ? "Link copied" : "Copy resident link"}
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                onClick={() => onDelete(request.id)}
+                disabled={isDeleting}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+      {requests.length > recent.length && (
+        <p className="text-xs text-slate-500">
+          Showing {recent.length} of {requests.length} requests. Visit the Staff Command Center for the full queue.
+        </p>
+      )}
     </div>
   );
 }
@@ -1331,8 +1519,11 @@ function PortalPreview({
           {branding?.town_name ?? "Your Township"}
         </p>
         <h3 className="mt-2 text-2xl font-semibold">
-          {branding?.hero_text ?? "We keep your town moving"}
+          {branding?.site_title ?? "Request Management"}
         </h3>
+        <p className="text-sm text-white/80">
+          {branding?.hero_text ?? "We keep your town moving"}
+        </p>
         <div className="mt-4 flex gap-4 text-xs text-white/80">
           <span className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-full" style={{ backgroundColor: primary }} />

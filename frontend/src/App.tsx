@@ -42,7 +42,7 @@ export default function App() {
             {branding.logo_url && (
               <img
                 src={branding.logo_url}
-                alt={`${branding.town_name ?? "Township"} logo`}
+                alt={`${branding.site_title ?? branding.town_name ?? "Township"} logo`}
                 className="h-10 w-10 rounded-full border border-slate-200 object-cover"
               />
             )}
@@ -50,7 +50,9 @@ export default function App() {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
                 {branding.town_name ?? "Township 311"}
               </p>
-              <h1 className="text-xl font-semibold text-slate-900">Request Management</h1>
+              <h1 className="text-xl font-semibold text-slate-900">
+                {branding.site_title ?? "Request Management"}
+              </h1>
               {branding.hero_text && (
                 <p className="text-xs text-slate-500">{branding.hero_text}</p>
               )}

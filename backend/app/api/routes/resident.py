@@ -1,9 +1,9 @@
 import secrets
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request, status
 from fastapi import Form as FastAPIForm
 from fastapi.responses import FileResponse
 from sqlalchemy import select
@@ -44,11 +44,16 @@ async def get_resident_config(request: Request, session: AsyncSession = Depends(
     runtime_cfg = await runtime_config_service.get_runtime_config(session)
     maps_key = runtime_cfg.get("google_maps_api_key") or settings.google_maps_api_key
 
-    branding_payload = dict(branding.value) if branding else {}
+    defaults = settings.branding.model_dump()
+    branding_payload: dict[str, Any] = dict(defaults)
+    if branding:
+        branding_payload.update(branding.value)
     if assets.get("logo"):
         branding_payload["logo_url"] = assets["logo"]
     if assets.get("seal"):
         branding_payload["seal_url"] = assets["seal"]
+    if assets.get("favicon"):
+        branding_payload["favicon_url"] = assets["favicon"]
 
     return {
         "branding": branding_payload,
