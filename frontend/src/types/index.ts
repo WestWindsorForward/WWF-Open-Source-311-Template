@@ -18,6 +18,13 @@ export type IssueCategory = {
   department_name?: string | null;
 };
 
+export type AdminCategory = IssueCategory & {
+  id: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ResidentConfig = {
   branding: Branding;
   assets: Record<string, string>;

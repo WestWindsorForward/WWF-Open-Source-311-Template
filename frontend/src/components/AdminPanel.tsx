@@ -592,28 +592,39 @@ export function AdminPanel() {
             <ul className="mt-4 space-y-2 text-sm">
               {boundaries.map((boundary) => (
                 <li key={boundary.id} className="rounded-xl border border-slate-200 p-3">
-                  <p className="font-medium">{boundary.name}</p>
-                  <p className="text-xs uppercase text-slate-500">{boundary.kind}</p>
-                  {boundary.jurisdiction && (
-                    <p className="text-xs text-slate-500">Jurisdiction: {boundary.jurisdiction}</p>
-                  )}
-                  {boundary.redirect_url && (
-                    <a
-                      href={boundary.redirect_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-semibold text-slate-600 underline"
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{boundary.name}</p>
+                      <p className="text-xs uppercase text-slate-500">{boundary.kind}</p>
+                      {boundary.jurisdiction && (
+                        <p className="text-xs text-slate-500">Jurisdiction: {boundary.jurisdiction}</p>
+                      )}
+                      {boundary.redirect_url && (
+                        <a
+                          href={boundary.redirect_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-semibold text-slate-600 underline"
+                        >
+                          Redirect link
+                        </a>
+                      )}
+                      {boundary.service_code_filters && boundary.service_code_filters.length > 0 ? (
+                        <p className="text-[11px] text-slate-500">
+                          Routes: {boundary.service_code_filters.join(", ")}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-slate-500">Routes: all categories</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                      onClick={() => handleBoundaryDelete(boundary.id)}
                     >
-                      Redirect link
-                    </a>
-                  )}
-                {boundary.service_code_filters && boundary.service_code_filters.length > 0 ? (
-                  <p className="text-[11px] text-slate-500">
-                    Routes: {boundary.service_code_filters.join(", ")}
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-slate-500">Routes: all categories</p>
-                )}
+                      Delete
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
