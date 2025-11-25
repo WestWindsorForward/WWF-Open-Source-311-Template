@@ -10,6 +10,7 @@ from app.api.routes import admin, auth, open311, resident, staff
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.core.telemetry import configure_tracing
+from app.services import settings_snapshot
 from app.middleware.request_id import RequestIDMiddleware
 
 configure_logging()
@@ -45,6 +46,11 @@ app.include_router(auth.router)
 storage_path = Path(settings.storage_dir).resolve()
 storage_path.mkdir(parents=True, exist_ok=True)
 app.mount("/storage", StaticFiles(directory=storage_path), name="storage")
+
+
+@app.on_event("startup")
+async def restore_settings_from_disk() -> None:
+    await settings_snapshot.bootstrap_from_disk()
 
 
 @app.get("/health", tags=["Health"])

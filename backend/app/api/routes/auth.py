@@ -18,12 +18,14 @@ from app.models.auth import RefreshToken
 from app.models.user import User, UserRole
 from app.schemas.auth import (
     AdminBootstrapRequest,
+    PasswordChangeRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
     UserReadWithRole,
 )
 from app.schemas.user import UserCreate, UserRead
+from app.services.staff_accounts import sync_staff_departments
 
 router = APIRouter(prefix=f"{settings.api_v1_prefix}/auth", tags=["Auth"])
 
@@ -175,6 +177,20 @@ async def logout_all(current_user: User = Depends(get_current_user), session: As
     return {"status": "ok"}
 
 
+@router.post("/change-password")
+async def change_password(
+    payload: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    current_user.password_hash = get_password_hash(payload.new_password)
+    current_user.must_reset_password = False
+    await session.commit()
+    return {"status": "updated"}
+
+
 @router.get("/me", response_model=UserReadWithRole)
 async def me(current_user: User = Depends(get_current_user)) -> UserReadWithRole:
     return UserReadWithRole.model_validate(current_user)
@@ -190,16 +206,21 @@ async def invite_user(
     result = await session.execute(stmt)
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already exists")
+    target_slugs = payload.department_slugs or ([payload.department] if payload.department else [])
     user = User(
         email=payload.email.lower(),
         password_hash=get_password_hash(payload.password),
         display_name=payload.display_name,
         role=payload.role,
-        department=payload.department,
         phone_number=payload.phone_number,
         is_active=True,
+        must_reset_password=True,
     )
     session.add(user)
+    try:
+        await sync_staff_departments(session, user, target_slugs)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
     await session.refresh(user)
     return UserReadWithRole.model_validate(user)

@@ -1,3 +1,4 @@
+import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -27,7 +28,8 @@ from app.schemas.settings import (
     SecretsPayload,
 )
 from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.services import gis, google_maps, runtime_config as runtime_config_service
+from app.services import gis, google_maps, runtime_config as runtime_config_service, settings_snapshot
+from app.services.staff_accounts import sync_staff_departments
 from app.services.audit import log_event
 from app.utils.storage import public_storage_url, save_file
 
@@ -93,6 +95,7 @@ async def update_branding(
         record = TownshipSetting(key="branding", value=data)
         session.add(record)
     await session.commit()
+    settings_snapshot.save_snapshot("branding", data)
     await log_event(session, action="branding.update", actor=current_user, request=request, metadata=data)
     return data
 
@@ -396,20 +399,24 @@ async def create_staff(
 ) -> UserRead:
     if payload.role == UserRole.resident:
         raise HTTPException(status_code=400, detail="Staff role must be staff or admin")
-    await _ensure_department_slug(session, payload.department)
     existing = await session.execute(select(User).where(User.email == payload.email.lower()))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already exists")
+    target_slugs = payload.department_slugs or ([payload.department] if payload.department else [])
     user = User(
         email=payload.email.lower(),
         display_name=payload.display_name,
         password_hash=get_password_hash(payload.password),
         role=payload.role,
-        department=payload.department,
         phone_number=payload.phone_number,
         is_active=True,
+        must_reset_password=True,
     )
     session.add(user)
+    try:
+        await sync_staff_departments(session, user, target_slugs)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
     await log_event(
         session,
@@ -436,11 +443,19 @@ async def update_staff(
     if payload.role == UserRole.resident:
         raise HTTPException(status_code=400, detail="Invalid role")
     update_data = payload.model_dump(exclude_unset=True)
+    department_slugs = update_data.pop("department_slugs", None)
     await _ensure_department_slug(session, update_data.get("department"))
     if "password" in update_data:
         user.password_hash = get_password_hash(update_data.pop("password"))  # type: ignore[arg-type]
     for key, value in update_data.items():
         setattr(user, key, value)
+    if department_slugs is None and "department" in update_data:
+        fallback = update_data["department"]
+        department_slugs = [fallback] if fallback else []
+    try:
+        await sync_staff_departments(session, user, department_slugs)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
     await session.refresh(user)
     await log_event(
@@ -475,6 +490,31 @@ async def delete_staff(
         request=None,
     )
     return {"status": "deleted"}
+
+
+@router.post("/staff/{user_id}/reset-password")
+async def reset_staff_password(
+    user_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> dict:
+    user = await session.get(User, user_id)
+    if not user or user.role == UserRole.resident:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    temp_password = secrets.token_urlsafe(12)
+    user.password_hash = get_password_hash(temp_password)
+    user.must_reset_password = True
+    await session.commit()
+    await log_event(
+        session,
+        action="staff.reset_password",
+        actor=current_user,
+        entity_type="user",
+        entity_id=str(user.id),
+        request=None,
+        metadata={"forced_reset": True},
+    )
+    return {"temporary_password": temp_password}
 
 
 @router.delete("/requests/{request_id}")
@@ -684,6 +724,7 @@ async def update_runtime_config(
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
     config = await runtime_config_service.update_runtime_config(session, payload.model_dump(exclude_unset=True))
+    settings_snapshot.save_snapshot("runtime_config", config)
     await log_event(
         session,
         action="runtime_config.update",

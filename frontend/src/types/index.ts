@@ -77,6 +77,8 @@ export type AuthUser = {
   display_name: string;
   role: UserRole;
   department?: string | null;
+  department_slugs?: string[];
+  must_reset_password?: boolean;
 };
 
 export type Department = {

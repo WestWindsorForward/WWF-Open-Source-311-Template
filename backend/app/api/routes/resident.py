@@ -234,12 +234,16 @@ async def download_public_attachment(
 
 @router.get("/requests/{external_id}/pdf")
 async def download_public_pdf(external_id: str, session: AsyncSession = Depends(get_db)) -> FileResponse:
-    stmt = select(ServiceRequest).where(ServiceRequest.external_id == external_id)
+    stmt = (
+        select(ServiceRequest)
+        .where(ServiceRequest.external_id == external_id)
+        .options(selectinload(ServiceRequest.category))
+    )
     result = await session.execute(stmt)
     request = result.scalar_one_or_none()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
-    path = generate_case_pdf(request, Path("storage/pdfs"))
+    path = generate_case_pdf(request, Path(settings.storage_dir) / "pdfs")
     return FileResponse(path)
 
 

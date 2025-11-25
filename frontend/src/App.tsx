@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { logoutSession } from "./api/auth";
 import { useAuthStore } from "./store/auth";
@@ -9,6 +9,7 @@ export default function App() {
   const tokens = useAuthStore((state) => state.tokens);
   const clearSession = useAuthStore((state) => state.clearSession);
   const navigate = useNavigate();
+  const location = useLocation();
   const branding = useBrandingStore((state) => state.branding);
 
   const navItems =
@@ -33,6 +34,11 @@ export default function App() {
   };
 
   const showStaffSignIn = !user || user.role === "resident";
+  const isPasswordRoute = location.pathname === "/change-password";
+
+  if (user && user.must_reset_password && !isPasswordRoute) {
+    return <Navigate to="/change-password" state={{ from: location }} replace />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-white pb-16">
