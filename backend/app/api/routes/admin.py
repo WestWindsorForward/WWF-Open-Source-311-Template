@@ -1,5 +1,6 @@
 import secrets
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import delete, select, update
@@ -735,3 +736,30 @@ async def update_runtime_config(
         metadata=payload.model_dump(exclude_unset=True),
     )
     return config
+
+
+@router.post("/system/update", response_model=dict)
+async def trigger_system_update(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> dict:
+    """Trigger a system update by creating a flag file for the host watcher script."""
+    flags_dir = Path("/app/flags")
+    flags_dir.mkdir(parents=True, exist_ok=True)
+    flag_file = flags_dir / "update_requested"
+    flag_file.touch()
+    
+    await log_event(
+        session,
+        action="system.update_triggered",
+        actor=current_user,
+        entity_type="system",
+        entity_id="update",
+        request=request,
+    )
+    
+    return {
+        "status": "update_initiated",
+        "message": "Update started. Server will restart shortly.",
+    }

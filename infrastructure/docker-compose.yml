@@ -44,6 +44,7 @@ services:
       - "8000:8000"
     volumes:
       - storage_data:/app/storage
+      - ../flags:/app/flags
 
   celery-worker:
     build:
