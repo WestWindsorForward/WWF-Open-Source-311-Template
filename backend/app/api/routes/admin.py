@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, require_roles
 from app.core.security import get_password_hash
-from app.models.issue import IssueCategory
+from app.models.issue import IssueCategory, ServiceRequest
 from app.models.settings import (
     ApiCredential,
     BrandingAsset,
@@ -20,13 +20,14 @@ from app.schemas.department import DepartmentCreate, DepartmentRead, DepartmentU
 from app.schemas.issue import IssueCategoryCreate, IssueCategoryRead, IssueCategoryUpdate
 from app.schemas.settings import (
     BrandingUpdate,
+    GeoBoundaryGoogleImport,
     GeoBoundaryRead,
     GeoBoundaryUpload,
     RuntimeConfigUpdate,
     SecretsPayload,
 )
 from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.services import gis, runtime_config as runtime_config_service
+from app.services import gis, google_maps, runtime_config as runtime_config_service
 from app.services.audit import log_event
 from app.utils.storage import public_storage_url, save_file
 
@@ -476,6 +477,28 @@ async def delete_staff(
     return {"status": "deleted"}
 
 
+@router.delete("/requests/{request_id}")
+async def delete_service_request(
+    request_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> dict:
+    service_request = await session.get(ServiceRequest, request_id)
+    if not service_request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    await session.delete(service_request)
+    await session.commit()
+    await log_event(
+        session,
+        action="service_request.delete",
+        actor=current_user,
+        entity_type="service_request",
+        entity_id=str(request_id),
+        request=None,
+    )
+    return {"status": "deleted"}
+
+
 @router.get("/geo-boundary", response_model=list[GeoBoundaryRead])
 async def list_boundaries(
     session: AsyncSession = Depends(get_db),
@@ -519,6 +542,50 @@ async def upload_boundary(
         entity_id=str(boundary.id),
         request=request,
         metadata={"name": payload.name, "kind": payload.kind.value},
+    )
+    return GeoBoundaryRead.model_validate(boundary)
+
+
+@router.post("/geo-boundary/google", response_model=GeoBoundaryRead)
+async def import_boundary_from_google(
+    payload: GeoBoundaryGoogleImport,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> GeoBoundaryRead:
+    try:
+        suggested_name, geojson = await google_maps.fetch_boundary_from_google(
+            query=payload.query,
+            place_id=payload.place_id,
+        )
+    except google_maps.GoogleMapsError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    boundary = GeoBoundary(
+        name=payload.name or suggested_name,
+        geojson=geojson,
+        kind=payload.kind,
+        jurisdiction=payload.jurisdiction,
+        redirect_url=payload.redirect_url,
+        notes=payload.notes,
+        is_active=True,
+        service_code_filters=payload.service_code_filters or [],
+    )
+    session.add(boundary)
+    await session.commit()
+    await session.refresh(boundary)
+    await log_event(
+        session,
+        action="geo_boundary.import_google",
+        actor=current_user,
+        entity_type="geo_boundary",
+        entity_id=str(boundary.id),
+        request=request,
+        metadata={
+            "query": payload.query,
+            "place_id": payload.place_id,
+            "kind": payload.kind.value,
+        },
     )
     return GeoBoundaryRead.model_validate(boundary)
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.settings import BoundaryKind, JurisdictionLevel
 
@@ -50,3 +50,20 @@ class RuntimeConfigUpdate(BaseModel):
     otel_enabled: bool | None = None
     otel_endpoint: str | None = None
     otel_headers: str | None = None
+
+
+class GeoBoundaryGoogleImport(BaseModel):
+    query: str | None = None
+    place_id: str | None = None
+    name: str | None = None
+    kind: BoundaryKind = BoundaryKind.primary
+    jurisdiction: JurisdictionLevel | None = None
+    redirect_url: str | None = None
+    notes: str | None = None
+    service_code_filters: list[str] | None = None
+
+    @model_validator(mode="after")
+    def _ensure_source(self) -> "GeoBoundaryGoogleImport":
+        if not self.place_id and not self.query:
+            raise ValueError("Provide either place_id or query")
+        return self

@@ -2,7 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import client from "../api/client";
-import { useBoundaries, useDepartments, useResidentConfig, useSecrets, useStaffDirectory } from "../api/hooks";
+import {
+  useBoundaries,
+  useDepartments,
+  useResidentConfig,
+  useSecrets,
+  useStaffDirectory,
+  useStaffRequests,
+} from "../api/hooks";
 import type { Department, IssueCategory, ResidentConfig, SecretSummary, StaffUser } from "../types";
 
 type DepartmentFormState = {
@@ -81,6 +88,16 @@ export function AdminPanel() {
     phone_number: "",
     password: "",
   });
+  const [googleBoundaryForm, setGoogleBoundaryForm] = useState({
+    query: "",
+    place_id: "",
+    name: "",
+    kind: "primary",
+    jurisdiction: "",
+    redirect_url: "",
+    notes: "",
+    service_code_filters: [] as string[],
+  });
   const [secretForm, setSecretForm] = useState<SecretFormState>({ provider: "smtp", key: "", secret: "", notes: "" });
   const brandingSuccess = useTransientSuccess();
   const boundarySuccess = useTransientSuccess();
@@ -89,9 +106,14 @@ export function AdminPanel() {
   const staffSuccess = useTransientSuccess();
   const runtimeSuccess = useTransientSuccess();
   const secretSuccess = useTransientSuccess();
+  const googleBoundarySuccess = useTransientSuccess();
   const handleBoundaryCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
     setNewBoundary((prev) => ({ ...prev, service_code_filters: selected }));
+  };
+  const handleGoogleBoundaryCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
+    setGoogleBoundaryForm((prev) => ({ ...prev, service_code_filters: selected }));
   };
 
   useEffect(() => {
@@ -184,6 +206,34 @@ export function AdminPanel() {
     },
   });
 
+  const googleBoundaryMutation = useMutation({
+    mutationFn: async () =>
+      client.post("/api/admin/geo-boundary/google", {
+        query: googleBoundaryForm.query || undefined,
+        place_id: googleBoundaryForm.place_id || undefined,
+        name: googleBoundaryForm.name || undefined,
+        kind: googleBoundaryForm.kind,
+        jurisdiction: googleBoundaryForm.jurisdiction || undefined,
+        redirect_url: googleBoundaryForm.redirect_url || undefined,
+        notes: googleBoundaryForm.notes || undefined,
+        service_code_filters: googleBoundaryForm.service_code_filters ?? [],
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
+      setGoogleBoundaryForm({
+        query: "",
+        place_id: "",
+        name: "",
+        kind: "primary",
+        jurisdiction: "",
+        redirect_url: "",
+        notes: "",
+        service_code_filters: [],
+      });
+      googleBoundarySuccess.flash();
+    },
+  });
+
   const staffMutation = useMutation({
     mutationFn: async (payload: typeof newStaff) => client.post("/api/admin/staff", payload),
       onSuccess: () => {
@@ -210,12 +260,76 @@ export function AdminPanel() {
     },
   });
 
+  const deleteDepartmentMutation = useMutation({
+    mutationFn: async (departmentId: string) => client.delete(`/api/admin/departments/${departmentId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["departments"] }),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (categoryId: number) => client.delete(`/api/admin/categories/${categoryId}`),
+    onSuccess: () => {
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+    },
+  });
+
+  const deleteBoundaryMutation = useMutation({
+    mutationFn: async (boundaryId: number) => client.delete(`/api/admin/geo-boundary/${boundaryId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] }),
+  });
+
+  const deleteStaffMutation = useMutation({
+    mutationFn: async (staffId: string) => client.delete(`/api/admin/staff/${staffId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-directory"] }),
+  });
+
+  const deleteSecretMutation = useMutation({
+    mutationFn: async (secretId: string) => client.delete(`/api/admin/secrets/${secretId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secrets"] }),
+  });
+
+  const deleteRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => client.delete(`/api/admin/requests/${requestId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-requests"] }),
+  });
+
+  const handleDepartmentDelete = (departmentId: string) => {
+    if (!window.confirm("Delete this department?")) return;
+    deleteDepartmentMutation.mutate(departmentId);
+  };
+
+  const handleCategoryDelete = (categoryId: number) => {
+    if (!window.confirm("Delete this category?")) return;
+    deleteCategoryMutation.mutate(categoryId);
+  };
+
+  const handleBoundaryDelete = (boundaryId: number) => {
+    if (!window.confirm("Delete this jurisdiction boundary?")) return;
+    deleteBoundaryMutation.mutate(boundaryId);
+  };
+
+  const handleStaffDelete = (staffId: string) => {
+    if (!window.confirm("Delete this staff account?")) return;
+    deleteStaffMutation.mutate(staffId);
+  };
+
+  const handleSecretDelete = (secretId: string) => {
+    if (!window.confirm("Delete this secret? This action cannot be undone.")) return;
+    deleteSecretMutation.mutate(secretId);
+  };
+
+  const handleRequestDelete = (requestId: string) => {
+    if (!window.confirm("Delete this service request and all history?")) return;
+    deleteRequestMutation.mutate(requestId);
+  };
+
   const departments = departmentsQuery.data ?? [];
   const boundaries = boundariesQuery.data ?? [];
   const staff = staffQuery.data ?? [];
   const secrets = secretsQuery.data ?? [];
 
   const categories = useMemo(() => residentConfig?.categories ?? [], [residentConfig]);
+  const serviceRequests = requestsQuery.data ?? [];
 
   return (
     <div className="space-y-8">
@@ -271,6 +385,119 @@ export function AdminPanel() {
         title="Jurisdiction Boundaries"
         description="Upload GeoJSON for your township boundary and optional exclusion zones (county/state roads)."
       >
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-semibold text-slate-700">Import from Google Maps</h4>
+              <p className="text-xs text-slate-500">
+                Enter a township name, road name, or Google Place ID to auto-create a polygon.
+              </p>
+            </div>
+            <SaveBadge show={googleBoundarySuccess.isVisible} label="Boundary imported" />
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <label className="text-sm text-slate-600">
+              Search phrase
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                placeholder="e.g. West Windsor Township or County Route 571"
+                value={googleBoundaryForm.query}
+                onChange={(event) => setGoogleBoundaryForm((prev) => ({ ...prev, query: event.target.value }))}
+              />
+            </label>
+            <label className="text-sm text-slate-600">
+              Place ID (optional override)
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                placeholder="ChIJdRcfAPivw4kR8..."
+                value={googleBoundaryForm.place_id}
+                onChange={(event) => setGoogleBoundaryForm((prev) => ({ ...prev, place_id: event.target.value }))}
+              />
+            </label>
+            <label className="text-sm text-slate-600">
+              Override name
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                placeholder="County Route 571"
+                value={googleBoundaryForm.name}
+                onChange={(event) => setGoogleBoundaryForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
+            </label>
+            <label className="text-sm text-slate-600">
+              Kind
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                value={googleBoundaryForm.kind}
+                onChange={(event) => setGoogleBoundaryForm((prev) => ({ ...prev, kind: event.target.value }))}
+              >
+                <option value="primary">Primary (allowed)</option>
+                <option value="exclusion">Excluded jurisdiction</option>
+              </select>
+            </label>
+            <label className="text-sm text-slate-600">
+              Jurisdiction level
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                value={googleBoundaryForm.jurisdiction}
+                onChange={(event) => setGoogleBoundaryForm((prev) => ({ ...prev, jurisdiction: event.target.value }))}
+              >
+                <option value="">Not specified</option>
+                <option value="township">Township</option>
+                <option value="county">County</option>
+                <option value="state">State</option>
+                <option value="federal">Federal</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label className="text-sm text-slate-600 md:col-span-2">
+              Route categories
+              <select
+                multiple
+                className="mt-1 h-28 w-full rounded-xl border border-slate-300 p-2"
+                value={googleBoundaryForm.service_code_filters}
+                onChange={handleGoogleBoundaryCategoryChange}
+              >
+                {categories.map((category) => (
+                  <option key={category.slug} value={category.slug}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500">
+                Leave empty to redirect every request inside the imported boundary.
+              </p>
+            </label>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label className="text-sm text-slate-600">
+              Redirect URL (optional)
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                value={googleBoundaryForm.redirect_url}
+                onChange={(event) => setGoogleBoundaryForm((prev) => ({ ...prev, redirect_url: event.target.value }))}
+              />
+            </label>
+            <label className="text-sm text-slate-600">
+              Notes / Message
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                value={googleBoundaryForm.notes}
+                onChange={(event) => setGoogleBoundaryForm((prev) => ({ ...prev, notes: event.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+              onClick={() => googleBoundaryMutation.mutate()}
+              disabled={googleBoundaryMutation.isPending}
+            >
+              {googleBoundaryMutation.isPending ? "Importing…" : "Import from Google"}
+            </button>
+          </div>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
           <label className="text-sm text-slate-600">
             Boundary Name
