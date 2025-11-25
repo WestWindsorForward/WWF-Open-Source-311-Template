@@ -85,17 +85,26 @@ async def update_branding(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Updating branding: {payload.model_dump(exclude_unset=True)}")
+    
     stmt = select(TownshipSetting).where(TownshipSetting.key == "branding")
     result = await session.execute(stmt)
     record = result.scalar_one_or_none()
     data = record.value if record else {}
     data.update(payload.model_dump(exclude_unset=True))
+    
     if record:
         record.value = data
     else:
         record = TownshipSetting(key="branding", value=data)
         session.add(record)
+    
     await session.commit()
+    await session.refresh(record) if record else None
+    
+    logger.info(f"Branding saved successfully: {data}")
     settings_snapshot.save_snapshot("branding", data)
     await log_event(session, action="branding.update", actor=current_user, request=request, metadata=data)
     return data
@@ -724,8 +733,17 @@ async def update_runtime_config(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
-    config = await runtime_config_service.update_runtime_config(session, payload.model_dump(exclude_unset=True))
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    payload_dict = payload.model_dump(exclude_unset=True)
+    logger.info(f"Updating runtime config: {payload_dict}")
+    
+    config = await runtime_config_service.update_runtime_config(session, payload_dict)
+    
+    logger.info(f"Runtime config saved successfully: {config}")
     settings_snapshot.save_snapshot("runtime_config", config)
+    
     await log_event(
         session,
         action="runtime_config.update",
@@ -733,7 +751,7 @@ async def update_runtime_config(
         entity_type="runtime_config",
         entity_id="runtime_config",
         request=request,
-        metadata=payload.model_dump(exclude_unset=True),
+        metadata=payload_dict,
     )
     return config
 
@@ -745,10 +763,22 @@ async def trigger_system_update(
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
     """Trigger a system update by creating a flag file for the host watcher script."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     flags_dir = Path("/app/flags")
     flags_dir.mkdir(parents=True, exist_ok=True)
     flag_file = flags_dir / "update_requested"
+    
+    logger.info(f"System update triggered by {current_user.email}")
+    logger.info(f"Creating flag file at: {flag_file}")
+    
     flag_file.touch()
+    
+    if flag_file.exists():
+        logger.info(f"Flag file created successfully at {flag_file}")
+    else:
+        logger.error(f"Failed to create flag file at {flag_file}")
     
     await log_event(
         session,
@@ -762,4 +792,5 @@ async def trigger_system_update(
     return {
         "status": "update_initiated",
         "message": "Update started. Server will restart shortly.",
+        "flag_path": str(flag_file),
     }
