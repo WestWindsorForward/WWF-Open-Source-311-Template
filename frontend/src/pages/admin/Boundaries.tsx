@@ -49,24 +49,36 @@ export function BoundariesPage() {
   const handleUploadFilters = (e: React.ChangeEvent<HTMLSelectElement>) => setUpload((prev) => ({ ...prev, service_code_filters: Array.from(e.target.selectedOptions).map((o) => o.value) }));
   const handleGoogleFilters = (e: React.ChangeEvent<HTMLSelectElement>) => setGoogle((prev) => ({ ...prev, service_code_filters: Array.from(e.target.selectedOptions).map((o) => o.value) }));
   const uploadMutation = useMutation({
-    mutationFn: async () => client.post("/api/admin/geo-boundary", { name: upload.name, kind: "primary", jurisdiction: upload.jurisdiction || null, geojson: JSON.parse(upload.geojson), service_code_filters: upload.service_code_filters ?? [] }),
+    mutationFn: async () => client.post("/api/admin/geo-boundary", { name: upload.name, kind: "primary", jurisdiction: upload.jurisdiction || null, geojson: JSON.parse(upload.geojson), service_code_filters: upload.service_code_filters ?? [], road_name_filters: upload.road_name_filters ?? [] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
       setUpload({ name: "Primary Boundary", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", geojson: "", service_code_filters: [], road_name_filters: [] });
     },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail || err?.message || "Unknown error";
+      alert("GeoJSON upload failed: " + detail);
+    },
   });
   const googleMutation = useMutation({
-    mutationFn: async () => client.post("/api/admin/geo-boundary/google", { query: google.query || undefined, place_id: google.place_id || undefined, name: google.name || undefined, kind: "primary", jurisdiction: google.jurisdiction || undefined, service_code_filters: google.service_code_filters ?? [], road_name_filters: [] }),
+    mutationFn: async () => client.post("/api/admin/geo-boundary/google", { query: google.query || undefined, place_id: google.place_id || undefined, name: google.name || undefined, kind: "primary", jurisdiction: google.jurisdiction || undefined, service_code_filters: google.service_code_filters ?? [], road_name_filters: google.road_name_filters ?? [] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
       setGoogle({ query: "", place_id: "", name: "", jurisdiction: "", service_code_filters: [], road_name_filters: [] });
     },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail || err?.message || "Unknown error";
+      alert("Google import failed: " + detail);
+    },
   });
   const arcgisMutation = useMutation({
-    mutationFn: async () => client.post("/api/admin/geo-boundary/arcgis", { layer_url: arcgis.layer_url, where: arcgis.where || undefined, name: arcgis.name || undefined, kind: "primary", jurisdiction: arcgis.jurisdiction || undefined, service_code_filters: arcgis.service_code_filters ?? [] }),
+    mutationFn: async () => client.post("/api/admin/geo-boundary/arcgis", { layer_url: arcgis.layer_url, where: arcgis.where || undefined, name: arcgis.name || undefined, kind: "primary", jurisdiction: arcgis.jurisdiction || undefined, service_code_filters: arcgis.service_code_filters ?? [], road_name_filters: arcgis.road_name_filters ?? [] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
       setArcgis({ layer_url: "", where: "", name: "ArcGIS Layer", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", service_code_filters: [], road_name_filters: [] });
+    },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail || err?.message || "Unknown error";
+      alert("ArcGIS import failed: " + detail);
     },
   });
   const deleteMutation = useMutation({

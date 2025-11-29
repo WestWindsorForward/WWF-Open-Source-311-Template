@@ -17,16 +17,16 @@ export function BrandingProvider({ branding, children }: Props) {
     if (!branding) return;
     setBranding(branding);
     if (branding.primary_color) {
-      document.documentElement.style.setProperty(
-        "--color-primary",
-        hexToRgb(branding.primary_color),
-      );
+      const rgb = safeHexToRgb(branding.primary_color);
+      if (rgb) {
+        document.documentElement.style.setProperty("--color-primary", rgb);
+      }
     }
     if (branding.secondary_color) {
-      document.documentElement.style.setProperty(
-        "--color-secondary",
-        hexToRgb(branding.secondary_color),
-      );
+      const rgb = safeHexToRgb(branding.secondary_color);
+      if (rgb) {
+        document.documentElement.style.setProperty("--color-secondary", rgb);
+      }
     }
   }, [branding, setBranding]);
 
@@ -39,9 +39,12 @@ export function BrandingProvider({ branding, children }: Props) {
   return <>{children}</>;
 }
 
-function hexToRgb(hex: string): string {
-  const value = hex.replace("#", "");
-  const bigint = parseInt(value, 16);
+function safeHexToRgb(hex: string): string | null {
+  const value = hex.trim().replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(value)) {
+    return null;
+  }
+  const bigint = Number.parseInt(value, 16);
   const r = (bigint >> 16) & 255;
   const g = (bigint >> 8) & 255;
   const b = bigint & 255;
