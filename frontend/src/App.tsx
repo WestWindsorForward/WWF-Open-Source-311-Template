@@ -1,8 +1,11 @@
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 import { logoutSession } from "./api/auth";
 import { useAuthStore } from "./store/auth";
 import { useBrandingStore } from "./store/branding";
+import { useResidentConfig } from "./api/hooks";
+import { BrandingProvider } from "./components/BrandingProvider";
 
 export default function App() {
   const user = useAuthStore((state) => state.user);
@@ -11,6 +14,7 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const branding = useBrandingStore((state) => state.branding);
+  const { data: residentConfig } = useResidentConfig();
 
   const navItems =
     !user || user.role === "resident"
@@ -40,8 +44,17 @@ export default function App() {
     return <Navigate to="/change-password" state={{ from: location }} replace />;
   }
 
+  useEffect(() => {
+    const isStaff = location.pathname.startsWith("/staff");
+    const titleBase = branding.site_title ?? branding.town_name ?? "Township Request Portal";
+    if (isStaff) {
+      document.title = `Staff Portal · ${titleBase}`;
+    }
+  }, [location.pathname, branding]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-white pb-16">
+    <BrandingProvider branding={residentConfig?.branding}>
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-white pb-16">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
           <div className="flex w-full flex-col items-center gap-3 md:w-auto md:flex-row md:items-center">
@@ -107,6 +120,7 @@ export default function App() {
       <main className="mx-auto mt-10 max-w-6xl px-6">
         <Outlet />
       </main>
-    </div>
+      </div>
+    </BrandingProvider>
   );
 }
