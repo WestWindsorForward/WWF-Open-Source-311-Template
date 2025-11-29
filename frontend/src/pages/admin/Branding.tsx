@@ -27,6 +27,7 @@ export function BrandingPage() {
       secondary_color: defaults.secondary_color ?? "#38bdf8",
     },
   });
+  const [saved, setSaved] = useState<{ branding?: boolean; logo?: boolean; favicon?: boolean }>({});
 
   const mutation = useMutation({
     mutationFn: async (payload: BrandingForm) => {
@@ -35,16 +36,19 @@ export function BrandingPage() {
         const fd = new FormData();
         fd.append("file", logoFile);
         await client.post("/api/admin/branding/assets/logo", fd);
+        setSaved((s) => ({ ...s, logo: true }));
       }
       if (faviconFile) {
         const fd = new FormData();
         fd.append("file", faviconFile);
         await client.post("/api/admin/branding/assets/favicon", fd);
+        setSaved((s) => ({ ...s, favicon: true }));
       }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["resident-config"] });
       await refetch();
+      setSaved((s) => ({ ...s, branding: true }));
       setLogoFile(null);
       setFaviconFile(null);
     },
@@ -106,6 +110,11 @@ export function BrandingPage() {
           <button type="submit" className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50" disabled={mutation.isPending}>
             {mutation.isPending ? "Saving…" : "Save"}
           </button>
+          {(saved.branding || saved.logo || saved.favicon) && (
+            <span role="status" className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+              {saved.logo || saved.favicon ? "Assets saved" : "Branding saved"}
+            </span>
+          )}
         </div>
       </form>
     </div>
