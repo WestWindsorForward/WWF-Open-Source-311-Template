@@ -1,9 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import client from "../../api/client";
 import { useAdminCategories, useBoundaries, useResidentConfig, useCategoryExclusions, useRoadExclusions } from "../../api/hooks";
 import type { IssueCategory } from "../../types";
 import { useMemo, useState } from "react";
 import InfoBox from "../../components/InfoBox";
+import { useRef } from "react";
 
 export function BoundariesPage() {
   const queryClient = useQueryClient();
@@ -15,30 +17,31 @@ export function BoundariesPage() {
   const [activeTab, setActiveTab] = useState<"primary" | "exclusions">("primary");
   const [primaryMode, setPrimaryMode] = useState<"google" | "geojson" | "arcgis">("google");
   const [upload, setUpload] = useState({ name: "Primary Boundary", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", geojson: "", service_code_filters: [] as string[], road_name_filters: [] as string[] });
-  const [google, setGoogle] = useState({ query: "", place_id: "", name: "", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", service_code_filters: [] as string[], road_name_filters: [] as string[] });
+  const [google, setGoogle] = useState({ query: "", place_id: "", name: "", jurisdiction: "", service_code_filters: [] as string[], road_name_filters: [] as string[] });
   const [arcgis, setArcgis] = useState({ layer_url: "", where: "", name: "ArcGIS Layer", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", service_code_filters: [] as string[], road_name_filters: [] as string[] });
   const mapsApiKey = residentConfig?.integrations?.google_maps_api_key;
+  const autoRef = useRef<google.maps.places.Autocomplete | null>(null);
   const categories = useMemo<IssueCategory[]>(() => residentConfig?.categories ?? adminCategoriesQuery.data ?? [], [residentConfig, adminCategoriesQuery.data]);
   const [catForm, setCatForm] = useState({ category_slug: "", redirect_name: "", redirect_url: "", redirect_message: "", is_active: true });
   const [roadForm, setRoadForm] = useState({ road_name: "", redirect_name: "", redirect_url: "", redirect_message: "", is_active: true });
   const handleUploadFilters = (e: React.ChangeEvent<HTMLSelectElement>) => setUpload((prev) => ({ ...prev, service_code_filters: Array.from(e.target.selectedOptions).map((o) => o.value) }));
   const handleGoogleFilters = (e: React.ChangeEvent<HTMLSelectElement>) => setGoogle((prev) => ({ ...prev, service_code_filters: Array.from(e.target.selectedOptions).map((o) => o.value) }));
   const uploadMutation = useMutation({
-    mutationFn: async () => client.post("/api/admin/geo-boundary", { name: upload.name, kind: upload.kind, jurisdiction: upload.jurisdiction || null, redirect_url: upload.redirect_url || null, notes: upload.notes || null, geojson: JSON.parse(upload.geojson), service_code_filters: upload.service_code_filters ?? [], road_name_filters: upload.road_name_filters ?? [] }),
+    mutationFn: async () => client.post("/api/admin/geo-boundary", { name: upload.name, kind: "primary", jurisdiction: upload.jurisdiction || null, geojson: JSON.parse(upload.geojson), service_code_filters: upload.service_code_filters ?? [] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
       setUpload({ name: "Primary Boundary", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", geojson: "", service_code_filters: [], road_name_filters: [] });
     },
   });
   const googleMutation = useMutation({
-    mutationFn: async () => client.post("/api/admin/geo-boundary/google", { query: google.query || undefined, place_id: google.place_id || undefined, name: google.name || undefined, kind: google.kind, jurisdiction: google.jurisdiction || undefined, redirect_url: google.redirect_url || undefined, notes: google.notes || undefined, service_code_filters: google.service_code_filters ?? [], road_name_filters: google.road_name_filters ?? [] }),
+    mutationFn: async () => client.post("/api/admin/geo-boundary/google", { query: google.query || undefined, place_id: google.place_id || undefined, name: google.name || undefined, kind: "primary", jurisdiction: google.jurisdiction || undefined, service_code_filters: google.service_code_filters ?? [], road_name_filters: [] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
-      setGoogle({ query: "", place_id: "", name: "", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", service_code_filters: [], road_name_filters: [] });
+      setGoogle({ query: "", place_id: "", name: "", jurisdiction: "", service_code_filters: [], road_name_filters: [] });
     },
   });
   const arcgisMutation = useMutation({
-    mutationFn: async () => client.post("/api/admin/geo-boundary/arcgis", { layer_url: arcgis.layer_url, where: arcgis.where || undefined, name: arcgis.name || undefined, kind: arcgis.kind, jurisdiction: arcgis.jurisdiction || undefined, redirect_url: arcgis.redirect_url || undefined, notes: arcgis.notes || undefined, service_code_filters: arcgis.service_code_filters ?? [], road_name_filters: arcgis.road_name_filters ?? [] }),
+    mutationFn: async () => client.post("/api/admin/geo-boundary/arcgis", { layer_url: arcgis.layer_url, where: arcgis.where || undefined, name: arcgis.name || undefined, kind: "primary", jurisdiction: arcgis.jurisdiction || undefined, service_code_filters: arcgis.service_code_filters ?? [] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
       setArcgis({ layer_url: "", where: "", name: "ArcGIS Layer", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", service_code_filters: [], road_name_filters: [] });
@@ -102,11 +105,9 @@ export function BoundariesPage() {
             {primaryMode === "geojson" && (
         <div className="grid gap-3 md:grid-cols-2">
           <label className="text-sm text-slate-600">Boundary Name<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.name} onChange={(e) => setUpload((p) => ({ ...p, name: e.target.value }))} /></label>
-          <label className="text-sm text-slate-600">Boundary Type<select className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.kind} onChange={(e) => setUpload((p) => ({ ...p, kind: e.target.value }))}><option value="primary">Primary (allowed)</option><option value="exclusion">Excluded jurisdiction</option></select></label>
+          <input type="hidden" value={upload.kind} />
           <label className="text-sm text-slate-600">Jurisdiction<select className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.jurisdiction} onChange={(e) => setUpload((p) => ({ ...p, jurisdiction: e.target.value }))}><option value="">Not specified</option><option value="township">Township</option><option value="county">County</option><option value="state">State</option><option value="federal">Federal</option><option value="other">Other</option></select></label>
           <label className="text-sm text-slate-600 md:col-span-2">Route categories<select multiple className="mt-1 h-32 w-full rounded-xl border border-slate-300 p-2" value={upload.service_code_filters} onChange={handleUploadFilters}>{categories.map((c) => (<option key={c.slug} value={c.slug}>{c.name}</option>))}</select></label>
-          <label className="text-sm text-slate-600">Redirect URL<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.redirect_url} onChange={(e) => setUpload((p) => ({ ...p, redirect_url: e.target.value }))} /></label>
-          <label className="text-sm text-slate-600">Notes<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.notes} onChange={(e) => setUpload((p) => ({ ...p, notes: e.target.value }))} /></label>
           <InfoBox title="GeoJSON format"><p>Provide a valid GeoJSON Polygon/FeatureCollection. Consider simplifying polygons to improve performance.</p></InfoBox>
           <label className="text-sm text-slate-600 md:col-span-2">GeoJSON<textarea className="mt-1 h-32 w-full rounded-xl border border-slate-300 p-2 font-mono text-xs" placeholder='{"type":"Polygon","coordinates":[...]}' value={upload.geojson} onChange={(e) => setUpload((p) => ({ ...p, geojson: e.target.value }))} /></label>
           <div className="md:col-span-2 flex justify-end"><button className="rounded-xl bg-emerald-600 px-4 py-2 text-white disabled:opacity-50" onClick={() => uploadMutation.mutate()} disabled={uploadMutation.isPending}>{uploadMutation.isPending ? "Uploading…" : "Save Boundary"}</button></div>
@@ -114,15 +115,31 @@ export function BoundariesPage() {
             )}
             {primaryMode === "google" && (
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <label className="text-sm text-slate-600">Search phrase<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.query} onChange={(e) => setGoogle((p) => ({ ...p, query: e.target.value }))} /></label>
+          {mapsApiKey ? (
+            <LoadScript googleMapsApiKey={mapsApiKey} libraries={["places"]}>
+              <Autocomplete onLoad={(auto) => { autoRef.current = auto; }} onPlaceChanged={() => {
+                const instance = autoRef.current;
+                if (!instance) return;
+                const place = instance.getPlace();
+                const pid = place.place_id || "";
+                const pname = place.name || place.formatted_address || google.query;
+                setGoogle((p) => ({ ...p, place_id: pid, name: pname, query: pname }));
+              }}>
+                <input
+                  className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                  placeholder="Search township (Google Places)"
+                  onChange={(e) => setGoogle((p) => ({ ...p, query: e.target.value }))}
+                />
+              </Autocomplete>
+            </LoadScript>
+          ) : (
+            <label className="text-sm text-slate-600">Search phrase<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.query} onChange={(e) => setGoogle((p) => ({ ...p, query: e.target.value }))} /></label>
+          )}
           <label className="text-sm text-slate-600">Place ID<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.place_id} onChange={(e) => setGoogle((p) => ({ ...p, place_id: e.target.value }))} /></label>
           <label className="text-sm text-slate-600">Override name<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.name} onChange={(e) => setGoogle((p) => ({ ...p, name: e.target.value }))} /></label>
-          <label className="text-sm text-slate-600">Kind<select className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.kind} onChange={(e) => setGoogle((p) => ({ ...p, kind: e.target.value }))}><option value="primary">Primary (allowed)</option><option value="exclusion">Excluded jurisdiction</option></select></label>
           <label className="text-sm text-slate-600">Jurisdiction<select className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.jurisdiction} onChange={(e) => setGoogle((p) => ({ ...p, jurisdiction: e.target.value }))}><option value="">Not specified</option><option value="township">Township</option><option value="county">County</option><option value="state">State</option><option value="federal">Federal</option><option value="other">Other</option></select></label>
           <label className="text-sm text-slate-600 md:col-span-2">Route categories<select multiple className="mt-1 h-28 w-full rounded-xl border border-slate-300 p-2" value={google.service_code_filters} onChange={handleGoogleFilters}>{categories.map((c) => (<option key={c.slug} value={c.slug}>{c.name}</option>))}</select></label>
-          <label className="text-sm text-slate-600">Redirect URL<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.redirect_url} onChange={(e) => setGoogle((p) => ({ ...p, redirect_url: e.target.value }))} /></label>
-          <label className="text-sm text-slate-600">Notes<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.notes} onChange={(e) => setGoogle((p) => ({ ...p, notes: e.target.value }))} /></label>
-          <div className="md:col-span-2 flex justify-end"><button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50" onClick={() => googleMutation.mutate()} disabled={googleMutation.isPending || !mapsApiKey}>{googleMutation.isPending ? "Importing…" : "Import from Google"}</button></div>
+          <div className="md:col-span-2 flex justify-end"><button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50" onClick={() => googleMutation.mutate()} disabled={googleMutation.isPending || (!google.query && !google.place_id)}>{googleMutation.isPending ? "Importing…" : "Import from Google"}</button></div>
         </div>
             )}
             {primaryMode === "arcgis" && (
