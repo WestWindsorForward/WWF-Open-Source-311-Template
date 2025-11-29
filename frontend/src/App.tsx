@@ -64,6 +64,9 @@ export default function App() {
                 src={headerBranding.logo_url}
                 alt={`${headerBranding.site_title ?? headerBranding.town_name ?? "Township"} logo`}
                 className="h-10 w-auto max-w-[140px] rounded-md border border-slate-200 object-contain"
+                height={40}
+                decoding="async"
+                fetchpriority="high"
               />
             )}
             <div className="text-center md:text-left">

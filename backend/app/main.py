@@ -2,6 +2,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -56,3 +59,15 @@ async def restore_settings_from_disk() -> None:
 @app.get("/health", tags=["Health"])
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+class StorageCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        if request.url.path.startswith("/storage/branding-"):
+            # Encourage edge/browser caching; filenames include digest for cache-busting
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
+app.add_middleware(StorageCacheMiddleware)

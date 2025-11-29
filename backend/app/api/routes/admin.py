@@ -1,6 +1,7 @@
 import secrets
 import uuid
 from pathlib import Path
+import hashlib
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import delete, select, update
@@ -146,7 +147,10 @@ async def upload_asset(
 ) -> dict:
     # Sanitize filename to avoid spaces/unsupported characters in URLs
     clean = _clean_filename(file.filename)
-    path = save_file(f"branding-{asset_key}-{clean}", await file.read())
+    data = await file.read()
+    digest = hashlib.sha256(data).hexdigest()[:8]
+    ext = Path(file.filename).suffix.lower()
+    path = save_file(f"branding-{asset_key}-{clean}-{digest}{ext}", data)
     stmt = select(BrandingAsset).where(BrandingAsset.key == asset_key)
     result = await session.execute(stmt)
     record = result.scalar_one_or_none()

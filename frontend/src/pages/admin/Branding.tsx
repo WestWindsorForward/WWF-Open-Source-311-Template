@@ -122,7 +122,7 @@ export function BrandingPage() {
           <h3 className="text-sm font-semibold text-slate-700">Logo</h3>
           {data?.branding?.logo_url ? (
             <div className="mt-3 flex items-center justify-between">
-              <img src={data.branding.logo_url} alt="Logo" className="h-10 w-auto rounded-md border object-contain" />
+              <img src={data.branding.logo_url} alt="Logo" className="h-10 w-auto rounded-md border object-contain" height={40} decoding="async" fetchpriority="high" />
               <div className="flex items-center gap-2">
                 <button className="rounded-md border border-slate-200 px-3 py-1 text-xs" onClick={() => setLogoFile(null)}>Replace</button>
                 <button className="rounded-md border border-rose-200 px-3 py-1 text-xs text-rose-600" onClick={async () => { await client.delete("/api/admin/branding/assets/logo"); await refetch(); }}>Delete</button>
@@ -139,7 +139,7 @@ export function BrandingPage() {
           <h3 className="text-sm font-semibold text-slate-700">Favicon</h3>
           {data?.branding?.favicon_url ? (
             <div className="mt-3 flex items-center justify-between">
-              <img src={data.branding.favicon_url} alt="Favicon" className="h-8 w-8 rounded-md border object-contain" />
+              <img src={data.branding.favicon_url} alt="Favicon" className="h-8 w-8 rounded-md border object-contain" height={32} decoding="async" />
               <div className="flex items-center gap-2">
                 <button className="rounded-md border border-slate-200 px-3 py-1 text-xs" onClick={() => setFaviconFile(null)}>Replace</button>
                 <button className="rounded-md border border-rose-200 px-3 py-1 text-xs text-rose-600" onClick={async () => { await client.delete("/api/admin/branding/assets/favicon"); await refetch(); }}>Delete</button>
