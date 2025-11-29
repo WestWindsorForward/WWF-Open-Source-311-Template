@@ -674,9 +674,12 @@ async def import_boundary_from_google(
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> GeoBoundaryRead:
     try:
+        # Prefer runtime-configured API key over env settings
+        runtime_cfg = await runtime_config_service.get_runtime_config(session)
         suggested_name, geojson = await google_maps.fetch_boundary_from_google(
             query=payload.query,
             place_id=payload.place_id,
+            api_key_override=runtime_cfg.get("google_maps_api_key") if isinstance(runtime_cfg, dict) else None,
         )
     except google_maps.GoogleMapsError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

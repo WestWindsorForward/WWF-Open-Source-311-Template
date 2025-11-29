@@ -28,10 +28,15 @@ export function SecretsPage() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secrets"] }),
   });
-  const twilioMutation = useMutation({
-    mutationFn: async (twilio: { account_sid: string; auth_token: string; messaging_service_sid: string }) => {
-      const metadata = { account_sid: twilio.account_sid.trim(), messaging_service_sid: twilio.messaging_service_sid.trim() };
-      await client.post("/api/admin/secrets", { provider: "twilio", key: twilio.account_sid.trim(), secret: twilio.auth_token, metadata });
+  const smsMutation = useMutation({
+    mutationFn: async (sms: { provider_name: string; api_base_url: string; api_token: string; auth_header?: string; from_number?: string }) => {
+      const metadata = {
+        provider_name: sms.provider_name.trim(),
+        api_base_url: sms.api_base_url.trim(),
+        auth_header: (sms.auth_header || "Authorization").trim(),
+        from_number: (sms.from_number || "").trim(),
+      };
+      await client.post("/api/admin/secrets", { provider: "sms", key: sms.provider_name.trim(), secret: sms.api_token, metadata });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["secrets"] }),
   });
@@ -83,17 +88,22 @@ export function SecretsPage() {
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 p-4">
-          <p className="text-sm font-semibold text-slate-700">SMS (Twilio)</p>
-          <label className="text-sm text-slate-600">Account SID<input className="mt-1 w-full rounded-md border p-2" id="twilio_sid" /></label>
-          <label className="text-sm text-slate-600">Auth Token<input type="password" className="mt-1 w-full rounded-md border p-2" id="twilio_token" /></label>
-          <label className="text-sm text-slate-600">Messaging Service SID<input className="mt-1 w-full rounded-md border p-2" id="twilio_msid" /></label>
+          <p className="text-sm font-semibold text-slate-700">SMS Provider (Generic)</p>
+          <InfoBox><p>Supports any SMS API. Provide provider name, base URL, authorization header name (default Authorization), API token, and optional default from number.</p></InfoBox>
+          <label className="text-sm text-slate-600">Provider name<input className="mt-1 w-full rounded-md border p-2" id="sms_provider_name" placeholder="twilio | msg91 | custom" /></label>
+          <label className="text-sm text-slate-600">API base URL<input className="mt-1 w-full rounded-md border p-2" id="sms_api_base" placeholder="https://api.example.com/v1/messages" /></label>
+          <label className="text-sm text-slate-600">Auth header name<input className="mt-1 w-full rounded-md border p-2" id="sms_auth_header" defaultValue="Authorization" /></label>
+          <label className="text-sm text-slate-600">API token<input type="password" className="mt-1 w-full rounded-md border p-2" id="sms_api_token" /></label>
+          <label className="text-sm text-slate-600">From number (optional)<input className="mt-1 w-full rounded-md border p-2" id="sms_from" placeholder="+15551234567" /></label>
           <div className="mt-2 text-right">
             <button className="rounded-md bg-slate-900 px-3 py-1 text-xs font-semibold text-white" onClick={() => {
-              const account_sid = (document.getElementById("twilio_sid") as HTMLInputElement).value;
-              const auth_token = (document.getElementById("twilio_token") as HTMLInputElement).value;
-              const messaging_service_sid = (document.getElementById("twilio_msid") as HTMLInputElement).value;
-              twilioMutation.mutate({ account_sid, auth_token, messaging_service_sid });
-            }}>Save Twilio</button>
+              const provider_name = (document.getElementById("sms_provider_name") as HTMLInputElement).value;
+              const api_base_url = (document.getElementById("sms_api_base") as HTMLInputElement).value;
+              const auth_header = (document.getElementById("sms_auth_header") as HTMLInputElement).value;
+              const api_token = (document.getElementById("sms_api_token") as HTMLInputElement).value;
+              const from_number = (document.getElementById("sms_from") as HTMLInputElement).value;
+              smsMutation.mutate({ provider_name, api_base_url, api_token, auth_header, from_number });
+            }}>Save SMS Provider</button>
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 p-4">

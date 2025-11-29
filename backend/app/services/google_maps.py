@@ -15,9 +15,9 @@ class GoogleMapsError(RuntimeError):
     pass
 
 
-async def fetch_boundary_from_google(*, query: str | None, place_id: str | None) -> Tuple[str, dict[str, Any]]:
+async def fetch_boundary_from_google(*, query: str | None, place_id: str | None, api_key_override: str | None = None) -> Tuple[str, dict[str, Any]]:
     """Get a rough polygon for a place or road using Google Maps APIs."""
-    api_key = settings.google_maps_api_key
+    api_key = api_key_override or settings.google_maps_api_key
     if not api_key:
         raise GoogleMapsError("Google Maps API key is not configured.")
 
