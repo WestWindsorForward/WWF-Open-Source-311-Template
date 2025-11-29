@@ -44,15 +44,15 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-white pb-16">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-col items-center gap-3 md:w-auto md:flex-row md:items-center">
             {branding.logo_url && (
               <img
                 src={branding.logo_url}
                 alt={`${branding.site_title ?? branding.town_name ?? "Township"} logo`}
-                className="h-10 w-10 rounded-full border border-slate-200 object-cover"
+                className="h-10 w-auto max-w-[140px] rounded-md border border-slate-200 object-contain"
               />
             )}
-            <div>
+            <div className="text-center md:text-left">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
                 {branding.town_name ?? "Township 311"}
               </p>
