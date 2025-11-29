@@ -171,6 +171,23 @@ async def upload_asset(
     }
 
 
+@router.delete("/branding/assets/{asset_key}")
+async def delete_asset(
+    asset_key: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> dict:
+    stmt = select(BrandingAsset).where(BrandingAsset.key == asset_key)
+    result = await session.execute(stmt)
+    record = result.scalar_one_or_none()
+    if record:
+        from app.utils.storage import delete_file
+        delete_file(record.file_path)
+        await session.delete(record)
+        await session.commit()
+    return {"status": "deleted", "key": asset_key}
+
+
 @router.get("/departments", response_model=list[DepartmentRead])
 async def list_departments(
     session: AsyncSession = Depends(get_db),

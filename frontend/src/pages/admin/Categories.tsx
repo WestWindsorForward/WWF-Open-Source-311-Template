@@ -27,6 +27,10 @@ export function CategoriesPage() {
   });
   const categories = categoriesQuery.data ?? [];
   const departments = departmentsQuery.data ?? [];
+  const updateMutation = useMutation({
+    mutationFn: async (category: AdminCategory) => client.put(`/api/admin/categories/${category.id}`, { name: category.name, slug: category.slug, description: category.description }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-categories"] }),
+  });
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -65,17 +69,15 @@ export function CategoriesPage() {
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
           {categories.map((category: AdminCategory) => (
             <li key={category.id} className="p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">{category.name}</p>
-                  <p className="text-xs uppercase text-slate-500">{category.slug}</p>
-                  {category.department_name && (
-                    <p className="text-[11px] text-slate-500">Dept: {category.department_name}</p>
-                  )}
-                </div>
-                <button type="button" className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50" onClick={() => deleteMutation.mutate(category.id)} disabled={deleteMutation.isPending}>
-                  Delete
-                </button>
+              <div className="grid gap-2 md:grid-cols-2">
+                <input className="rounded-md border p-2" value={category.name} onChange={(e) => (category.name = e.target.value)} />
+                <input className="rounded-md border p-2" value={category.slug} onChange={(e) => (category.slug = e.target.value)} />
+                <textarea className="rounded-md border p-2 md:col-span-2" value={category.description ?? ""} onChange={(e) => (category.description = e.target.value)} />
+                <div className="text-xs text-slate-500 md:col-span-2">Dept: {category.department_name ?? "Unassigned"}</div>
+              </div>
+              <div className="mt-2 flex items-center justify-end gap-2">
+                <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => updateMutation.mutate({ ...category })} disabled={updateMutation.isPending}>Save</button>
+                <button type="button" className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50" onClick={() => deleteMutation.mutate(category.id)} disabled={deleteMutation.isPending}>Delete</button>
               </div>
             </li>
           ))}
@@ -84,4 +86,3 @@ export function CategoriesPage() {
     </div>
   );
 }
-

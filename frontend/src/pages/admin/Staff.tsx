@@ -34,6 +34,10 @@ export function StaffPage() {
   });
   const departments = departmentsQuery.data ?? [];
   const staff = staffQuery.data ?? [];
+  const updateMutation = useMutation({
+    mutationFn: async (member: StaffUser) => client.put(`/api/admin/staff/${member.id}`, { display_name: member.display_name, role: member.role, department_slugs: member.department_slugs ?? [] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-directory"] }),
+  });
   const handleDepartments = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
     setForm({ ...form, department_slugs: selected, department: selected[0] ?? "" });
@@ -61,15 +65,24 @@ export function StaffPage() {
           {staff.map((member: StaffUser) => (
             <li key={member.id} className="p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">{member.display_name}</p>
+                <div className="flex-1">
+                  <input className="rounded-md border p-2" value={member.display_name} onChange={(e) => (member.display_name = e.target.value)} />
                   <p className="text-xs uppercase text-slate-500">{member.email}</p>
-                  {member.department_slugs && member.department_slugs.length > 0 && (
-                    <p className="text-[11px] text-slate-500">Departments: {member.department_slugs.join(", ")}</p>
-                  )}
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    <select className="rounded-md border p-2" value={member.role} onChange={(e) => (member.role = e.target.value as any)}>
+                      <option value="staff">Staff</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <select multiple className="rounded-md border p-2" value={member.department_slugs ?? []} onChange={(e) => { const selected = Array.from(e.target.selectedOptions).map((o) => o.value); member.department_slugs = selected; }}>
+                      {departments.map((dept: Department) => (<option key={dept.id} value={dept.slug}>{dept.name}</option>))}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs uppercase text-slate-600">{member.role}</span>
+                  <button className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50" onClick={() => updateMutation.mutate({ ...member })} disabled={updateMutation.isPending}>
+                    Save
+                  </button>
                   <button className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50" onClick={() => { setResettingId(member.id); resetMutation.mutate(member.id); }} disabled={resettingId === member.id}>
                     {resettingId === member.id ? "Resetting…" : "Reset password"}
                   </button>
@@ -83,4 +96,3 @@ export function StaffPage() {
     </div>
   );
 }
-
