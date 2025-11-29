@@ -1,0 +1,99 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import client from "../../api/client";
+import { useAdminCategories, useBoundaries, useResidentConfig } from "../../api/hooks";
+import type { IssueCategory } from "../../types";
+import { useMemo, useState } from "react";
+
+export function BoundariesPage() {
+  const queryClient = useQueryClient();
+  const boundariesQuery = useBoundaries();
+  const adminCategoriesQuery = useAdminCategories();
+  const { data: residentConfig } = useResidentConfig();
+  const [upload, setUpload] = useState({ name: "Primary Boundary", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", geojson: "", service_code_filters: [] as string[] });
+  const [google, setGoogle] = useState({ query: "", place_id: "", name: "", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", service_code_filters: [] as string[] });
+  const mapsApiKey = residentConfig?.integrations?.google_maps_api_key;
+  const categories = useMemo<IssueCategory[]>(() => residentConfig?.categories ?? adminCategoriesQuery.data ?? [], [residentConfig, adminCategoriesQuery.data]);
+  const handleUploadFilters = (e: React.ChangeEvent<HTMLSelectElement>) => setUpload((prev) => ({ ...prev, service_code_filters: Array.from(e.target.selectedOptions).map((o) => o.value) }));
+  const handleGoogleFilters = (e: React.ChangeEvent<HTMLSelectElement>) => setGoogle((prev) => ({ ...prev, service_code_filters: Array.from(e.target.selectedOptions).map((o) => o.value) }));
+  const uploadMutation = useMutation({
+    mutationFn: async () => client.post("/api/admin/geo-boundary", { name: upload.name, kind: upload.kind, jurisdiction: upload.jurisdiction || null, redirect_url: upload.redirect_url || null, notes: upload.notes || null, geojson: JSON.parse(upload.geojson), service_code_filters: upload.service_code_filters ?? [] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
+      setUpload({ name: "Primary Boundary", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", geojson: "", service_code_filters: [] });
+    },
+  });
+  const googleMutation = useMutation({
+    mutationFn: async () => client.post("/api/admin/geo-boundary/google", { query: google.query || undefined, place_id: google.place_id || undefined, name: google.name || undefined, kind: google.kind, jurisdiction: google.jurisdiction || undefined, redirect_url: google.redirect_url || undefined, notes: google.notes || undefined, service_code_filters: google.service_code_filters ?? [] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] });
+      setGoogle({ query: "", place_id: "", name: "", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", service_code_filters: [] });
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => client.delete(`/api/admin/geo-boundary/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] }),
+  });
+  const boundaries = boundariesQuery.data ?? [];
+  return (
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold">Jurisdiction Boundaries</h1>
+        <p className="text-sm text-slate-500">Upload GeoJSON or import from Google.</p>
+      </div>
+      <div className="rounded-2xl border border-slate-200 p-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="text-sm text-slate-600">Boundary Name<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.name} onChange={(e) => setUpload((p) => ({ ...p, name: e.target.value }))} /></label>
+          <label className="text-sm text-slate-600">Boundary Type<select className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.kind} onChange={(e) => setUpload((p) => ({ ...p, kind: e.target.value }))}><option value="primary">Primary (allowed)</option><option value="exclusion">Excluded jurisdiction</option></select></label>
+          <label className="text-sm text-slate-600">Jurisdiction<select className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.jurisdiction} onChange={(e) => setUpload((p) => ({ ...p, jurisdiction: e.target.value }))}><option value="">Not specified</option><option value="township">Township</option><option value="county">County</option><option value="state">State</option><option value="federal">Federal</option><option value="other">Other</option></select></label>
+          <label className="text-sm text-slate-600 md:col-span-2">Route categories<select multiple className="mt-1 h-32 w-full rounded-xl border border-slate-300 p-2" value={upload.service_code_filters} onChange={handleUploadFilters}>{categories.map((c) => (<option key={c.slug} value={c.slug}>{c.name}</option>))}</select></label>
+          <label className="text-sm text-slate-600">Redirect URL<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.redirect_url} onChange={(e) => setUpload((p) => ({ ...p, redirect_url: e.target.value }))} /></label>
+          <label className="text-sm text-slate-600">Notes<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={upload.notes} onChange={(e) => setUpload((p) => ({ ...p, notes: e.target.value }))} /></label>
+          <label className="text-sm text-slate-600 md:col-span-2">GeoJSON<textarea className="mt-1 h-32 w-full rounded-xl border border-slate-300 p-2 font-mono text-xs" placeholder='{"type":"Polygon","coordinates":[...]}' value={upload.geojson} onChange={(e) => setUpload((p) => ({ ...p, geojson: e.target.value }))} /></label>
+          <div className="md:col-span-2 flex justify-end"><button className="rounded-xl bg-emerald-600 px-4 py-2 text-white disabled:opacity-50" onClick={() => uploadMutation.mutate()} disabled={uploadMutation.isPending}>{uploadMutation.isPending ? "Uploading…" : "Save Boundary"}</button></div>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-slate-200 p-4">
+        <div className="flex items-center justify-between"><div><h4 className="text-sm font-semibold text-slate-700">Import from Google Maps</h4><p className="text-xs text-slate-500">Requires a Google Maps API key in Runtime Config.</p></div></div>
+        {!mapsApiKey && (<p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">Add a Google Maps API key under Runtime Config to enable this importer.</p>)}
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="text-sm text-slate-600">Search phrase<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.query} onChange={(e) => setGoogle((p) => ({ ...p, query: e.target.value }))} /></label>
+          <label className="text-sm text-slate-600">Place ID<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.place_id} onChange={(e) => setGoogle((p) => ({ ...p, place_id: e.target.value }))} /></label>
+          <label className="text-sm text-slate-600">Override name<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.name} onChange={(e) => setGoogle((p) => ({ ...p, name: e.target.value }))} /></label>
+          <label className="text-sm text-slate-600">Kind<select className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.kind} onChange={(e) => setGoogle((p) => ({ ...p, kind: e.target.value }))}><option value="primary">Primary (allowed)</option><option value="exclusion">Excluded jurisdiction</option></select></label>
+          <label className="text-sm text-slate-600">Jurisdiction<select className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.jurisdiction} onChange={(e) => setGoogle((p) => ({ ...p, jurisdiction: e.target.value }))}><option value="">Not specified</option><option value="township">Township</option><option value="county">County</option><option value="state">State</option><option value="federal">Federal</option><option value="other">Other</option></select></label>
+          <label className="text-sm text-slate-600 md:col-span-2">Route categories<select multiple className="mt-1 h-28 w-full rounded-xl border border-slate-300 p-2" value={google.service_code_filters} onChange={handleGoogleFilters}>{categories.map((c) => (<option key={c.slug} value={c.slug}>{c.name}</option>))}</select></label>
+          <label className="text-sm text-slate-600">Redirect URL<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.redirect_url} onChange={(e) => setGoogle((p) => ({ ...p, redirect_url: e.target.value }))} /></label>
+          <label className="text-sm text-slate-600">Notes<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.notes} onChange={(e) => setGoogle((p) => ({ ...p, notes: e.target.value }))} /></label>
+          <div className="md:col-span-2 flex justify-end"><button type="button" className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50" onClick={() => googleMutation.mutate()} disabled={googleMutation.isPending || !mapsApiKey}>{googleMutation.isPending ? "Importing…" : "Import from Google"}</button></div>
+        </div>
+      </div>
+      {boundaries.length > 0 && (
+        <ul className="mt-4 space-y-2 text-sm">
+          {boundaries.map((boundary) => (
+            <li key={boundary.id} className="rounded-xl border border-slate-200 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{boundary.name}</p>
+                  <p className="text-xs uppercase text-slate-500">{boundary.kind}</p>
+                  {boundary.jurisdiction && (<p className="text-xs text-slate-500">Jurisdiction: {boundary.jurisdiction}</p>)}
+                  {boundary.redirect_url && (
+                    <a href={boundary.redirect_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-slate-600 underline">Redirect link</a>
+                  )}
+                  {boundary.service_code_filters && boundary.service_code_filters.length > 0 ? (
+                    <p className="text-[11px] text-slate-500">Routes: {boundary.service_code_filters.join(", ")}</p>
+                  ) : (
+                    <p className="text-[11px] text-slate-500">Routes: all categories</p>
+                  )}
+                </div>
+                <button type="button" className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50" onClick={() => deleteMutation.mutate(boundary.id)}>
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+

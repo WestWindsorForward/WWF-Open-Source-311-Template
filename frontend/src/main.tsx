@@ -11,7 +11,14 @@ import { LoginPage } from "./pages/LoginPage";
 import AdminLayout from "./layouts/AdminLayout";
 import { BrandingPage } from "./pages/admin/Branding";
 import { OverviewPage } from "./pages/admin/Overview";
-import { StubPage } from "./pages/admin/Stub";
+import { DepartmentsPage } from "./pages/admin/Departments";
+import { CategoriesPage } from "./pages/admin/Categories";
+import { BoundariesPage } from "./pages/admin/Boundaries";
+import { StaffPage } from "./pages/admin/Staff";
+import { RequestsPage } from "./pages/admin/Requests";
+import { RuntimeConfigPage } from "./pages/admin/RuntimeConfig";
+import { SecretsPage } from "./pages/admin/Secrets";
+import { SystemPage } from "./pages/admin/System";
 import { ResidentPortal } from "./pages/ResidentPortal";
 import { StaffCommandCenter } from "./pages/StaffCommandCenter";
 import { ChangePasswordPage } from "./pages/ChangePassword";
@@ -44,14 +51,14 @@ const router = createBrowserRouter([
           { index: true, element: <OverviewPage /> },
           { path: "overview", element: <OverviewPage /> },
           { path: "branding", element: <BrandingPage /> },
-          { path: "departments", element: <StubPage title="Departments" to="/admin" /> },
-          { path: "categories", element: <StubPage title="Categories" to="/admin" /> },
-          { path: "boundaries", element: <StubPage title="Boundaries" to="/admin" /> },
-          { path: "staff", element: <StubPage title="Staff" to="/admin" /> },
-          { path: "requests", element: <StubPage title="Requests" to="/admin" /> },
-          { path: "runtime", element: <StubPage title="Runtime Config" to="/admin" /> },
-          { path: "secrets", element: <StubPage title="Secrets" to="/admin" /> },
-          { path: "system", element: <StubPage title="System" to="/admin" /> },
+          { path: "departments", element: <DepartmentsPage /> },
+          { path: "categories", element: <CategoriesPage /> },
+          { path: "boundaries", element: <BoundariesPage /> },
+          { path: "staff", element: <StaffPage /> },
+          { path: "requests", element: <RequestsPage /> },
+          { path: "runtime", element: <RuntimeConfigPage /> },
+          { path: "secrets", element: <SecretsPage /> },
+          { path: "system", element: <SystemPage /> },
         ],
       },
       {

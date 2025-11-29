@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     otel_endpoint: str | None = None
     otel_headers: str | None = None
 
-    developer_report_email: str = "311reports@westwindsorforward.org"
+    developer_report_email: str = ""
     heartbeat_day_of_week: int = 0  # Monday
 
     outbound_webhook_secret: str = ""
