@@ -162,7 +162,7 @@ export function BoundariesPage() {
                 <input
                   ref={googleInputRef}
                   className="mt-1 w-full rounded-xl border border-slate-300 p-2"
-                  placeholder="Search township (Google Places)"
+                  placeholder="Search for your location (e.g., 'West Windsor Township, NJ')"
                   onChange={(e) => setGoogle((p) => ({ ...p, query: e.target.value }))}
                 />
               </Autocomplete>
