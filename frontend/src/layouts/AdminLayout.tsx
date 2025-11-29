@@ -8,7 +8,7 @@ const nav = [
   { to: "/admin/branding", label: "Branding" },
   { to: "/admin/departments", label: "Departments" },
   { to: "/admin/categories", label: "Categories" },
-  { to: "/admin/boundaries", label: "Boundaries" },
+  
   { to: "/admin/staff", label: "Staff" },
   { to: "/admin/requests", label: "Requests" },
   { to: "/admin/runtime", label: "Runtime" },
@@ -37,10 +37,7 @@ export default function AdminLayout() {
       queryClient.prefetchQuery({ queryKey: ["admin-categories"], queryFn: async () => (await client.get("/api/admin/categories")).data, staleTime: 120_000 });
       import("../pages/admin/Categories");
     },
-    "/admin/boundaries": () => {
-      queryClient.prefetchQuery({ queryKey: ["geo-boundaries"], queryFn: async () => (await client.get("/api/admin/geo-boundary")).data, staleTime: 120_000 });
-      import("../pages/admin/Boundaries");
-    },
+    
     "/admin/staff": () => {
       queryClient.prefetchQuery({ queryKey: ["staff-directory"], queryFn: async () => (await client.get("/api/admin/staff")).data, staleTime: 120_000 });
       import("../pages/admin/Staff");

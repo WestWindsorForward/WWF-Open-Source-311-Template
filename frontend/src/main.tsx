@@ -14,7 +14,6 @@ const BrandingPage = lazy(() => import("./pages/admin/Branding").then(m => ({ de
 const OverviewPage = lazy(() => import("./pages/admin/Overview").then(m => ({ default: m.OverviewPage })));
 const DepartmentsPage = lazy(() => import("./pages/admin/Departments").then(m => ({ default: m.DepartmentsPage })));
 const CategoriesPage = lazy(() => import("./pages/admin/Categories").then(m => ({ default: m.CategoriesPage })));
-const BoundariesPage = lazy(() => import("./pages/admin/Boundaries").then(m => ({ default: m.BoundariesPage })));
 const StaffPage = lazy(() => import("./pages/admin/Staff").then(m => ({ default: m.StaffPage })));
 const RequestsPage = lazy(() => import("./pages/admin/Requests").then(m => ({ default: m.RequestsPage })));
 const RuntimeConfigPage = lazy(() => import("./pages/admin/RuntimeConfig").then(m => ({ default: m.RuntimeConfigPage })));
@@ -69,7 +68,7 @@ const router = createBrowserRouter([
           { path: "branding", element: <Suspense fallback={<div className="h-24 animate-pulse rounded-xl bg-slate-100" />}> <BrandingPage /> </Suspense> },
           { path: "departments", element: <Suspense fallback={<div className="h-24 animate-pulse rounded-xl bg-slate-100" />}> <DepartmentsPage /> </Suspense> },
           { path: "categories", element: <Suspense fallback={<div className="h-24 animate-pulse rounded-xl bg-slate-100" />}> <CategoriesPage /> </Suspense> },
-          { path: "boundaries", element: <Suspense fallback={<div className="h-24 animate-pulse rounded-xl bg-slate-100" />}> <BoundariesPage /> </Suspense> },
+          
           { path: "staff", element: <Suspense fallback={<div className="h-24 animate-pulse rounded-xl bg-slate-100" />}> <StaffPage /> </Suspense> },
           { path: "requests", element: <Suspense fallback={<div className="h-24 animate-pulse rounded-xl bg-slate-100" />}> <RequestsPage /> </Suspense> },
           { path: "runtime", element: <Suspense fallback={<div className="h-24 animate-pulse rounded-xl bg-slate-100" />}> <RuntimeConfigPage /> </Suspense> },
