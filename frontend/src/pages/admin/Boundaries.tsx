@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoadScript, Autocomplete } from "@react-google-maps/api";
+import { LoadScript } from "@react-google-maps/api";
 import client from "../../api/client";
 import { useAdminCategories, useBoundaries, useResidentConfig, useCategoryExclusions, useRoadExclusions } from "../../api/hooks";
 import type { IssueCategory } from "../../types";
@@ -21,6 +21,28 @@ export function BoundariesPage() {
   const [arcgis, setArcgis] = useState({ layer_url: "", where: "", name: "ArcGIS Layer", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", service_code_filters: [] as string[], road_name_filters: [] as string[] });
   const mapsApiKey = residentConfig?.integrations?.google_maps_api_key;
   const autoRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const googleInputRef = useRef<HTMLInputElement | null>(null);
+  const scriptLoaded = !!mapsApiKey;
+
+  // Initialize Places Autocomplete once when script and input are available
+  // Avoid wrapping the input directly in Autocomplete to prevent the one-letter typing bug
+  if (scriptLoaded && typeof window !== "undefined" && (window as any).google && googleInputRef.current && !autoRef.current) {
+    try {
+      const ac = new (window as any).google.maps.places.Autocomplete(googleInputRef.current, {
+        fields: ["place_id", "name", "geometry", "formatted_address"],
+        types: ["(regions)"]
+      });
+      ac.addListener("place_changed", () => {
+        const place = ac.getPlace();
+        const pid = place.place_id || "";
+        const pname = place.name || place.formatted_address || google.query;
+        setGoogle((p) => ({ ...p, place_id: pid, name: pname, query: pname }));
+      });
+      autoRef.current = ac;
+    } catch (e) {
+      // noop
+    }
+  }
   const categories = useMemo<IssueCategory[]>(() => residentConfig?.categories ?? adminCategoriesQuery.data ?? [], [residentConfig, adminCategoriesQuery.data]);
   const [catForm, setCatForm] = useState({ category_slug: "", redirect_name: "", redirect_url: "", redirect_message: "", is_active: true });
   const [roadForm, setRoadForm] = useState({ road_name: "", redirect_name: "", redirect_url: "", redirect_message: "", is_active: true });
@@ -116,22 +138,15 @@ export function BoundariesPage() {
             {primaryMode === "google" && (
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {mapsApiKey ? (
-            <LoadScript googleMapsApiKey={mapsApiKey} libraries={["places"]}>
-              <Autocomplete onLoad={(auto) => { autoRef.current = auto; }} onPlaceChanged={() => {
-                const instance = autoRef.current;
-                if (!instance) return;
-                const place = instance.getPlace();
-                const pid = place.place_id || "";
-                const pname = place.name || place.formatted_address || google.query;
-                setGoogle((p) => ({ ...p, place_id: pid, name: pname, query: pname }));
-              }}>
-                <input
-                  className="mt-1 w-full rounded-xl border border-slate-300 p-2"
-                  placeholder="Search township (Google Places)"
-                  onChange={(e) => setGoogle((p) => ({ ...p, query: e.target.value }))}
-                />
-              </Autocomplete>
-            </LoadScript>
+            <>
+              <LoadScript googleMapsApiKey={mapsApiKey} libraries={["places"]} />
+              <input
+                ref={googleInputRef}
+                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                placeholder="Search township (Google Places)"
+                onInput={(e) => setGoogle((p) => ({ ...p, query: (e.target as HTMLInputElement).value }))}
+              />
+            </>
           ) : (
             <label className="text-sm text-slate-600">Search phrase<input className="mt-1 w-full rounded-xl border border-slate-300 p-2" value={google.query} onChange={(e) => setGoogle((p) => ({ ...p, query: e.target.value }))} /></label>
           )}

@@ -79,6 +79,42 @@ async def restore_settings_from_disk() -> None:
             result = await conn.execute(check_sql)
             if result.first() is None:
                 await conn.execute(text("ALTER TABLE geo_boundaries ADD COLUMN road_name_filters JSONB DEFAULT '[]'::jsonb"))
+            # Create category_exclusions table if missing
+            t_check = await conn.execute(text("SELECT 1 FROM information_schema.tables WHERE table_name='category_exclusions'"))
+            if t_check.first() is None:
+                await conn.execute(text(
+                    """
+                    CREATE TABLE category_exclusions (
+                        id SERIAL PRIMARY KEY,
+                        category_slug VARCHAR(128) NOT NULL,
+                        redirect_name VARCHAR(255),
+                        redirect_url VARCHAR(512),
+                        redirect_message TEXT,
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_category_exclusions_category_slug ON category_exclusions (category_slug);
+                    """
+                ))
+            # Create road_exclusions table if missing
+            r_check = await conn.execute(text("SELECT 1 FROM information_schema.tables WHERE table_name='road_exclusions'"))
+            if r_check.first() is None:
+                await conn.execute(text(
+                    """
+                    CREATE TABLE road_exclusions (
+                        id SERIAL PRIMARY KEY,
+                        road_name VARCHAR(255) NOT NULL,
+                        redirect_name VARCHAR(255),
+                        redirect_url VARCHAR(512),
+                        redirect_message TEXT,
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS ix_road_exclusions_road_name ON road_exclusions (road_name);
+                    """
+                ))
     except Exception:
         pass
     await settings_snapshot.bootstrap_from_disk()
