@@ -27,6 +27,8 @@ export function CategoriesPage() {
   });
   const categories = categoriesQuery.data ?? [];
   const departments = departmentsQuery.data ?? [];
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState<Partial<AdminCategory> | null>(null);
   const updateMutation = useMutation({
     mutationFn: async (category: AdminCategory) => client.put(`/api/admin/categories/${category.id}`, { name: category.name, slug: category.slug, description: category.description, default_department_slug: (category as any).default_department_slug ?? undefined }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-categories"] }),
@@ -69,24 +71,42 @@ export function CategoriesPage() {
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
           {categories.map((category: AdminCategory) => (
             <li key={category.id} className="p-3 text-sm">
-              <div className="grid gap-2 md:grid-cols-2">
-                <input className="rounded-md border p-2" value={category.name} onChange={(e) => (category.name = e.target.value)} />
-                <input className="rounded-md border p-2" value={category.slug} onChange={(e) => (category.slug = e.target.value)} />
-                <textarea className="rounded-md border p-2 md:col-span-2" value={category.description ?? ""} onChange={(e) => (category.description = e.target.value)} />
-                <label className="text-sm text-slate-600 md:col-span-2">
-                  Owning department
-                  <select className="mt-1 w-full rounded-md border p-2" value={(category as any).default_department_slug ?? ""} onChange={(e) => ((category as any).default_department_slug = e.target.value)}>
-                    <option value="">Unassigned</option>
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.slug}>{dept.name}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="mt-2 flex items-center justify-end gap-2">
-                <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => updateMutation.mutate({ ...category })} disabled={updateMutation.isPending}>Save</button>
-                <button type="button" className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50" onClick={() => deleteMutation.mutate(category.id)} disabled={deleteMutation.isPending}>Delete</button>
-              </div>
+              {editingId === category.id ? (
+                <div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <input className="rounded-md border p-2" value={draft?.name ?? category.name} onChange={(e) => setDraft({ ...(draft ?? {}), id: category.id, name: e.target.value })} />
+                    <input className="rounded-md border p-2" value={draft?.slug ?? category.slug} onChange={(e) => setDraft({ ...(draft ?? {}), id: category.id, slug: e.target.value })} />
+                    <textarea className="rounded-md border p-2 md:col-span-2" value={draft?.description ?? category.description ?? ""} onChange={(e) => setDraft({ ...(draft ?? {}), id: category.id, description: e.target.value })} />
+                    <label className="text-sm text-slate-600 md:col-span-2">
+                      Owning department
+                      <select className="mt-1 w-full rounded-md border p-2" value={(draft as any)?.default_department_slug ?? (category as any).default_department_slug ?? ""} onChange={(e) => setDraft({ ...(draft ?? {}), id: category.id, default_department_slug: e.target.value } as any)}>
+                        <option value="">Unassigned</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.slug}>{dept.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="mt-2 flex items-center justify-end gap-2">
+                    <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => { if (draft) updateMutation.mutate({ ...(category as any), ...draft } as any); setEditingId(null); }} disabled={updateMutation.isPending}>Save</button>
+                    <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => { setEditingId(null); setDraft(null); }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{category.name}</p>
+                    <p className="text-xs uppercase text-slate-500">{category.slug}</p>
+                    {category.department_name && (
+                      <p className="text-[11px] text-slate-500">Dept: {category.department_name}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => { setEditingId(category.id); setDraft({ ...category } as any); }}>Edit</button>
+                    <button type="button" className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50" onClick={() => deleteMutation.mutate(category.id)} disabled={deleteMutation.isPending}>Delete</button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>

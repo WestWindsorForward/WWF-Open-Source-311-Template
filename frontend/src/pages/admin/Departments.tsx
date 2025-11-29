@@ -28,6 +28,8 @@ export function DepartmentsPage() {
     },
   });
   const departments = departmentsQuery.data ?? [];
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Partial<Department> | null>(null);
   const updateMutation = useMutation({
     mutationFn: async (dept: Department) => client.put(`/api/admin/departments/${dept.id}`, { name: dept.name, slug: dept.slug, description: dept.description, contact_email: dept.contact_email, contact_phone: dept.contact_phone }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["departments"] }),
@@ -62,17 +64,32 @@ export function DepartmentsPage() {
         <ul className="divide-y divide-slate-200 rounded-xl border border-slate-100">
           {departments.map((dept: Department) => (
             <li key={dept.id} className="p-3 text-sm">
-              <div className="grid gap-2 md:grid-cols-2">
-                <input className="rounded-md border p-2" value={dept.name} onChange={(e) => (dept.name = e.target.value)} />
-                <input className="rounded-md border p-2" value={dept.slug} onChange={(e) => (dept.slug = e.target.value)} />
-                <input className="rounded-md border p-2 md:col-span-2" value={dept.description ?? ""} onChange={(e) => (dept.description = e.target.value)} />
-                <input className="rounded-md border p-2" value={dept.contact_email ?? ""} onChange={(e) => (dept.contact_email = e.target.value)} />
-                <input className="rounded-md border p-2" value={dept.contact_phone ?? ""} onChange={(e) => (dept.contact_phone = e.target.value)} />
-              </div>
-              <div className="mt-2 flex items-center justify-end gap-2">
-                <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => updateMutation.mutate({ ...dept })} disabled={updateMutation.isPending}>Save</button>
-                <button type="button" className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50" onClick={() => deleteMutation.mutate(dept.id)} disabled={deleteMutation.isPending}>Delete</button>
-              </div>
+              {editingId === (dept.id as any) ? (
+                <div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <input className="rounded-md border p-2" value={draft?.name ?? dept.name} onChange={(e) => setDraft({ ...(draft ?? {}), id: dept.id, name: e.target.value })} />
+                    <input className="rounded-md border p-2" value={draft?.slug ?? dept.slug} onChange={(e) => setDraft({ ...(draft ?? {}), id: dept.id, slug: e.target.value })} />
+                    <input className="rounded-md border p-2 md:col-span-2" value={draft?.description ?? dept.description ?? ""} onChange={(e) => setDraft({ ...(draft ?? {}), id: dept.id, description: e.target.value })} />
+                    <input className="rounded-md border p-2" value={draft?.contact_email ?? dept.contact_email ?? ""} onChange={(e) => setDraft({ ...(draft ?? {}), id: dept.id, contact_email: e.target.value })} />
+                    <input className="rounded-md border p-2" value={draft?.contact_phone ?? dept.contact_phone ?? ""} onChange={(e) => setDraft({ ...(draft ?? {}), id: dept.id, contact_phone: e.target.value })} />
+                  </div>
+                  <div className="mt-2 flex items-center justify-end gap-2">
+                    <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => { if (draft) updateMutation.mutate({ ...(dept as any), ...draft }); setEditingId(null); }} disabled={updateMutation.isPending}>Save</button>
+                    <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => { setEditingId(null); setDraft(null); }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{dept.name}</p>
+                    <p className="text-xs uppercase text-slate-500">{dept.slug}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => { setEditingId(dept.id as any); setDraft({ ...dept }); }}>Edit</button>
+                    <button type="button" className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50" onClick={() => deleteMutation.mutate(dept.id)} disabled={deleteMutation.isPending}>Delete</button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>
