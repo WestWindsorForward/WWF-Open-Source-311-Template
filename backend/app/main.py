@@ -2,6 +2,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from sqlalchemy import text
+from app.db.session import engine
+from alembic.config import Config
+from alembic import command
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -53,6 +57,30 @@ app.mount("/storage", StaticFiles(directory=storage_path), name="storage")
 
 @app.on_event("startup")
 async def restore_settings_from_disk() -> None:
+    # Auto-run Alembic migrations to head for one-command setup
+    try:
+        alembic_ini = (Path(__file__).resolve().parent.parent / "alembic.ini").as_posix()
+        alembic_dir = (Path(__file__).resolve().parent.parent / "alembic").as_posix()
+        cfg = Config(alembic_ini)
+        cfg.set_main_option("script_location", alembic_dir)
+        command.upgrade(cfg, "head")
+    except Exception:
+        pass
+    # Ensure new columns exist when running without full Alembic context
+    try:
+        async with engine.begin() as conn:
+            # Add road_name_filters column if missing
+            check_sql = text(
+                """
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='geo_boundaries' AND column_name='road_name_filters'
+                """
+            )
+            result = await conn.execute(check_sql)
+            if result.first() is None:
+                await conn.execute(text("ALTER TABLE geo_boundaries ADD COLUMN road_name_filters JSONB DEFAULT '[]'::jsonb"))
+    except Exception:
+        pass
     await settings_snapshot.bootstrap_from_disk()
 
 
