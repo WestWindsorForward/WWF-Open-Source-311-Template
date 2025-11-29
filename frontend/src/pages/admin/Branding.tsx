@@ -29,18 +29,42 @@ export function BrandingPage() {
   });
   const [saved, setSaved] = useState<{ branding?: boolean; logo?: boolean; favicon?: boolean }>({});
 
+  async function resizeImage(file: File, maxWidth: number, maxHeight: number): Promise<Blob> {
+    const imgUrl = URL.createObjectURL(file);
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = (e) => reject(e);
+      img.src = imgUrl;
+    });
+    const ratio = Math.min(maxWidth / (image.width || 1), maxHeight / (image.height || 1), 1);
+    const targetW = Math.max(1, Math.round((image.width || 1) * ratio));
+    const targetH = Math.max(1, Math.round((image.height || 1) * ratio));
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(image, 0, 0, targetW, targetH);
+    return await new Promise<Blob>((resolve) => {
+      canvas.toBlob((blob) => resolve(blob || file), file.type.includes("png") ? "image/png" : "image/jpeg", 0.92);
+    });
+  }
+
   const mutation = useMutation({
     mutationFn: async (payload: BrandingForm) => {
       await client.put("/api/admin/branding", payload);
       if (logoFile) {
         const fd = new FormData();
-        fd.append("file", logoFile);
+        const blob = await resizeImage(logoFile, 512, 512);
+        fd.append("file", new File([blob], logoFile.name, { type: (blob as any).type || logoFile.type }));
         await client.post("/api/admin/branding/assets/logo", fd);
         setSaved((s) => ({ ...s, logo: true }));
       }
       if (faviconFile) {
         const fd = new FormData();
-        fd.append("file", faviconFile);
+        const blob = await resizeImage(faviconFile, 64, 64);
+        fd.append("file", new File([blob], faviconFile.name, { type: (blob as any).type || faviconFile.type }));
         await client.post("/api/admin/branding/assets/favicon", fd);
         setSaved((s) => ({ ...s, favicon: true }));
       }
@@ -122,11 +146,11 @@ export function BrandingPage() {
           <h3 className="text-sm font-semibold text-slate-700">Logo</h3>
           {defaults.logo_url ? (
             <div className="mt-3 flex items-center justify-between">
-              <img src={defaults.logo_url} alt="Logo" className="h-10 w-auto rounded-md border object-contain" height={40} decoding="async" fetchPriority="high" />
+              <img src={defaults.logo_url} alt="Logo" className="h-10 w-auto rounded-md border object-contain" height={40} width={140} decoding="async" fetchPriority="high" />
               <div className="flex items-center gap-2">
                 <label className="rounded-md border border-slate-200 px-3 py-1 text-xs">
                   Replace
-                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const fd = new FormData(); fd.append("file", f); await client.post("/api/admin/branding/assets/logo", fd); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); } }} />
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const fd = new FormData(); const blob = await resizeImage(f, 512, 512); fd.append("file", new File([blob], f.name, { type: (blob as any).type || f.type })); await client.post("/api/admin/branding/assets/logo", fd); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); } }} />
                 </label>
                 <button className="rounded-md border border-rose-200 px-3 py-1 text-xs text-rose-600" onClick={async () => { await client.delete("/api/admin/branding/assets/logo"); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); }}>Delete</button>
               </div>
@@ -142,11 +166,11 @@ export function BrandingPage() {
           <h3 className="text-sm font-semibold text-slate-700">Favicon</h3>
           {defaults.favicon_url ? (
             <div className="mt-3 flex items-center justify-between">
-              <img src={defaults.favicon_url} alt="Favicon" className="h-8 w-8 rounded-md border object-contain" height={32} decoding="async" />
+              <img src={defaults.favicon_url} alt="Favicon" className="h-8 w-8 rounded-md border object-contain" height={32} width={32} decoding="async" />
               <div className="flex items-center gap-2">
                 <label className="rounded-md border border-slate-200 px-3 py-1 text-xs">
                   Replace
-                  <input type="file" accept="image/png,image/x-icon,image/svg+xml" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const fd = new FormData(); fd.append("file", f); await client.post("/api/admin/branding/assets/favicon", fd); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); } }} />
+                  <input type="file" accept="image/png,image/x-icon,image/svg+xml" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const fd = new FormData(); const blob = await resizeImage(f, 64, 64); fd.append("file", new File([blob], f.name, { type: (blob as any).type || f.type })); await client.post("/api/admin/branding/assets/favicon", fd); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); } }} />
                 </label>
                 <button className="rounded-md border border-rose-200 px-3 py-1 text-xs text-rose-600" onClick={async () => { await client.delete("/api/admin/branding/assets/favicon"); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); }}>Delete</button>
               </div>
