@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import client from "../../api/client";
+import { useEffect, useState } from "react";
 
 export function RuntimeConfigPage() {
   const queryClient = useQueryClient();
@@ -39,7 +40,10 @@ export function RuntimeConfigPage() {
 }
 
 function RuntimeConfigForm({ defaults, onSave, isSaving }: { defaults: Record<string, any>; onSave: (payload: Record<string, unknown>) => void; isSaving: boolean }) {
-  const [form, setForm] = (window as any).React.useState(defaults);
+  const [form, setForm] = useState(defaults);
+  useEffect(() => {
+    setForm(defaults);
+  }, [defaults]);
   const handleChange = (key: string, value: any) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const handleSubmit = () => {
     const numericKeys = ["rate_limit_resident_per_minute", "rate_limit_public_per_minute"];
@@ -85,4 +89,3 @@ function RuntimeConfigForm({ defaults, onSave, isSaving }: { defaults: Record<st
     </div>
   );
 }
-

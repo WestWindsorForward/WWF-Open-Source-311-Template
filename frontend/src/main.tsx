@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import "./index.css";
 import App from "./App";
+import ErrorFallback from "./components/ErrorFallback";
 import { AuthBootstrapper } from "./components/AuthBootstrapper";
 import { RequireRole } from "./components/RequireRole";
 import { LoginPage } from "./pages/LoginPage";
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
+    errorElement: <ErrorFallback />,
     children: [
       { index: true, element: <ResidentPortal /> },
       { path: "login", element: <LoginPage /> },
