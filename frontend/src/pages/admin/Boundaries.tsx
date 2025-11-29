@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoadScript } from "@react-google-maps/api";
+import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import client from "../../api/client";
 import { useAdminCategories, useBoundaries, useResidentConfig, useCategoryExclusions, useRoadExclusions } from "../../api/hooks";
 import type { IssueCategory } from "../../types";
@@ -150,15 +150,23 @@ export function BoundariesPage() {
             {primaryMode === "google" && (
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {mapsApiKey ? (
-            <>
-              <LoadScript googleMapsApiKey={mapsApiKey} libraries={["places"]} />
-              <input
-                ref={googleInputRef}
-                className="mt-1 w-full rounded-xl border border-slate-300 p-2"
-                placeholder="Search township (Google Places)"
-                onInput={(e) => setGoogle((p) => ({ ...p, query: (e.target as HTMLInputElement).value }))}
-              />
-            </>
+            <LoadScript googleMapsApiKey={mapsApiKey} libraries={["places"]}>
+              <Autocomplete onLoad={(auto) => { autoRef.current = auto; }} onPlaceChanged={() => {
+                const instance = autoRef.current;
+                if (!instance) return;
+                const place = instance.getPlace();
+                const pid = (place as any).place_id || "";
+                const pname = (place as any).name || (place as any).formatted_address || google.query;
+                setGoogle((p) => ({ ...p, place_id: pid, name: pname, query: pname }));
+              }}>
+                <input
+                  ref={googleInputRef}
+                  className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+                  placeholder="Search township (Google Places)"
+                  onChange={(e) => setGoogle((p) => ({ ...p, query: e.target.value }))}
+                />
+              </Autocomplete>
+            </LoadScript>
           ) : (
             <div className="space-y-1">
               <label className="text-sm text-amber-700">Google Maps API key not configured in Runtime Config.</label>
