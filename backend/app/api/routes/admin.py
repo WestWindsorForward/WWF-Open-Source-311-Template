@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import delete, select, update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, require_roles
@@ -17,7 +18,7 @@ from app.models.settings import (
     TownshipSetting,
 )
 from app.models.settings import BoundaryKind
-from app.models.user import Department, User, UserRole
+from app.models.user import Department, User, UserRole, StaffDepartmentLink
 from app.schemas.department import DepartmentCreate, DepartmentRead, DepartmentUpdate
 from app.schemas.issue import IssueCategoryCreate, IssueCategoryRead, IssueCategoryUpdate
 from app.schemas.settings import (
@@ -421,7 +422,12 @@ async def list_staff(
     session: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.admin)),
 ) -> list[UserRead]:
-    stmt = select(User).where(User.role != UserRole.resident).order_by(User.display_name)
+    stmt = (
+        select(User)
+        .where(User.role != UserRole.resident)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .order_by(User.display_name)
+    )
     result = await session.execute(stmt)
     return [UserRead.model_validate(user) for user in result.scalars().all()]
 
@@ -453,6 +459,13 @@ async def create_staff(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
+    stmt = (
+        select(User)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .where(User.id == user.id)
+    )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     await log_event(
         session,
         action="staff.create",
@@ -492,7 +505,13 @@ async def update_staff(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
-    await session.refresh(user)
+    stmt = (
+        select(User)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .where(User.id == user.id)
+    )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     await log_event(
         session,
         action="staff.update",

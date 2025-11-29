@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, require_roles
@@ -15,7 +16,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.auth import RefreshToken
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, StaffDepartmentLink
 from app.schemas.auth import (
     AdminBootstrapRequest,
     PasswordChangeRequest,
@@ -105,7 +106,13 @@ async def bootstrap_admin(
         )
         session.add(user)
     await session.commit()
-    await session.refresh(user)
+    stmt = (
+        select(User)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .where(User.id == user.id)
+    )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     return UserReadWithRole.model_validate(user)
 
 
@@ -222,5 +229,11 @@ async def invite_user(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
-    await session.refresh(user)
+    stmt = (
+        select(User)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .where(User.id == user.id)
+    )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     return UserReadWithRole.model_validate(user)
