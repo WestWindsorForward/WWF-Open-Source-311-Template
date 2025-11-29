@@ -131,7 +131,7 @@ export function MapPicker({ apiKey, lat, lng, onChange }: MapPickerProps) {
           options={{ 
             disableDefaultUI: true,
             zoomControl: true,
-            mapTypeId: google.maps.MapTypeId.HYBRID,
+            mapTypeId: 'hybrid',
           }}
         >
           <Marker position={markerPosition} />

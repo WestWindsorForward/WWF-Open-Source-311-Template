@@ -5,6 +5,7 @@ import hashlib
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import delete, select, update
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -983,6 +984,7 @@ async def list_category_exclusions(
     session: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.admin)),
 ) -> list[CategoryExclusionRead]:
+    await _ensure_exclusion_tables(session)
     result = await session.execute(select(CategoryExclusion).order_by(CategoryExclusion.updated_at.desc()))
     return [CategoryExclusionRead.model_validate(row) for row in result.scalars().all()]
 
@@ -994,6 +996,7 @@ async def create_category_exclusion(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> CategoryExclusionRead:
+    await _ensure_exclusion_tables(session)
     record = CategoryExclusion(
         category_slug=payload.category_slug,
         redirect_name=payload.redirect_name,
@@ -1024,6 +1027,7 @@ async def update_category_exclusion(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> CategoryExclusionRead:
+    await _ensure_exclusion_tables(session)
     record = await session.get(CategoryExclusion, exclusion_id)
     if not record:
         raise HTTPException(status_code=404, detail="Exclusion not found")
@@ -1051,6 +1055,7 @@ async def delete_category_exclusion(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
+    await _ensure_exclusion_tables(session)
     record = await session.get(CategoryExclusion, exclusion_id)
     if not record:
         raise HTTPException(status_code=404, detail="Exclusion not found")
@@ -1072,6 +1077,7 @@ async def list_road_exclusions(
     session: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.admin)),
 ) -> list[RoadExclusionRead]:
+    await _ensure_exclusion_tables(session)
     result = await session.execute(select(RoadExclusion).order_by(RoadExclusion.updated_at.desc()))
     return [RoadExclusionRead.model_validate(row) for row in result.scalars().all()]
 
@@ -1083,6 +1089,7 @@ async def create_road_exclusion(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> RoadExclusionRead:
+    await _ensure_exclusion_tables(session)
     record = RoadExclusion(
         road_name=payload.road_name,
         redirect_name=payload.redirect_name,
@@ -1113,6 +1120,7 @@ async def update_road_exclusion(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> RoadExclusionRead:
+    await _ensure_exclusion_tables(session)
     record = await session.get(RoadExclusion, exclusion_id)
     if not record:
         raise HTTPException(status_code=404, detail="Exclusion not found")
@@ -1140,6 +1148,7 @@ async def delete_road_exclusion(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
+    await _ensure_exclusion_tables(session)
     record = await session.get(RoadExclusion, exclusion_id)
     if not record:
         raise HTTPException(status_code=404, detail="Exclusion not found")
@@ -1154,3 +1163,35 @@ async def delete_road_exclusion(
         request=request,
     )
     return {"status": "deleted"}
+async def _ensure_exclusion_tables(session: AsyncSession) -> None:
+    await session.execute(sql_text(
+        """
+        CREATE TABLE IF NOT EXISTS category_exclusions (
+            id SERIAL PRIMARY KEY,
+            category_slug VARCHAR(128) NOT NULL,
+            redirect_name VARCHAR(255),
+            redirect_url VARCHAR(512),
+            redirect_message TEXT,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    ))
+    await session.execute(sql_text("CREATE INDEX IF NOT EXISTS ix_category_exclusions_category_slug ON category_exclusions (category_slug)"))
+    await session.execute(sql_text(
+        """
+        CREATE TABLE IF NOT EXISTS road_exclusions (
+            id SERIAL PRIMARY KEY,
+            road_name VARCHAR(255) NOT NULL,
+            redirect_name VARCHAR(255),
+            redirect_url VARCHAR(512),
+            redirect_message TEXT,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    ))
+    await session.execute(sql_text("CREATE INDEX IF NOT EXISTS ix_road_exclusions_road_name ON road_exclusions (road_name)"))
+    await session.commit()

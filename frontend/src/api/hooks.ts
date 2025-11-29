@@ -87,22 +87,24 @@ export const useAdminCategories = () =>
     },
   });
 
-export const useCategoryExclusions = () =>
+export const useCategoryExclusions = (enabled = true) =>
   useQuery({
     queryKey: ["category-exclusions"],
     queryFn: async () => {
       const { data } = await client.get<CategoryExclusion[]>("/api/admin/exclusions/categories");
       return data;
     },
+    enabled,
   });
 
-export const useRoadExclusions = () =>
+export const useRoadExclusions = (enabled = true) =>
   useQuery({
     queryKey: ["road-exclusions"],
     queryFn: async () => {
       const { data } = await client.get<RoadExclusion[]>("/api/admin/exclusions/roads");
       return data;
     },
+    enabled,
   });
 
 export const useStaffDirectory = () =>

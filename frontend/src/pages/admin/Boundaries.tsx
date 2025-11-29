@@ -12,9 +12,9 @@ export function BoundariesPage() {
   const boundariesQuery = useBoundaries();
   const adminCategoriesQuery = useAdminCategories();
   const { data: residentConfig } = useResidentConfig();
-  const categoryExclusionsQuery = useCategoryExclusions();
-  const roadExclusionsQuery = useRoadExclusions();
   const [activeTab, setActiveTab] = useState<"primary" | "exclusions">("primary");
+  const categoryExclusionsQuery = useCategoryExclusions(activeTab === "exclusions");
+  const roadExclusionsQuery = useRoadExclusions(activeTab === "exclusions");
   const [primaryMode, setPrimaryMode] = useState<"google" | "geojson" | "arcgis">("google");
   const [upload, setUpload] = useState({ name: "Primary Boundary", kind: "primary", jurisdiction: "", redirect_url: "", notes: "", geojson: "", service_code_filters: [] as string[], road_name_filters: [] as string[] });
   const [google, setGoogle] = useState({ query: "", place_id: "", name: "", jurisdiction: "", service_code_filters: [] as string[], road_name_filters: [] as string[] });
