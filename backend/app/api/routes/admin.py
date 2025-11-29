@@ -27,6 +27,7 @@ from app.schemas.settings import (
     GeoBoundaryGoogleImport,
     GeoBoundaryRead,
     GeoBoundaryUpload,
+    GeoBoundaryUpload as GeoBoundaryUpdatePayload,
     RuntimeConfigUpdate,
     SecretsPayload,
 )
@@ -901,3 +902,30 @@ def _clean_filename(name: str) -> str:
     value = name.strip().lower().replace(" ", "-")
     allowed = set("abcdefghijklmnopqrstuvwxyz0123456789-_.")
     return "".join(c for c in value if c in allowed) or "file"
+@router.put("/geo-boundary/{boundary_id}", response_model=GeoBoundaryRead)
+async def update_boundary(
+    boundary_id: int,
+    payload: GeoBoundaryUpdatePayload,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> GeoBoundaryRead:
+    boundary = await session.get(GeoBoundary, boundary_id)
+    if not boundary:
+        raise HTTPException(status_code=404, detail="Boundary not found")
+    data = payload.model_dump(exclude_unset=True)
+    # prevent accidental geojson/kind changes unless provided explicitly
+    for key, value in data.items():
+        setattr(boundary, key, value)
+    await session.commit()
+    await session.refresh(boundary)
+    await log_event(
+        session,
+        action="geo_boundary.update",
+        actor=current_user,
+        entity_type="geo_boundary",
+        entity_id=str(boundary.id),
+        request=request,
+        metadata=data,
+    )
+    return GeoBoundaryRead.model_validate(boundary)

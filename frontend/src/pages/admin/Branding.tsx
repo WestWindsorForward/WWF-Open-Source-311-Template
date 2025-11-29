@@ -120,39 +120,46 @@ export function BrandingPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-xl border border-slate-200 p-4">
           <h3 className="text-sm font-semibold text-slate-700">Logo</h3>
-          {data?.branding?.logo_url ? (
+          {defaults.logo_url ? (
             <div className="mt-3 flex items-center justify-between">
-              <img src={data.branding.logo_url} alt="Logo" className="h-10 w-auto rounded-md border object-contain" height={40} decoding="async" fetchpriority="high" />
+              <img src={defaults.logo_url} alt="Logo" className="h-10 w-auto rounded-md border object-contain" height={40} decoding="async" fetchPriority="high" />
               <div className="flex items-center gap-2">
-                <button className="rounded-md border border-slate-200 px-3 py-1 text-xs" onClick={() => setLogoFile(null)}>Replace</button>
-                <button className="rounded-md border border-rose-200 px-3 py-1 text-xs text-rose-600" onClick={async () => { await client.delete("/api/admin/branding/assets/logo"); await refetch(); }}>Delete</button>
+                <label className="rounded-md border border-slate-200 px-3 py-1 text-xs">
+                  Replace
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const fd = new FormData(); fd.append("file", f); await client.post("/api/admin/branding/assets/logo", fd); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); } }} />
+                </label>
+                <button className="rounded-md border border-rose-200 px-3 py-1 text-xs text-rose-600" onClick={async () => { await client.delete("/api/admin/branding/assets/logo"); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); }}>Delete</button>
               </div>
             </div>
           ) : (
             <label className="text-sm text-slate-600 mt-2">
               Upload logo
-              <input type="file" accept="image/*" className="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-2" onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/*" className="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-2" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const fd = new FormData(); fd.append("file", f); await client.post("/api/admin/branding/assets/logo", fd); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); } }} />
             </label>
           )}
         </div>
         <div className="rounded-xl border border-slate-200 p-4">
           <h3 className="text-sm font-semibold text-slate-700">Favicon</h3>
-          {data?.branding?.favicon_url ? (
+          {defaults.favicon_url ? (
             <div className="mt-3 flex items-center justify-between">
-              <img src={data.branding.favicon_url} alt="Favicon" className="h-8 w-8 rounded-md border object-contain" height={32} decoding="async" />
+              <img src={defaults.favicon_url} alt="Favicon" className="h-8 w-8 rounded-md border object-contain" height={32} decoding="async" />
               <div className="flex items-center gap-2">
-                <button className="rounded-md border border-slate-200 px-3 py-1 text-xs" onClick={() => setFaviconFile(null)}>Replace</button>
-                <button className="rounded-md border border-rose-200 px-3 py-1 text-xs text-rose-600" onClick={async () => { await client.delete("/api/admin/branding/assets/favicon"); await refetch(); }}>Delete</button>
+                <label className="rounded-md border border-slate-200 px-3 py-1 text-xs">
+                  Replace
+                  <input type="file" accept="image/png,image/x-icon,image/svg+xml" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const fd = new FormData(); fd.append("file", f); await client.post("/api/admin/branding/assets/favicon", fd); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); } }} />
+                </label>
+                <button className="rounded-md border border-rose-200 px-3 py-1 text-xs text-rose-600" onClick={async () => { await client.delete("/api/admin/branding/assets/favicon"); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); }}>Delete</button>
               </div>
             </div>
           ) : (
             <label className="text-sm text-slate-600 mt-2">
               Upload favicon
-              <input type="file" accept="image/png,image/x-icon,image/svg+xml" className="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-2" onChange={(e) => setFaviconFile(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/png,image/x-icon,image/svg+xml" className="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-2" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { const fd = new FormData(); fd.append("file", f); await client.post("/api/admin/branding/assets/favicon", fd); await queryClient.invalidateQueries({ queryKey: ["resident-config"] }); await refetch(); } }} />
             </label>
           )}
         </div>
       </div>
+      
     </div>
   );
 }

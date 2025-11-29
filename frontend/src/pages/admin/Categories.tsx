@@ -28,7 +28,7 @@ export function CategoriesPage() {
   const categories = categoriesQuery.data ?? [];
   const departments = departmentsQuery.data ?? [];
   const updateMutation = useMutation({
-    mutationFn: async (category: AdminCategory) => client.put(`/api/admin/categories/${category.id}`, { name: category.name, slug: category.slug, description: category.description }),
+    mutationFn: async (category: AdminCategory) => client.put(`/api/admin/categories/${category.id}`, { name: category.name, slug: category.slug, description: category.description, default_department_slug: (category as any).default_department_slug ?? undefined }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-categories"] }),
   });
   return (
@@ -73,7 +73,15 @@ export function CategoriesPage() {
                 <input className="rounded-md border p-2" value={category.name} onChange={(e) => (category.name = e.target.value)} />
                 <input className="rounded-md border p-2" value={category.slug} onChange={(e) => (category.slug = e.target.value)} />
                 <textarea className="rounded-md border p-2 md:col-span-2" value={category.description ?? ""} onChange={(e) => (category.description = e.target.value)} />
-                <div className="text-xs text-slate-500 md:col-span-2">Dept: {category.department_name ?? "Unassigned"}</div>
+                <label className="text-sm text-slate-600 md:col-span-2">
+                  Owning department
+                  <select className="mt-1 w-full rounded-md border p-2" value={(category as any).default_department_slug ?? ""} onChange={(e) => ((category as any).default_department_slug = e.target.value)}>
+                    <option value="">Unassigned</option>
+                    {departments.map((dept) => (
+                      <option key={dept.id} value={dept.slug}>{dept.name}</option>
+                    ))}
+                  </select>
+                </label>
               </div>
               <div className="mt-2 flex items-center justify-end gap-2">
                 <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => updateMutation.mutate({ ...category })} disabled={updateMutation.isPending}>Save</button>

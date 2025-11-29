@@ -66,7 +66,7 @@ export default function App() {
                 className="h-10 w-auto max-w-[140px] rounded-md border border-slate-200 object-contain"
                 height={40}
                 decoding="async"
-                fetchpriority="high"
+                fetchPriority="high"
               />
             )}
             <div className="text-center md:text-left">

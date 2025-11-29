@@ -33,6 +33,17 @@ export function BoundariesPage() {
     mutationFn: async (id: number) => client.delete(`/api/admin/geo-boundary/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] }),
   });
+  const updateMutation = useMutation({
+    mutationFn: async (boundary: any) => client.put(`/api/admin/geo-boundary/${boundary.id}`, {
+      name: boundary.name,
+      kind: boundary.kind,
+      jurisdiction: boundary.jurisdiction ?? null,
+      redirect_url: boundary.redirect_url ?? null,
+      notes: boundary.notes ?? null,
+      service_code_filters: boundary.service_code_filters ?? [],
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["geo-boundaries"] }),
+  });
   const boundaries = boundariesQuery.data ?? [];
   return (
     <div className="space-y-6">
@@ -71,20 +82,28 @@ export function BoundariesPage() {
         <ul className="mt-4 space-y-2 text-sm">
           {boundaries.map((boundary) => (
             <li key={boundary.id} className="rounded-xl border border-slate-200 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium">{boundary.name}</p>
-                  <p className="text-xs uppercase text-slate-500">{boundary.kind}</p>
-                  {boundary.jurisdiction && (<p className="text-xs text-slate-500">Jurisdiction: {boundary.jurisdiction}</p>)}
-                  {boundary.redirect_url && (
-                    <a href={boundary.redirect_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-slate-600 underline">Redirect link</a>
-                  )}
-                  {boundary.service_code_filters && boundary.service_code_filters.length > 0 ? (
-                    <p className="text-[11px] text-slate-500">Routes: {boundary.service_code_filters.join(", ")}</p>
-                  ) : (
-                    <p className="text-[11px] text-slate-500">Routes: all categories</p>
-                  )}
-                </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <input className="rounded-md border p-2" value={boundary.name} onChange={(e) => (boundary.name = e.target.value)} />
+                <select className="rounded-md border p-2" value={boundary.kind} onChange={(e) => (boundary.kind = e.target.value as any)}>
+                  <option value="primary">Primary</option>
+                  <option value="exclusion">Exclusion</option>
+                </select>
+                <select className="rounded-md border p-2" value={boundary.jurisdiction ?? ""} onChange={(e) => (boundary.jurisdiction = (e.target.value || null) as any)}>
+                  <option value="">Not specified</option>
+                  <option value="township">Township</option>
+                  <option value="county">County</option>
+                  <option value="state">State</option>
+                  <option value="federal">Federal</option>
+                  <option value="other">Other</option>
+                </select>
+                <input className="rounded-md border p-2" value={boundary.redirect_url ?? ""} onChange={(e) => (boundary.redirect_url = e.target.value)} placeholder="Redirect URL" />
+                <input className="rounded-md border p-2 md:col-span-2" value={boundary.notes ?? ""} onChange={(e) => (boundary.notes = e.target.value)} placeholder="Notes" />
+                <select multiple className="rounded-md border p-2 md:col-span-2" value={boundary.service_code_filters ?? []} onChange={(e) => { const selected = Array.from(e.target.selectedOptions).map((o) => o.value); boundary.service_code_filters = selected; }}>
+                  {categories.map((c) => (<option key={c.slug} value={c.slug}>{c.name}</option>))}
+                </select>
+              </div>
+              <div className="mt-2 flex items-center justify-end gap-2">
+                <button className="rounded-full border border-slate-200 px-3 py-1 text-xs" onClick={() => updateMutation.mutate({ ...boundary })} disabled={updateMutation.isPending}>Save</button>
                 <button type="button" className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50" onClick={() => deleteMutation.mutate(boundary.id)}>
                   Delete
                 </button>
@@ -96,4 +115,3 @@ export function BoundariesPage() {
     </div>
   );
 }
-
