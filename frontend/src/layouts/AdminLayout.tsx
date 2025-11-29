@@ -1,5 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useBrandingStore } from "../store/branding";
+import { useQueryClient } from "@tanstack/react-query";
+import client from "../api/client";
 
 const nav = [
   { to: "/admin/overview", label: "Overview" },
@@ -16,6 +18,49 @@ const nav = [
 
 export default function AdminLayout() {
   const branding = useBrandingStore((s) => s.branding);
+  const queryClient = useQueryClient();
+
+  const prefetchers: Record<string, () => void> = {
+    "/admin/overview": () => {
+      queryClient.prefetchQuery({ queryKey: ["resident-config"], queryFn: async () => (await client.get("/api/resident/config")).data, staleTime: 120_000 });
+    },
+    "/admin/branding": () => {
+      queryClient.prefetchQuery({ queryKey: ["resident-config"], queryFn: async () => (await client.get("/api/resident/config")).data, staleTime: 120_000 });
+      // Preload chunk
+      import("../pages/admin/Branding");
+    },
+    "/admin/departments": () => {
+      queryClient.prefetchQuery({ queryKey: ["departments"], queryFn: async () => (await client.get("/api/admin/departments")).data, staleTime: 120_000 });
+      import("../pages/admin/Departments");
+    },
+    "/admin/categories": () => {
+      queryClient.prefetchQuery({ queryKey: ["admin-categories"], queryFn: async () => (await client.get("/api/admin/categories")).data, staleTime: 120_000 });
+      import("../pages/admin/Categories");
+    },
+    "/admin/boundaries": () => {
+      queryClient.prefetchQuery({ queryKey: ["geo-boundaries"], queryFn: async () => (await client.get("/api/admin/geo-boundary")).data, staleTime: 120_000 });
+      import("../pages/admin/Boundaries");
+    },
+    "/admin/staff": () => {
+      queryClient.prefetchQuery({ queryKey: ["staff-directory"], queryFn: async () => (await client.get("/api/admin/staff")).data, staleTime: 120_000 });
+      import("../pages/admin/Staff");
+    },
+    "/admin/requests": () => {
+      queryClient.prefetchQuery({ queryKey: ["staff-requests"], queryFn: async () => (await client.get("/api/staff/requests")).data, staleTime: 60_000 });
+      import("../pages/admin/Requests");
+    },
+    "/admin/runtime": () => {
+      queryClient.prefetchQuery({ queryKey: ["runtime-config"], queryFn: async () => (await client.get("/api/admin/runtime-config")).data, staleTime: 120_000 });
+      import("../pages/admin/RuntimeConfig");
+    },
+    "/admin/secrets": () => {
+      queryClient.prefetchQuery({ queryKey: ["secrets"], queryFn: async () => (await client.get("/api/admin/secrets")).data, staleTime: 120_000 });
+      import("../pages/admin/Secrets");
+    },
+    "/admin/system": () => {
+      import("../pages/admin/System");
+    },
+  };
   return (
     <div className="min-h-[70vh] rounded-2xl border border-slate-200 bg-white shadow">
       <div className="grid grid-cols-12">
@@ -37,6 +82,9 @@ export default function AdminLayout() {
                 className={({ isActive }) =>
                   `block rounded-lg px-3 py-2 text-sm ${isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`
                 }
+                onMouseEnter={() => prefetchers[item.to]?.()}
+                onFocus={() => prefetchers[item.to]?.()}
+                onTouchStart={() => prefetchers[item.to]?.()}
               >
                 {item.label}
               </NavLink>
@@ -50,4 +98,3 @@ export default function AdminLayout() {
     </div>
   );
 }
-
