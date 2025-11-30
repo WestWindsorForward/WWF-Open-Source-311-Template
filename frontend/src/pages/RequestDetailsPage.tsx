@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useResidentConfig, useStaffDirectory } from "../api/hooks";
+import { useResidentConfig, useStaffDirectory, useDepartments } from "../api/hooks";
 import client from "../api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ServiceRequest, StaffUser } from "../types";
@@ -10,6 +10,7 @@ export function RequestDetailsPage() {
   const queryClient = useQueryClient();
   const { data: residentConfig } = useResidentConfig();
   const staffDir = useStaffDirectory();
+  const departmentsQuery = useDepartments();
   const mapsKey = residentConfig?.integrations?.google_maps_api_key ?? null;
   const reqQuery = useQuery({
     queryKey: ["request", externalId],
@@ -66,12 +67,16 @@ export function RequestDetailsPage() {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
-          <input
+          <select
             className="rounded-lg border border-slate-300 p-2 text-sm"
-            placeholder="Assign department slug"
-            defaultValue={request.assigned_department ?? ""}
-            onBlur={(e) => updateMutation.mutate({ assigned_department: e.target.value || null })}
-          />
+            value={request.assigned_department ?? ""}
+            onChange={(e) => updateMutation.mutate({ assigned_department: e.target.value || null })}
+          >
+            <option value="">Unassigned</option>
+            {(departmentsQuery.data ?? []).map((dep) => (
+              <option key={dep.slug} value={dep.slug}>{dep.name}</option>
+            ))}
+          </select>
         </div>
       </header>
 
