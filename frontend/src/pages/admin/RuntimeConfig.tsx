@@ -30,6 +30,8 @@ export function RuntimeConfigPage() {
     sms_enabled: Boolean((config as any).sms_enabled ?? false),
     ai_enabled: Boolean((config as any).ai_enabled ?? false),
     request_sections: Array.isArray((config as any).request_sections) ? (config as any).request_sections : [],
+    allow_status_change: Boolean((config as any).allow_status_change ?? true),
+    allow_status_override_on_comment: Boolean((config as any).allow_status_override_on_comment ?? true),
   };
   if (isLoading) return <div className="h-32 animate-pulse rounded-xl bg-slate-100" />;
   return (
@@ -95,6 +97,13 @@ function RuntimeConfigForm({ defaults, onSave, isSaving }: { defaults: Record<st
           <label className="flex items-center gap-3 text-sm text-slate-600"><input type="checkbox" checked={form.email_enabled} onChange={(e) => handleChange("email_enabled", e.target.checked)} />Email Notifications</label>
           <label className="flex items-center gap-3 text-sm text-slate-600"><input type="checkbox" checked={form.sms_enabled} onChange={(e) => handleChange("sms_enabled", e.target.checked)} />SMS Alerts</label>
           <label className="flex items-center gap-3 text-sm text-slate-600"><input type="checkbox" checked={form.ai_enabled} onChange={(e) => handleChange("ai_enabled", e.target.checked)} />AI Assistance</label>
+        </div>
+      </div>
+      <div className="rounded-xl border border-slate-200 p-4">
+        <p className="text-sm font-semibold text-slate-700">Staff Controls</p>
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <label className="flex items-center gap-3 text-sm text-slate-600"><input type="checkbox" checked={form.allow_status_change} onChange={(e) => handleChange("allow_status_change", e.target.checked)} />Allow staff to change status</label>
+          <label className="flex items-center gap-3 text-sm text-slate-600"><input type="checkbox" checked={form.allow_status_override_on_comment} onChange={(e) => handleChange("allow_status_override_on_comment", e.target.checked)} />Allow status changes via comments</label>
         </div>
       </div>
       <div className="rounded-xl border border-slate-200 p-4">

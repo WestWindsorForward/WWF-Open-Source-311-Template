@@ -4,6 +4,8 @@ import client from "../api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ServiceRequest, StaffUser } from "../types";
 import { LoadScript, GoogleMap, Marker } from "@react-google-maps/api";
+import { useAuthStore } from "../store/auth";
+import { useState } from "react";
 
 export function RequestDetailsPage() {
   const { externalId } = useParams();
@@ -13,6 +15,8 @@ export function RequestDetailsPage() {
   const departmentsQuery = useDepartments();
   const mapsKey = residentConfig?.integrations?.google_maps_api_key ?? null;
   const sections = Array.isArray((residentConfig as any)?.settings?.request_sections) ? ((residentConfig as any).settings.request_sections as string[]) : [];
+  const user = useAuthStore((state) => state.user);
+  const isStaff = !!user && (user.role === "staff" || user.role === "admin");
   const reqQuery = useQuery({
     queryKey: ["request", externalId],
     queryFn: async () => (await client.get<ServiceRequest>(`/api/resident/requests/${externalId}`)).data,
@@ -20,6 +24,7 @@ export function RequestDetailsPage() {
   });
   const request = reqQuery.data;
   const meta = (request?.meta ?? {}) as Record<string, any>;
+  const [mapFailed, setMapFailed] = useState(false);
 
   const updateMutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
@@ -58,6 +63,7 @@ export function RequestDetailsPage() {
           <h1 className="text-xl font-semibold text-slate-900">Request {request.external_id}</h1>
           <p className="text-xs text-slate-500">Filed {new Date(request.created_at).toLocaleString()}</p>
         </div>
+        {isStaff && (
         <div className="flex gap-2">
           <select
             className="rounded-lg border border-slate-300 p-2 text-sm"
@@ -91,25 +97,36 @@ export function RequestDetailsPage() {
             </select>
           )}
         </div>
+        )}
       </header>
 
       <section className="grid gap-6 md:grid-cols-2">
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Location</h2>
-          {mapsKey ? (
+          {mapsKey && !mapFailed ? (
             <LoadScript googleMapsApiKey={mapsKey} libraries={["places"]} onError={() => {
-              const el = document.getElementById("map-error");
-              if (el) el.textContent = "Maps failed to load. Check API key and billing.";
+              setMapFailed(true);
             }}>
               <GoogleMap mapContainerStyle={{ width: "100%", height: "280px" }} center={center} zoom={15} options={{ mapTypeId: "hybrid" }}>
                 <Marker position={center} />
               </GoogleMap>
             </LoadScript>
           ) : (
-            <div id="map-error" className="rounded-xl border border-slate-200 p-3 text-xs text-slate-600">Maps not configured</div>
+            <div className="rounded-xl overflow-hidden border border-slate-200">
+              <iframe
+                title="Location"
+                width="100%"
+                height="280"
+                style={{ border: 0 }}
+                src={`https://maps.google.com/maps?q=${center.lat},${center.lng}&z=15&output=embed`}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
           )}
           {request.address_string && <p className="text-xs text-slate-500">{request.address_string}</p>}
         </div>
+        {isStaff && (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Submitter</h2>
           <ul className="text-sm text-slate-600">
@@ -119,6 +136,7 @@ export function RequestDetailsPage() {
             <li>Assigned Department: {request.assigned_department ?? "—"}</li>
           </ul>
         </div>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -142,7 +160,7 @@ export function RequestDetailsPage() {
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-700">Comments</h2>
         <ul className="space-y-2">
-          {(request.updates ?? []).map(upd => (
+          {((request.updates ?? []).filter(upd => isStaff ? true : !!upd.public)).map(upd => (
             <li key={upd.id} className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
               <div className="flex items-center justify-between">
                 <span>{upd.notes}</span>
@@ -157,6 +175,7 @@ export function RequestDetailsPage() {
             </li>
           ))}
         </ul>
+        {isStaff && (
         <div className="space-y-2 rounded-lg bg-white p-3">
           <div className="grid gap-2 md:grid-cols-2">
             <input className="rounded-lg border border-slate-300 p-2 text-sm" placeholder="Add comment" id="new-comment" />
@@ -186,6 +205,7 @@ export function RequestDetailsPage() {
             }}>Post</button>
           </div>
         </div>
+        )}
       </section>
     </div>
   );

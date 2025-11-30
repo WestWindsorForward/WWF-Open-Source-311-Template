@@ -200,7 +200,16 @@ async def get_resident_request(
     request = result.scalar_one_or_none()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
-    return ServiceRequestRead.model_validate(request)
+    payload = ServiceRequestRead.model_validate(request)
+    # sanitize meta and updates for public consumption
+    meta = (payload.meta or {}).copy()
+    for key in ("resident_email", "resident_phone", "resident_name"):
+        meta.pop(key, None)
+    payload = payload.model_copy(update={
+        "meta": meta,
+        "updates": [u for u in (payload.updates or []) if u.public],
+    })
+    return payload
 
 
 @router.get("/requests/recent", response_model=list[ServiceRequestRead])
@@ -212,7 +221,18 @@ async def recent_requests(limit: int = 5, session: AsyncSession = Depends(get_db
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return [ServiceRequestRead.model_validate(req) for req in result.scalars().all()]
+    out: list[ServiceRequestRead] = []
+    for req in result.scalars().all():
+        payload = ServiceRequestRead.model_validate(req)
+        meta = (payload.meta or {}).copy()
+        for key in ("resident_email", "resident_phone", "resident_name"):
+            meta.pop(key, None)
+        payload = payload.model_copy(update={
+            "meta": meta,
+            "updates": [u for u in (payload.updates or []) if u.public],
+        })
+        out.append(payload)
+    return out
 
 
 @router.get("/requests/public", response_model=list[ServiceRequestRead])
@@ -225,7 +245,18 @@ async def public_requests(limit: int = 200, offset: int = 0, session: AsyncSessi
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return [ServiceRequestRead.model_validate(req) for req in result.scalars().all()]
+    out: list[ServiceRequestRead] = []
+    for req in result.scalars().all():
+        payload = ServiceRequestRead.model_validate(req)
+        meta = (payload.meta or {}).copy()
+        for key in ("resident_email", "resident_phone", "resident_name"):
+            meta.pop(key, None)
+        payload = payload.model_copy(update={
+            "meta": meta,
+            "updates": [u for u in (payload.updates or []) if u.public],
+        })
+        out.append(payload)
+    return out
 
 
 @router.get("/requests/{external_id}/attachments/{attachment_id}")
