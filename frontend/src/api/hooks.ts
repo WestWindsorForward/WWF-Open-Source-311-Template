@@ -9,6 +9,8 @@ import type {
   SecretSummary,
   ServiceRequest,
   StaffUser,
+  CategoryExclusion,
+  RoadExclusion,
 } from "../types";
 
 export const useResidentConfig = () =>
@@ -85,6 +87,26 @@ export const useAdminCategories = () =>
     },
   });
 
+export const useCategoryExclusions = (enabled = true) =>
+  useQuery({
+    queryKey: ["category-exclusions"],
+    queryFn: async () => {
+      const { data } = await client.get<CategoryExclusion[]>("/api/admin/exclusions/categories");
+      return data;
+    },
+    enabled,
+  });
+
+export const useRoadExclusions = (enabled = true) =>
+  useQuery({
+    queryKey: ["road-exclusions"],
+    queryFn: async () => {
+      const { data } = await client.get<RoadExclusion[]>("/api/admin/exclusions/roads");
+      return data;
+    },
+    enabled,
+  });
+
 export const useStaffDirectory = () =>
   useQuery({
     queryKey: ["staff-directory"],
@@ -107,7 +129,7 @@ export const useRecentRequests = (limit = 5) =>
   useQuery({
     queryKey: ["recent-requests", limit],
     queryFn: async () => {
-      const { data } = await client.get<ServiceRequest[]>(`/api/resident/requests/recent?limit=${limit}`);
+      const { data } = await client.get<ServiceRequest[]>(`/api/resident/requests/public?limit=${limit}`);
       return data;
     },
   });

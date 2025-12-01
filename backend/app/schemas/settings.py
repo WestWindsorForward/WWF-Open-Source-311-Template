@@ -28,6 +28,7 @@ class GeoBoundaryUpload(BaseModel):
     redirect_url: str | None = None
     notes: str | None = None
     service_code_filters: list[str] = Field(default_factory=list)
+    road_name_filters: list[str] = Field(default_factory=list)
 
 
 class GeoBoundaryRead(GeoBoundaryUpload):
@@ -51,6 +52,9 @@ class RuntimeConfigUpdate(BaseModel):
     otel_enabled: bool | None = None
     otel_endpoint: str | None = None
     otel_headers: str | None = None
+    request_sections: list[str] | None = None
+    allow_status_change: bool | None = None
+    allow_status_override_on_comment: bool | None = None
 
 
 class GeoBoundaryGoogleImport(BaseModel):
@@ -62,9 +66,72 @@ class GeoBoundaryGoogleImport(BaseModel):
     redirect_url: str | None = None
     notes: str | None = None
     service_code_filters: list[str] | None = None
+    road_name_filters: list[str] | None = None
 
     @model_validator(mode="after")
     def _ensure_source(self) -> "GeoBoundaryGoogleImport":
         if not self.place_id and not self.query:
             raise ValueError("Provide either place_id or query")
         return self
+
+
+class ArcGISLayerImport(BaseModel):
+    layer_url: str
+    where: str | None = None
+    name: str | None = None
+    kind: BoundaryKind = BoundaryKind.primary
+    jurisdiction: JurisdictionLevel | None = None
+    redirect_url: str | None = None
+    notes: str | None = None
+    service_code_filters: list[str] | None = None
+    road_name_filters: list[str] | None = None
+
+
+class CategoryExclusionCreate(BaseModel):
+    category_slug: str
+    redirect_name: str | None = None
+    redirect_url: str | None = None
+    redirect_message: str | None = None
+    is_active: bool = True
+
+
+class CategoryExclusionUpdate(BaseModel):
+    category_slug: str | None = None
+    redirect_name: str | None = None
+    redirect_url: str | None = None
+    redirect_message: str | None = None
+    is_active: bool | None = None
+
+
+class CategoryExclusionRead(CategoryExclusionCreate):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RoadExclusionCreate(BaseModel):
+    road_name: str
+    redirect_name: str | None = None
+    redirect_url: str | None = None
+    redirect_message: str | None = None
+    is_active: bool = True
+
+
+class RoadExclusionUpdate(BaseModel):
+    road_name: str | None = None
+    redirect_name: str | None = None
+    redirect_url: str | None = None
+    redirect_message: str | None = None
+    is_active: bool | None = None
+
+
+class RoadExclusionRead(RoadExclusionCreate):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

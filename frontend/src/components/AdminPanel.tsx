@@ -172,8 +172,12 @@ export function AdminPanel() {
 
   const runtimeMutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => client.put("/api/admin/runtime-config", payload),
-    onSuccess: () => {
-      runtimeConfigQuery.refetch();
+    onSuccess: async () => {
+      // Invalidate both runtime config and resident config since they're related
+      await queryClient.invalidateQueries({ queryKey: ["runtime-config"] });
+      await queryClient.invalidateQueries({ queryKey: ["resident-config"] });
+      await runtimeConfigQuery.refetch();
+      await refetch(); // Refetch resident config to update integrations (like Google Maps API key)
       runtimeSuccess.flash();
     },
   });
@@ -192,8 +196,10 @@ export function AdminPanel() {
         await client.post("/api/admin/branding/assets/favicon", formData);
       }
     },
-    onSuccess: () => {
-      refetch();
+    onSuccess: async () => {
+      // Invalidate and refetch to ensure logo and branding updates are visible
+      await queryClient.invalidateQueries({ queryKey: ["resident-config"] });
+      await refetch();
       setLogoFile(null);
       setFaviconFile(null);
       setBrandingError(null);
@@ -376,6 +382,25 @@ export function AdminPanel() {
       setResetNotice(getErrorMessage(error));
     },
   });
+
+  const systemUpdateMutation = useMutation({
+    mutationFn: async () => client.post("/api/admin/system/update"),
+    onSuccess: () => {
+      alert("System update initiated. The server will restart shortly with the latest code.");
+    },
+    onError: (error) => {
+      alert(`Update failed: ${getErrorMessage(error)}`);
+    },
+  });
+
+  const handleSystemUpdate = () => {
+    const confirmed = window.confirm(
+      "Server will restart and pull the latest code from the repository. This may take a few minutes. Continue?"
+    );
+    if (confirmed) {
+      systemUpdateMutation.mutate();
+    }
+  };
 
   const handleDepartmentDelete = (departmentId: string) => {
     if (!window.confirm("Delete this department?")) return;
@@ -858,6 +883,29 @@ export function AdminPanel() {
           isDeleting={deleteSecretMutation.isPending}
           statusBadge={<SaveBadge show={secretSuccess.isVisible} label="Secret stored" />}
         />
+      </Section>
+
+      <Section
+        title="System Maintenance"
+        description="Manage system updates and maintenance operations."
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
+            <div>
+              <h4 className="font-medium text-slate-900">Software Update</h4>
+              <p className="text-sm text-slate-600">
+                Pull the latest code from the repository and rebuild the server.
+              </p>
+            </div>
+            <button
+              onClick={handleSystemUpdate}
+              disabled={systemUpdateMutation.isPending}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {systemUpdateMutation.isPending ? "Updating..." : "Update Now"}
+            </button>
+          </div>
+        </div>
       </Section>
     </div>
   );

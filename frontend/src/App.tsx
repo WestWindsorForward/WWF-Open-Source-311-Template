@@ -1,8 +1,11 @@
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 import { logoutSession } from "./api/auth";
 import { useAuthStore } from "./store/auth";
 import { useBrandingStore } from "./store/branding";
+import { useResidentConfig } from "./api/hooks";
+import { BrandingProvider } from "./components/BrandingProvider";
 
 export default function App() {
   const user = useAuthStore((state) => state.user);
@@ -10,7 +13,9 @@ export default function App() {
   const clearSession = useAuthStore((state) => state.clearSession);
   const navigate = useNavigate();
   const location = useLocation();
-  const branding = useBrandingStore((state) => state.branding);
+  const brandingStore = useBrandingStore((state) => state.branding);
+  const { data: residentConfig } = useResidentConfig();
+  const headerBranding = residentConfig?.branding ?? brandingStore ?? {} as any;
 
   const navItems =
     !user || user.role === "resident"
@@ -40,27 +45,39 @@ export default function App() {
     return <Navigate to="/change-password" state={{ from: location }} replace />;
   }
 
+  useEffect(() => {
+    const isStaff = location.pathname.startsWith("/staff");
+    const titleBase = headerBranding.site_title ?? headerBranding.town_name ?? "Township Request Portal";
+    if (isStaff) {
+      document.title = `Staff Portal · ${titleBase}`;
+    }
+  }, [location.pathname, headerBranding]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-white pb-16">
+    <BrandingProvider branding={residentConfig?.branding}>
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-white pb-16">
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
-          <div className="flex items-center gap-3">
-            {branding.logo_url && (
+          <div className="flex w-full flex-col items-center gap-3 md:w-auto md:flex-row md:items-center">
+            {headerBranding?.logo_url && (
               <img
-                src={branding.logo_url}
-                alt={`${branding.site_title ?? branding.town_name ?? "Township"} logo`}
-                className="h-10 w-10 rounded-full border border-slate-200 object-cover"
+                src={headerBranding?.logo_url}
+                alt={`${headerBranding?.site_title ?? headerBranding?.town_name ?? "Township"} logo`}
+                className="h-10 w-auto max-w-[140px] rounded-md border border-slate-200 object-contain"
+                height={40}
+                decoding="async"
+                fetchPriority="high"
               />
             )}
-            <div>
+            <div className="text-center md:text-left">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                {branding.town_name ?? "Township 311"}
+                {headerBranding?.town_name ?? "Township 311"}
               </p>
               <h1 className="text-xl font-semibold text-slate-900">
-                {branding.site_title ?? "Request Management"}
+                {headerBranding?.site_title ?? "Request Management"}
               </h1>
-              {branding.hero_text && (
-                <p className="text-xs text-slate-500">{branding.hero_text}</p>
+              {headerBranding?.hero_text && (
+                <p className="text-xs text-slate-500">{headerBranding?.hero_text}</p>
               )}
             </div>
           </div>
@@ -107,6 +124,7 @@ export default function App() {
       <main className="mx-auto mt-10 max-w-6xl px-6">
         <Outlet />
       </main>
-    </div>
+      </div>
+    </BrandingProvider>
   );
 }

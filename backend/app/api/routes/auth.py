@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db, require_roles
@@ -14,8 +15,8 @@ from app.core.security import (
     hash_token,
     verify_password,
 )
-from app.models.auth import RefreshToken
-from app.models.user import User, UserRole
+from app.models.auth import RefreshToken, PasswordReset
+from app.models.user import User, UserRole, StaffDepartmentLink
 from app.schemas.auth import (
     AdminBootstrapRequest,
     PasswordChangeRequest,
@@ -95,6 +96,7 @@ async def bootstrap_admin(
         user.display_name = payload.display_name
         user.role = UserRole.admin
         user.is_active = True
+        user.must_reset_password = True
     else:
         user = User(
             email=email,
@@ -103,9 +105,16 @@ async def bootstrap_admin(
             role=UserRole.admin,
             is_active=True,
         )
+        user.must_reset_password = True
         session.add(user)
     await session.commit()
-    await session.refresh(user)
+    stmt = (
+        select(User)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .where(User.id == user.id)
+    )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     return UserReadWithRole.model_validate(user)
 
 
@@ -183,10 +192,50 @@ async def change_password(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> dict:
-    if not verify_password(payload.current_password, current_user.password_hash):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    if not current_user.must_reset_password:
+        if not verify_password(payload.current_password, current_user.password_hash):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
     current_user.password_hash = get_password_hash(payload.new_password)
     current_user.must_reset_password = False
+    await session.commit()
+    return {"status": "updated"}
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: dict, session: AsyncSession = Depends(get_db)) -> dict:
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        return {"status": "ok"}
+    stmt = select(User).where(User.email == email)
+    result = await session.execute(stmt)
+    user = result.scalar_one_or_none()
+    if not user or user.role == UserRole.resident:
+        return {"status": "ok"}
+    raw_token, token_hash, expires_at = create_refresh_token()
+    reset = PasswordReset(user_id=user.id, token_hash=hash_token(raw_token), expires_at=expires_at)
+    session.add(reset)
+    await session.commit()
+    return {"status": "ok"}
+
+
+@router.post("/reset-password")
+async def reset_password(payload: dict, session: AsyncSession = Depends(get_db)) -> dict:
+    token = (payload.get("token") or "").strip()
+    new_password = (payload.get("new_password") or "").strip()
+    if not token or not new_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
+    token_hash_value = hash_token(token)
+    stmt = select(PasswordReset, User).join(User, PasswordReset.user_id == User.id).where(PasswordReset.token_hash == token_hash_value, PasswordReset.revoked.is_(False))
+    result = await session.execute(stmt)
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+    record, user = row
+    if record.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+    user.password_hash = get_password_hash(new_password)
+    user.must_reset_password = False
+    record.revoked = True
     await session.commit()
     return {"status": "updated"}
 
@@ -222,5 +271,11 @@ async def invite_user(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
-    await session.refresh(user)
+    stmt = (
+        select(User)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .where(User.id == user.id)
+    )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     return UserReadWithRole.model_validate(user)

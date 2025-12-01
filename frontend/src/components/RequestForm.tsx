@@ -7,7 +7,7 @@ import type { IssueCategory } from "../types";
 import { MapPicker } from "./MapPicker";
 
 interface Props {
-  categories: IssueCategory[];
+  categories?: IssueCategory[];
   mapsApiKey?: string | null;
 }
 
@@ -21,13 +21,26 @@ interface FormValues {
 }
 
 export function RequestForm({ categories, mapsApiKey }: Props) {
-  const { register, handleSubmit, reset } = useForm<FormValues>({
-    defaultValues: { service_code: categories[0]?.slug ?? "" },
+  const categoriesList = Array.isArray(categories) ? categories : [];
+  const { register, handleSubmit, reset, setValue } = useForm<FormValues>({
+    defaultValues: { service_code: categoriesList[0]?.slug ?? "" },
   });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<string>("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const createRequest = useCreateResidentRequest();
-  const hasCategories = categories.length > 0;
+  const hasCategories = categoriesList.length > 0;
+
+  const handleLocationChange = (newCoords: { lat: number; lng: number }, address?: string) => {
+    setCoords(newCoords);
+    if (address) {
+      setSelectedAddress(address);
+      setValue("address_string", address);
+    } else {
+      setSelectedAddress("");
+      setValue("address_string", "");
+    }
+  };
 
   const onSubmit = handleSubmit((values) => {
     const formData = new FormData();
@@ -43,7 +56,13 @@ export function RequestForm({ categories, mapsApiKey }: Props) {
       onSuccess: () => {
         reset();
         setCoords(null);
+        setSelectedAddress("");
         setAttachments([]);
+        alert("Request submitted successfully");
+      },
+      onError: (err: any) => {
+        const detail = err?.response?.data?.detail || err?.message || "Unknown error";
+        alert("Submission failed: " + detail);
       },
     });
   });
@@ -92,7 +111,7 @@ export function RequestForm({ categories, mapsApiKey }: Props) {
           {...register("service_code", { required: true })}
           className="mt-1 w-full rounded-xl border border-slate-300 p-2"
         >
-          {categories.map((category) => (
+          {categoriesList.map((category) => (
             <option key={category.slug} value={category.slug}>
               {category.name}
             </option>
@@ -126,38 +145,34 @@ export function RequestForm({ categories, mapsApiKey }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <label className="text-sm font-medium text-slate-600">Phone</label>
-          <input
-            {...register("resident_phone")}
-            className="mt-1 w-full rounded-xl border border-slate-300 p-2"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-slate-600">Address</label>
-          <input
-            {...register("address_string")}
-            className="mt-1 w-full rounded-xl border border-slate-300 p-2"
-          />
-        </div>
+      <div>
+        <label className="text-sm font-medium text-slate-600">Phone</label>
+        <input
+          {...register("resident_phone")}
+          className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+        />
       </div>
 
         <div>
           <label className="text-sm font-medium text-slate-600">Location</label>
-          <MapPicker apiKey={mapsApiKey} lat={coords?.lat} lng={coords?.lng} onChange={setCoords} />
+          <MapPicker apiKey={mapsApiKey} lat={coords?.lat} lng={coords?.lng} onChange={handleLocationChange} />
           <p className="mt-1 text-xs text-slate-500">
             Drop the pin inside township limits. We’ll block requests outside the allowed boundary or inside excluded
             county/state zones.
           </p>
-          {coords && (
-            <p className="mt-1 text-xs text-slate-500">
-              {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+          {selectedAddress && (
+            <p className="mt-2 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+              📍 <span className="font-medium">{selectedAddress}</span>
+            </p>
+          )}
+          {coords && !selectedAddress && (
+            <p className="mt-2 text-xs text-slate-500">
+              Coordinates: {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
             </p>
           )}
         </div>
 
-        <div>
+      <div>
           <label className="text-sm font-medium text-slate-600">Photos & evidence</label>
           <input
             type="file"

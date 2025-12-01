@@ -47,6 +47,7 @@ export type RequestAttachment = {
 export type RequestUpdate = {
   id: number;
   request_id: string;
+  author_id?: string | null;
   notes: string;
   public: boolean;
   status_override?: string | null;
@@ -66,6 +67,8 @@ export type ServiceRequest = {
   address_string?: string | null;
   ai_analysis?: Record<string, unknown> | null;
   jurisdiction_warning?: string | null;
+  assigned_department?: string | null;
+  meta?: Record<string, unknown> | null;
   created_at: string;
   attachments?: RequestAttachment[];
   updates?: RequestUpdate[];
@@ -99,6 +102,7 @@ export type GeoBoundary = {
   redirect_url?: string | null;
   notes?: string | null;
   service_code_filters?: string[] | null;
+  road_name_filters?: string[] | null;
   is_active: boolean;
   created_at: string;
 };
@@ -120,4 +124,26 @@ export type TokenResponse = {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+};
+
+export type CategoryExclusion = {
+  id: number;
+  category_slug: string;
+  redirect_name?: string | null;
+  redirect_url?: string | null;
+  redirect_message?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RoadExclusion = {
+  id: number;
+  road_name: string;
+  redirect_name?: string | null;
+  redirect_url?: string | null;
+  redirect_message?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };

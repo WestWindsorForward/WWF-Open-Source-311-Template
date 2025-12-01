@@ -1,8 +1,12 @@
 import secrets
 import uuid
+from pathlib import Path
+import hashlib
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import delete, select, update
+from sqlalchemy import text as sql_text
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, require_roles
@@ -14,9 +18,11 @@ from app.models.settings import (
     GeoBoundary,
     NotificationTemplate,
     TownshipSetting,
+    CategoryExclusion,
+    RoadExclusion,
 )
 from app.models.settings import BoundaryKind
-from app.models.user import Department, User, UserRole
+from app.models.user import Department, User, UserRole, StaffDepartmentLink
 from app.schemas.department import DepartmentCreate, DepartmentRead, DepartmentUpdate
 from app.schemas.issue import IssueCategoryCreate, IssueCategoryRead, IssueCategoryUpdate
 from app.schemas.settings import (
@@ -24,11 +30,20 @@ from app.schemas.settings import (
     GeoBoundaryGoogleImport,
     GeoBoundaryRead,
     GeoBoundaryUpload,
+    GeoBoundaryUpload as GeoBoundaryUpdatePayload,
+    ArcGISLayerImport,
     RuntimeConfigUpdate,
     SecretsPayload,
+    CategoryExclusionCreate,
+    CategoryExclusionUpdate,
+    CategoryExclusionRead,
+    RoadExclusionCreate,
+    RoadExclusionUpdate,
+    RoadExclusionRead,
 )
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import gis, google_maps, runtime_config as runtime_config_service, settings_snapshot
+from app.services.arcgis import fetch_layer_geojson
 from app.services.staff_accounts import sync_staff_departments
 from app.services.audit import log_event
 from app.utils.storage import public_storage_url, save_file
@@ -84,20 +99,54 @@ async def update_branding(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
-    stmt = select(TownshipSetting).where(TownshipSetting.key == "branding")
-    result = await session.execute(stmt)
-    record = result.scalar_one_or_none()
-    data = record.value if record else {}
-    data.update(payload.model_dump(exclude_unset=True))
-    if record:
-        record.value = data
-    else:
-        record = TownshipSetting(key="branding", value=data)
-        session.add(record)
-    await session.commit()
-    settings_snapshot.save_snapshot("branding", data)
-    await log_event(session, action="branding.update", actor=current_user, request=request, metadata=data)
-    return data
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        payload_dict = payload.model_dump(exclude_unset=True)
+        logger.info(f"[BRANDING] Updating branding: {payload_dict}")
+        
+        # Get or create branding record and persist atomically
+        stmt = select(TownshipSetting).where(TownshipSetting.key == "branding")
+        result = await session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if record:
+            logger.info(f"[BRANDING] Found existing record with value: {record.value}")
+            base = record.value if isinstance(record.value, dict) else {}
+            data = {**base, **payload_dict}
+            record.value = data
+            await session.flush()
+        else:
+            logger.info("[BRANDING] Creating new branding record")
+            data = payload_dict
+            record = TownshipSetting(key="branding", value=data)
+            session.add(record)
+            await session.flush()
+
+        await session.commit()
+        
+        # Verify it was saved
+        verify_stmt = select(TownshipSetting).where(TownshipSetting.key == "branding")
+        verify_result = await session.execute(verify_stmt)
+        verify_record = verify_result.scalar_one_or_none()
+        
+        if verify_record:
+            logger.info(f"[BRANDING] ✅ VERIFIED - Data in database: {verify_record.value}")
+            final_data = verify_record.value
+        else:
+            logger.error("[BRANDING] ❌ VERIFICATION FAILED - Data not in database!")
+            raise HTTPException(status_code=500, detail="Branding saved but verification failed")
+        
+        settings_snapshot.save_snapshot("branding", final_data)
+        await log_event(session, action="branding.update", actor=current_user, request=request, metadata=final_data)
+        
+        return final_data
+        
+    except Exception as e:
+        logger.error(f"[BRANDING] ❌ ERROR: {str(e)}", exc_info=True)
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save branding: {str(e)}")
 
 
 @router.post("/branding/assets/{asset_key}", response_model=dict)
@@ -108,7 +157,12 @@ async def upload_asset(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
-    path = save_file(f"branding-{asset_key}-{file.filename}", await file.read())
+    # Sanitize filename to avoid spaces/unsupported characters in URLs
+    clean = _clean_filename(file.filename)
+    data = await file.read()
+    digest = hashlib.sha256(data).hexdigest()[:8]
+    ext = Path(file.filename).suffix.lower()
+    path = save_file(f"branding-{asset_key}-{clean}-{digest}{ext}", data)
     stmt = select(BrandingAsset).where(BrandingAsset.key == asset_key)
     result = await session.execute(stmt)
     record = result.scalar_one_or_none()
@@ -131,6 +185,23 @@ async def upload_asset(
         "file_path": path,
         "url": public_storage_url(request, path),
     }
+
+
+@router.delete("/branding/assets/{asset_key}")
+async def delete_asset(
+    asset_key: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> dict:
+    stmt = select(BrandingAsset).where(BrandingAsset.key == asset_key)
+    result = await session.execute(stmt)
+    record = result.scalar_one_or_none()
+    if record:
+        from app.utils.storage import delete_file
+        delete_file(record.file_path)
+        await session.delete(record)
+        await session.commit()
+    return {"status": "deleted", "key": asset_key}
 
 
 @router.get("/departments", response_model=list[DepartmentRead])
@@ -386,7 +457,12 @@ async def list_staff(
     session: AsyncSession = Depends(get_db),
     _: User = Depends(require_roles(UserRole.admin)),
 ) -> list[UserRead]:
-    stmt = select(User).where(User.role != UserRole.resident).order_by(User.display_name)
+    stmt = (
+        select(User)
+        .where(User.role != UserRole.resident)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .order_by(User.display_name)
+    )
     result = await session.execute(stmt)
     return [UserRead.model_validate(user) for user in result.scalars().all()]
 
@@ -418,6 +494,13 @@ async def create_staff(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
+    stmt = (
+        select(User)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .where(User.id == user.id)
+    )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     await log_event(
         session,
         action="staff.create",
@@ -457,7 +540,13 @@ async def update_staff(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     await session.commit()
-    await session.refresh(user)
+    stmt = (
+        select(User)
+        .options(selectinload(User.department_links).selectinload(StaffDepartmentLink.department))
+        .where(User.id == user.id)
+    )
+    result = await session.execute(stmt)
+    user = result.scalar_one()
     await log_event(
         session,
         action="staff.update",
@@ -594,9 +683,12 @@ async def import_boundary_from_google(
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> GeoBoundaryRead:
     try:
+        # Prefer runtime-configured API key over env settings
+        runtime_cfg = await runtime_config_service.get_runtime_config(session)
         suggested_name, geojson = await google_maps.fetch_boundary_from_google(
             query=payload.query,
             place_id=payload.place_id,
+            api_key_override=runtime_cfg.get("google_maps_api_key") if isinstance(runtime_cfg, dict) else None,
         )
     except google_maps.GoogleMapsError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -626,6 +718,40 @@ async def import_boundary_from_google(
             "place_id": payload.place_id,
             "kind": payload.kind.value,
         },
+    )
+    return GeoBoundaryRead.model_validate(boundary)
+
+
+@router.post("/geo-boundary/arcgis", response_model=GeoBoundaryRead)
+async def import_boundary_from_arcgis(
+    payload: ArcGISLayerImport,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> GeoBoundaryRead:
+    geojson = fetch_layer_geojson(payload.layer_url, where=payload.where)
+    boundary = GeoBoundary(
+        name=payload.name or "ArcGIS Layer",
+        geojson=geojson,
+        kind=payload.kind,
+        jurisdiction=payload.jurisdiction,
+        redirect_url=payload.redirect_url,
+        notes=payload.notes,
+        is_active=True,
+        service_code_filters=payload.service_code_filters or [],
+        road_name_filters=payload.road_name_filters or [],
+    )
+    session.add(boundary)
+    await session.commit()
+    await session.refresh(boundary)
+    await log_event(
+        session,
+        action="geo_boundary.import_arcgis",
+        actor=current_user,
+        entity_type="geo_boundary",
+        entity_id=str(boundary.id),
+        request=request,
+        metadata={"layer_url": payload.layer_url},
     )
     return GeoBoundaryRead.model_validate(boundary)
 
@@ -723,15 +849,349 @@ async def update_runtime_config(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.admin)),
 ) -> dict:
-    config = await runtime_config_service.update_runtime_config(session, payload.model_dump(exclude_unset=True))
-    settings_snapshot.save_snapshot("runtime_config", config)
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        payload_dict = payload.model_dump(exclude_unset=True)
+        logger.info(f"[RUNTIME] Updating runtime config: {payload_dict}")
+        
+        # Update config
+        config = await runtime_config_service.update_runtime_config(session, payload_dict)
+        
+        # Verify it was saved
+        verify_config = await runtime_config_service.get_runtime_config(session)
+        logger.info(f"[RUNTIME] ✅ VERIFIED - Config in database: {verify_config}")
+        
+        settings_snapshot.save_snapshot("runtime_config", verify_config)
+        
+        await log_event(
+            session,
+            action="runtime_config.update",
+            actor=current_user,
+            entity_type="runtime_config",
+            entity_id="runtime_config",
+            request=request,
+            metadata=payload_dict,
+        )
+        
+        return verify_config
+        
+    except Exception as e:
+        logger.error(f"[RUNTIME] ❌ ERROR: {str(e)}", exc_info=True)
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save runtime config: {str(e)}")
+
+
+@router.post("/system/update", response_model=dict)
+async def trigger_system_update(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> dict:
+    """Trigger a system update by creating a flag file for the host watcher script."""
+    import logging
+    import os
+    logger = logging.getLogger(__name__)
+    
+    try:
+        flags_dir = Path("/app/flags")
+        logger.info(f"[UPDATE] Checking flags directory: {flags_dir}")
+        
+        # Check if directory exists and is writable
+        if not flags_dir.exists():
+            logger.info(f"[UPDATE] Creating flags directory: {flags_dir}")
+            flags_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Check write permissions
+        if not os.access(flags_dir, os.W_OK):
+            logger.error(f"[UPDATE] ❌ No write permission to {flags_dir}")
+            raise HTTPException(status_code=500, detail="Cannot write to flags directory")
+        
+        flag_file = flags_dir / "update_requested"
+        logger.info(f"[UPDATE] System update triggered by {current_user.email}")
+        logger.info(f"[UPDATE] Creating flag file at: {flag_file}")
+        
+        # Create the flag file
+        flag_file.write_text(f"Update requested by {current_user.email} at {request.client.host if request.client else 'unknown'}")
+        
+        # Verify file was created
+        if flag_file.exists():
+            logger.info(f"[UPDATE] ✅ Flag file created successfully")
+            logger.info(f"[UPDATE] File size: {flag_file.stat().st_size} bytes")
+        else:
+            logger.error(f"[UPDATE] ❌ Failed to create flag file")
+            raise HTTPException(status_code=500, detail="Failed to create update flag file")
+        
+        # Log the event
+        await log_event(
+            session,
+            action="system.update_triggered",
+            actor=current_user,
+            entity_type="system",
+            entity_id="update",
+            request=request,
+        )
+        await session.commit()
+        
+        return {
+            "status": "update_initiated",
+            "message": "Update flag created successfully. The watcher will process it shortly.",
+            "flag_path": str(flag_file),
+            "watcher_check_interval": "5 seconds",
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[UPDATE] ❌ ERROR: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to trigger update: {str(e)}")
+def _clean_filename(name: str) -> str:
+    value = name.strip().lower().replace(" ", "-")
+    allowed = set("abcdefghijklmnopqrstuvwxyz0123456789-_.")
+    return "".join(c for c in value if c in allowed) or "file"
+@router.put("/geo-boundary/{boundary_id}", response_model=GeoBoundaryRead)
+async def update_boundary(
+    boundary_id: int,
+    payload: GeoBoundaryUpdatePayload,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> GeoBoundaryRead:
+    boundary = await session.get(GeoBoundary, boundary_id)
+    if not boundary:
+        raise HTTPException(status_code=404, detail="Boundary not found")
+    data = payload.model_dump(exclude_unset=True)
+    # prevent accidental geojson/kind changes unless provided explicitly
+    for key, value in data.items():
+        setattr(boundary, key, value)
+    await session.commit()
+    await session.refresh(boundary)
     await log_event(
         session,
-        action="runtime_config.update",
+        action="geo_boundary.update",
         actor=current_user,
-        entity_type="runtime_config",
-        entity_id="runtime_config",
+        entity_type="geo_boundary",
+        entity_id=str(boundary.id),
         request=request,
-        metadata=payload.model_dump(exclude_unset=True),
+        metadata=data,
     )
-    return config
+    return GeoBoundaryRead.model_validate(boundary)
+
+
+@router.get("/exclusions/categories", response_model=list[CategoryExclusionRead])
+async def list_category_exclusions(
+    session: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.admin)),
+) -> list[CategoryExclusionRead]:
+    await _ensure_exclusion_tables(session)
+    result = await session.execute(select(CategoryExclusion).order_by(CategoryExclusion.updated_at.desc()))
+    return [CategoryExclusionRead.model_validate(row) for row in result.scalars().all()]
+
+
+@router.post("/exclusions/categories", response_model=CategoryExclusionRead)
+async def create_category_exclusion(
+    payload: CategoryExclusionCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> CategoryExclusionRead:
+    await _ensure_exclusion_tables(session)
+    record = CategoryExclusion(
+        category_slug=payload.category_slug,
+        redirect_name=payload.redirect_name,
+        redirect_url=payload.redirect_url,
+        redirect_message=payload.redirect_message,
+        is_active=payload.is_active,
+    )
+    session.add(record)
+    await session.commit()
+    await session.refresh(record)
+    await log_event(
+        session,
+        action="exclusion.category.create",
+        actor=current_user,
+        entity_type="category_exclusion",
+        entity_id=str(record.id),
+        request=request,
+        metadata=payload.model_dump(),
+    )
+    return CategoryExclusionRead.model_validate(record)
+
+
+@router.put("/exclusions/categories/{exclusion_id}", response_model=CategoryExclusionRead)
+async def update_category_exclusion(
+    exclusion_id: int,
+    payload: CategoryExclusionUpdate,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> CategoryExclusionRead:
+    await _ensure_exclusion_tables(session)
+    record = await session.get(CategoryExclusion, exclusion_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Exclusion not found")
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(record, k, v)
+    await session.commit()
+    await session.refresh(record)
+    await log_event(
+        session,
+        action="exclusion.category.update",
+        actor=current_user,
+        entity_type="category_exclusion",
+        entity_id=str(record.id),
+        request=request,
+        metadata=data,
+    )
+    return CategoryExclusionRead.model_validate(record)
+
+
+@router.delete("/exclusions/categories/{exclusion_id}")
+async def delete_category_exclusion(
+    exclusion_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> dict:
+    await _ensure_exclusion_tables(session)
+    record = await session.get(CategoryExclusion, exclusion_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Exclusion not found")
+    await session.delete(record)
+    await session.commit()
+    await log_event(
+        session,
+        action="exclusion.category.delete",
+        actor=current_user,
+        entity_type="category_exclusion",
+        entity_id=str(exclusion_id),
+        request=request,
+    )
+    return {"status": "deleted"}
+
+
+@router.get("/exclusions/roads", response_model=list[RoadExclusionRead])
+async def list_road_exclusions(
+    session: AsyncSession = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.admin)),
+) -> list[RoadExclusionRead]:
+    await _ensure_exclusion_tables(session)
+    result = await session.execute(select(RoadExclusion).order_by(RoadExclusion.updated_at.desc()))
+    return [RoadExclusionRead.model_validate(row) for row in result.scalars().all()]
+
+
+@router.post("/exclusions/roads", response_model=RoadExclusionRead)
+async def create_road_exclusion(
+    payload: RoadExclusionCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> RoadExclusionRead:
+    await _ensure_exclusion_tables(session)
+    record = RoadExclusion(
+        road_name=payload.road_name,
+        redirect_name=payload.redirect_name,
+        redirect_url=payload.redirect_url,
+        redirect_message=payload.redirect_message,
+        is_active=payload.is_active,
+    )
+    session.add(record)
+    await session.commit()
+    await session.refresh(record)
+    await log_event(
+        session,
+        action="exclusion.road.create",
+        actor=current_user,
+        entity_type="road_exclusion",
+        entity_id=str(record.id),
+        request=request,
+        metadata=payload.model_dump(),
+    )
+    return RoadExclusionRead.model_validate(record)
+
+
+@router.put("/exclusions/roads/{exclusion_id}", response_model=RoadExclusionRead)
+async def update_road_exclusion(
+    exclusion_id: int,
+    payload: RoadExclusionUpdate,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> RoadExclusionRead:
+    await _ensure_exclusion_tables(session)
+    record = await session.get(RoadExclusion, exclusion_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Exclusion not found")
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(record, k, v)
+    await session.commit()
+    await session.refresh(record)
+    await log_event(
+        session,
+        action="exclusion.road.update",
+        actor=current_user,
+        entity_type="road_exclusion",
+        entity_id=str(record.id),
+        request=request,
+        metadata=data,
+    )
+    return RoadExclusionRead.model_validate(record)
+
+
+@router.delete("/exclusions/roads/{exclusion_id}")
+async def delete_road_exclusion(
+    exclusion_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin)),
+) -> dict:
+    await _ensure_exclusion_tables(session)
+    record = await session.get(RoadExclusion, exclusion_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Exclusion not found")
+    await session.delete(record)
+    await session.commit()
+    await log_event(
+        session,
+        action="exclusion.road.delete",
+        actor=current_user,
+        entity_type="road_exclusion",
+        entity_id=str(exclusion_id),
+        request=request,
+    )
+    return {"status": "deleted"}
+async def _ensure_exclusion_tables(session: AsyncSession) -> None:
+    await session.execute(sql_text(
+        """
+        CREATE TABLE IF NOT EXISTS category_exclusions (
+            id SERIAL PRIMARY KEY,
+            category_slug VARCHAR(128) NOT NULL,
+            redirect_name VARCHAR(255),
+            redirect_url VARCHAR(512),
+            redirect_message TEXT,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    ))
+    await session.execute(sql_text("CREATE INDEX IF NOT EXISTS ix_category_exclusions_category_slug ON category_exclusions (category_slug)"))
+    await session.execute(sql_text(
+        """
+        CREATE TABLE IF NOT EXISTS road_exclusions (
+            id SERIAL PRIMARY KEY,
+            road_name VARCHAR(255) NOT NULL,
+            redirect_name VARCHAR(255),
+            redirect_url VARCHAR(512),
+            redirect_message TEXT,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    ))
+    await session.execute(sql_text("CREATE INDEX IF NOT EXISTS ix_road_exclusions_road_name ON road_exclusions (road_name)"))
+    await session.commit()

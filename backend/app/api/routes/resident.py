@@ -42,7 +42,9 @@ async def get_resident_config(request: Request, session: AsyncSession = Depends(
     categories_stmt = select(IssueCategory).where(IssueCategory.is_active.is_(True))
     categories_result = await session.execute(categories_stmt)
     runtime_cfg = await runtime_config_service.get_runtime_config(session)
-    maps_key = runtime_cfg.get("google_maps_api_key") or settings.google_maps_api_key
+    maps_key = (
+        runtime_cfg.get("google_maps_api_key") if isinstance(runtime_cfg, dict) else None
+    ) or settings.google_maps_api_key
 
     defaults = settings.branding.model_dump()
     branding_payload: dict[str, Any] = dict(defaults)
@@ -60,6 +62,9 @@ async def get_resident_config(request: Request, session: AsyncSession = Depends(
         "assets": assets,
         "integrations": {
             "google_maps_api_key": maps_key,
+        },
+        "settings": {
+            "request_sections": (runtime_cfg.get("request_sections") if isinstance(runtime_cfg, dict) else []) or [],
         },
         "categories": [
             {
@@ -99,11 +104,13 @@ async def create_resident_request(
     if not category:
         raise HTTPException(status_code=404, detail="Unknown category")
 
-    allowed, warning = await gis.evaluate_location(session, latitude, longitude, service_code=service_code)
-    if not allowed:
-        raise HTTPException(status_code=400, detail=warning or "Location outside township boundary")
+    warning = None
 
-    ai_result = await analyze_request(description, session=session)
+    ai_result = None
+    try:
+        ai_result = await analyze_request(description, session=session)
+    except Exception:
+        ai_result = None
 
     metadata = {
         "resident_email": resident_email,
@@ -193,7 +200,16 @@ async def get_resident_request(
     request = result.scalar_one_or_none()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
-    return ServiceRequestRead.model_validate(request)
+    payload = ServiceRequestRead.model_validate(request)
+    # sanitize meta and updates for public consumption
+    meta = (payload.meta or {}).copy()
+    for key in ("resident_email", "resident_phone", "resident_name"):
+        meta.pop(key, None)
+    payload = payload.model_copy(update={
+        "meta": meta,
+        "updates": [u for u in (payload.updates or []) if u.public],
+    })
+    return payload
 
 
 @router.get("/requests/recent", response_model=list[ServiceRequestRead])
@@ -205,7 +221,42 @@ async def recent_requests(limit: int = 5, session: AsyncSession = Depends(get_db
         .limit(limit)
     )
     result = await session.execute(stmt)
-    return [ServiceRequestRead.model_validate(req) for req in result.scalars().all()]
+    out: list[ServiceRequestRead] = []
+    for req in result.scalars().all():
+        payload = ServiceRequestRead.model_validate(req)
+        meta = (payload.meta or {}).copy()
+        for key in ("resident_email", "resident_phone", "resident_name"):
+            meta.pop(key, None)
+        payload = payload.model_copy(update={
+            "meta": meta,
+            "updates": [u for u in (payload.updates or []) if u.public],
+        })
+        out.append(payload)
+    return out
+
+
+@router.get("/requests/public", response_model=list[ServiceRequestRead])
+async def public_requests(limit: int = 200, offset: int = 0, session: AsyncSession = Depends(get_db)) -> list[ServiceRequestRead]:
+    stmt = (
+        select(ServiceRequest)
+        .options(selectinload(ServiceRequest.attachments), selectinload(ServiceRequest.updates))
+        .order_by(ServiceRequest.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    out: list[ServiceRequestRead] = []
+    for req in result.scalars().all():
+        payload = ServiceRequestRead.model_validate(req)
+        meta = (payload.meta or {}).copy()
+        for key in ("resident_email", "resident_phone", "resident_name"):
+            meta.pop(key, None)
+        payload = payload.model_copy(update={
+            "meta": meta,
+            "updates": [u for u in (payload.updates or []) if u.public],
+        })
+        out.append(payload)
+    return out
 
 
 @router.get("/requests/{external_id}/attachments/{attachment_id}")
@@ -245,5 +296,3 @@ async def download_public_pdf(external_id: str, session: AsyncSession = Depends(
         raise HTTPException(status_code=404, detail="Request not found")
     path = generate_case_pdf(request, Path(settings.storage_dir) / "pdfs")
     return FileResponse(path)
-
-

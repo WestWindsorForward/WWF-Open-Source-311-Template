@@ -1,7 +1,13 @@
 {$APP_DOMAIN} {
     encode zstd gzip
 
+    tls internal
+
     handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    handle /storage/* {
         reverse_proxy backend:8000
     }
 

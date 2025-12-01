@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.models.issue import RequestAttachment, RequestUpdate, ServiceRequest, ServiceStatus
 from app.models.user import User, UserRole
 from app.schemas.issue import RequestUpdateCreate, RequestUpdateRead, ServiceRequestRead
-from app.services import antivirus
+from app.services import antivirus, runtime_config as runtime_config_service
 from app.services.audit import log_event
 from app.services.notifications import notify_resident
 from app.services.pdf import generate_case_pdf
@@ -49,12 +49,24 @@ async def update_request(
     service_request = await session.get(ServiceRequest, request_id)
     if not service_request:
         raise HTTPException(status_code=404, detail="Request not found")
-    if "status" in payload:
+    runtime_cfg = await runtime_config_service.get_runtime_config(session)
+    allow_status = True
+    try:
+        allow_status = bool(runtime_cfg.get("allow_status_change", True))
+    except Exception:
+        allow_status = True
+    if "status" in payload and allow_status:
         service_request.status = ServiceStatus(payload["status"])
     if "priority" in payload:
         service_request.priority = payload["priority"]
     if "assigned_department" in payload:
         service_request.assigned_department = payload["assigned_department"]
+    # allow updating a configured section via meta
+    section = payload.get("request_section")
+    if section is not None:
+        current = service_request.meta or {}
+        current["request_section"] = section
+        service_request.meta = current
     await session.commit()
     await session.refresh(service_request, attribute_names=["attachments", "updates"])
     await broadcast_status_change(
@@ -137,7 +149,13 @@ async def add_request_comment(
         status_override=payload.status_override,
     )
     session.add(update)
-    if payload.status_override:
+    runtime_cfg = await runtime_config_service.get_runtime_config(session)
+    allow_override = True
+    try:
+        allow_override = bool(runtime_cfg.get("allow_status_override_on_comment", True))
+    except Exception:
+        allow_override = True
+    if payload.status_override and allow_override:
         service_request.status = payload.status_override
     await session.commit()
     await session.refresh(update)

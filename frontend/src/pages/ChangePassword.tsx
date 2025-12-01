@@ -44,16 +44,18 @@ export function ChangePasswordPage() {
       </p>
 
       <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-        <label className="text-sm text-slate-600">
-          Current password
-          <input
-            type="password"
-            className="mt-1 w-full rounded-xl border border-slate-300 p-2"
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-            required
-          />
-        </label>
+        {!user?.must_reset_password && (
+          <label className="text-sm text-slate-600">
+            Current password
+            <input
+              type="password"
+              className="mt-1 w-full rounded-xl border border-slate-300 p-2"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              required
+            />
+          </label>
+        )}
         <label className="text-sm text-slate-600">
           New password
           <input
@@ -78,7 +80,7 @@ export function ChangePasswordPage() {
           <p className="text-xs text-rose-500">New passwords do not match.</p>
         )}
         {mutation.isError && (
-          <p className="text-xs text-rose-500">Password update failed. Double-check your current password.</p>
+          <p className="text-xs text-rose-500">Password update failed. Please try again.</p>
         )}
         <button
           type="submit"
