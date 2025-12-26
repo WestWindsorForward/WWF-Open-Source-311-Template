@@ -193,6 +193,33 @@ class ApiClient {
             method: 'POST',
         });
     }
+
+    // GIS / Maps
+    async getMapsConfig(): Promise<{
+        has_google_maps: boolean;
+        google_maps_api_key: string | null;
+        default_center: { lat: number; lng: number };
+        default_zoom: number;
+    }> {
+        return this.request('/gis/config');
+    }
+
+    async geocodeAddress(address: string): Promise<{
+        lat: number;
+        lng: number;
+        formatted_address: string;
+        place_id?: string;
+    }> {
+        return this.request(`/gis/geocode?address=${encodeURIComponent(address)}`);
+    }
+
+    async reverseGeocode(lat: number, lng: number): Promise<{
+        lat: number;
+        lng: number;
+        formatted_address: string;
+    }> {
+        return this.request(`/gis/reverse-geocode?lat=${lat}&lng=${lng}`);
+    }
 }
 
 export const api = new ApiClient();

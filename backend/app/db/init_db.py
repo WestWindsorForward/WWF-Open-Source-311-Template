@@ -69,11 +69,32 @@ DEFAULT_DEPARTMENTS = [
 
 # Default secrets (keys only, not values)
 DEFAULT_SECRETS = [
-    {"key_name": "GOOGLE_MAPS_API_KEY", "description": "Google Maps API key for geocoding"},
+    # Google Maps / GIS
+    {"key_name": "GOOGLE_MAPS_API_KEY", "description": "Google Maps API key for geocoding and maps"},
+    
+    # AI Analysis
     {"key_name": "VERTEX_AI_PROJECT", "description": "Google Cloud project for Vertex AI"},
-    {"key_name": "TWILIO_ACCOUNT_SID", "description": "Twilio account SID for SMS"},
-    {"key_name": "TWILIO_AUTH_TOKEN", "description": "Twilio auth token for SMS"},
-    {"key_name": "TWILIO_PHONE_NUMBER", "description": "Twilio phone number for SMS"},
+    
+    # SMS Providers - Twilio
+    {"key_name": "SMS_PROVIDER", "description": "SMS provider type: twilio, http, or none"},
+    {"key_name": "TWILIO_ACCOUNT_SID", "description": "Twilio account SID"},
+    {"key_name": "TWILIO_AUTH_TOKEN", "description": "Twilio auth token"},
+    {"key_name": "TWILIO_PHONE_NUMBER", "description": "Twilio phone number (e.g., +1234567890)"},
+    
+    # SMS Providers - Generic HTTP
+    {"key_name": "SMS_HTTP_API_URL", "description": "HTTP SMS API endpoint URL"},
+    {"key_name": "SMS_HTTP_API_KEY", "description": "HTTP SMS API key/token"},
+    {"key_name": "SMS_FROM_NUMBER", "description": "SMS sender number for HTTP provider"},
+    
+    # Email SMTP
+    {"key_name": "EMAIL_ENABLED", "description": "Enable email notifications: true or false"},
+    {"key_name": "SMTP_HOST", "description": "SMTP server hostname (e.g., smtp.gmail.com)"},
+    {"key_name": "SMTP_PORT", "description": "SMTP server port (e.g., 587 for TLS, 465 for SSL)"},
+    {"key_name": "SMTP_USER", "description": "SMTP username/email"},
+    {"key_name": "SMTP_PASSWORD", "description": "SMTP password or app-specific password"},
+    {"key_name": "SMTP_FROM_EMAIL", "description": "From email address"},
+    {"key_name": "SMTP_FROM_NAME", "description": "From name (e.g., Township 311)"},
+    {"key_name": "SMTP_USE_TLS", "description": "Use TLS: true (port 587) or false (SSL on 465)"},
 ]
 
 

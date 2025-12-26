@@ -47,31 +47,33 @@ export const Modal: React.FC<ModalProps> = ({
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
                     />
 
-                    {/* Modal */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] ${sizeStyles[size]} glass-card p-0 z-50`}
-                    >
-                        {/* Header */}
-                        {title && (
-                            <div className="flex items-center justify-between p-6 border-b border-white/10">
-                                <h2 className="text-xl font-semibold text-white">{title}</h2>
-                                <button
-                                    onClick={onClose}
-                                    className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                                >
-                                    <X className="w-5 h-5 text-white/60" />
-                                </button>
-                            </div>
-                        )}
+                    {/* Modal Container - centered with flexbox */}
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className={`w-full ${sizeStyles[size]} glass-card p-0 pointer-events-auto max-h-[90vh] overflow-auto`}
+                        >
+                            {/* Header */}
+                            {title && (
+                                <div className="flex items-center justify-between p-6 border-b border-white/10 sticky top-0 glass-card">
+                                    <h2 className="text-xl font-semibold text-white">{title}</h2>
+                                    <button
+                                        onClick={onClose}
+                                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                    >
+                                        <X className="w-5 h-5 text-white/60" />
+                                    </button>
+                                </div>
+                            )}
 
-                        {/* Content */}
-                        <div className="p-6">
-                            {children}
-                        </div>
-                    </motion.div>
+                            {/* Content */}
+                            <div className="p-6">
+                                {children}
+                            </div>
+                        </motion.div>
+                    </div>
                 </>
             )}
         </AnimatePresence>

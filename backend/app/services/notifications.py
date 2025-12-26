@@ -1,0 +1,255 @@
+"""
+Notification services for SMS and Email with configurable providers.
+"""
+import os
+import httpx
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from typing import Optional, Dict, Any
+from abc import ABC, abstractmethod
+
+
+# ============ SMS Providers ============
+
+class SMSProvider(ABC):
+    """Base class for SMS providers"""
+    
+    @abstractmethod
+    async def send_sms(self, to: str, message: str) -> bool:
+        pass
+
+
+class TwilioProvider(SMSProvider):
+    """Twilio SMS provider"""
+    
+    def __init__(self, account_sid: str, auth_token: str, from_number: str):
+        self.account_sid = account_sid
+        self.auth_token = auth_token
+        self.from_number = from_number
+        self.base_url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+    
+    async def send_sms(self, to: str, message: str) -> bool:
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.base_url,
+                    auth=(self.account_sid, self.auth_token),
+                    data={
+                        "To": to,
+                        "From": self.from_number,
+                        "Body": message
+                    }
+                )
+                return response.status_code == 201
+        except Exception as e:
+            print(f"Twilio SMS error: {e}")
+            return False
+
+
+class GenericHTTPSMSProvider(SMSProvider):
+    """Generic HTTP-based SMS provider for any API"""
+    
+    def __init__(self, api_url: str, api_key: str, from_number: str):
+        self.api_url = api_url
+        self.api_key = api_key
+        self.from_number = from_number
+    
+    async def send_sms(self, to: str, message: str) -> bool:
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.api_url,
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "to": to,
+                        "from": self.from_number,
+                        "message": message
+                    }
+                )
+                return response.is_success
+        except Exception as e:
+            print(f"HTTP SMS error: {e}")
+            return False
+
+
+# ============ Email Provider ============
+
+class EmailProvider:
+    """SMTP Email provider"""
+    
+    def __init__(
+        self,
+        smtp_host: str,
+        smtp_port: int,
+        smtp_user: str,
+        smtp_password: str,
+        from_email: str,
+        from_name: str = "Township 311",
+        use_tls: bool = True
+    ):
+        self.smtp_host = smtp_host
+        self.smtp_port = smtp_port
+        self.smtp_user = smtp_user
+        self.smtp_password = smtp_password
+        self.from_email = from_email
+        self.from_name = from_name
+        self.use_tls = use_tls
+    
+    def send_email(
+        self,
+        to: str,
+        subject: str,
+        body_html: str,
+        body_text: Optional[str] = None
+    ) -> bool:
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"{self.from_name} <{self.from_email}>"
+            msg["To"] = to
+            
+            if body_text:
+                msg.attach(MIMEText(body_text, "plain"))
+            msg.attach(MIMEText(body_html, "html"))
+            
+            if self.use_tls:
+                with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                    server.starttls()
+                    server.login(self.smtp_user, self.smtp_password)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port) as server:
+                    server.login(self.smtp_user, self.smtp_password)
+                    server.send_message(msg)
+            
+            return True
+        except Exception as e:
+            print(f"Email error: {e}")
+            return False
+
+
+# ============ Notification Service ============
+
+class NotificationService:
+    """Unified notification service for SMS and Email"""
+    
+    _instance = None
+    _sms_provider: Optional[SMSProvider] = None
+    _email_provider: Optional[EmailProvider] = None
+    
+    @classmethod
+    def get_instance(cls) -> "NotificationService":
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+    
+    def configure_sms(self, provider_type: str, config: Dict[str, Any]):
+        """Configure SMS provider dynamically"""
+        if provider_type == "twilio":
+            self._sms_provider = TwilioProvider(
+                account_sid=config.get("account_sid", ""),
+                auth_token=config.get("auth_token", ""),
+                from_number=config.get("from_number", "")
+            )
+        elif provider_type == "http":
+            self._sms_provider = GenericHTTPSMSProvider(
+                api_url=config.get("api_url", ""),
+                api_key=config.get("api_key", ""),
+                from_number=config.get("from_number", "")
+            )
+    
+    def configure_email(self, config: Dict[str, Any]):
+        """Configure Email provider"""
+        self._email_provider = EmailProvider(
+            smtp_host=config.get("smtp_host", ""),
+            smtp_port=config.get("smtp_port", 587),
+            smtp_user=config.get("smtp_user", ""),
+            smtp_password=config.get("smtp_password", ""),
+            from_email=config.get("from_email", ""),
+            from_name=config.get("from_name", "Township 311"),
+            use_tls=config.get("use_tls", True)
+        )
+    
+    async def send_sms(self, to: str, message: str) -> bool:
+        """Send SMS notification"""
+        if not self._sms_provider:
+            print("SMS provider not configured")
+            return False
+        return await self._sms_provider.send_sms(to, message)
+    
+    def send_email(
+        self,
+        to: str,
+        subject: str,
+        body_html: str,
+        body_text: Optional[str] = None
+    ) -> bool:
+        """Send email notification"""
+        if not self._email_provider:
+            print("Email provider not configured")
+            return False
+        return self._email_provider.send_email(to, subject, body_html, body_text)
+    
+    def send_request_confirmation(self, request_id: str, email: str, phone: Optional[str] = None):
+        """Send confirmation for a new service request"""
+        subject = f"Request #{request_id} Received"
+        body_html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <h2>Your Request Has Been Received</h2>
+            <p>Thank you for submitting a service request to your local township.</p>
+            <p><strong>Request ID:</strong> {request_id}</p>
+            <p>You can track the status of your request using this ID.</p>
+            <p>We appreciate your help in making our community better!</p>
+            <hr>
+            <p style="color: #666; font-size: 12px;">
+                This is an automated message. Please do not reply directly to this email.
+            </p>
+        </body>
+        </html>
+        """
+        body_text = f"Your service request #{request_id} has been received. Thank you!"
+        
+        # Send email
+        if email:
+            self.send_email(email, subject, body_html, body_text)
+    
+    async def send_status_update(
+        self,
+        request_id: str,
+        new_status: str,
+        email: Optional[str] = None,
+        phone: Optional[str] = None
+    ):
+        """Send status update notification"""
+        status_text = {
+            "open": "is now open and being reviewed",
+            "in_progress": "is now being worked on",
+            "closed": "has been resolved"
+        }.get(new_status, f"status changed to {new_status}")
+        
+        subject = f"Request #{request_id} Status Update"
+        body_html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <h2>Request Status Update</h2>
+            <p>Your service request <strong>#{request_id}</strong> {status_text}.</p>
+            <p>Thank you for your patience!</p>
+        </body>
+        </html>
+        """
+        sms_message = f"Request #{request_id} {status_text}"
+        
+        if email:
+            self.send_email(email, subject, body_html)
+        
+        if phone:
+            await self.send_sms(phone, sms_message)
+
+
+# Singleton instance
+notification_service = NotificationService.get_instance()
