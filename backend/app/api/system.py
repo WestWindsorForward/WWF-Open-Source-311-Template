@@ -157,23 +157,15 @@ async def get_statistics(
 
 @router.post("/update")
 async def update_system(_: User = Depends(get_current_admin)):
-    """Pull updates from GitHub and rebuild (admin only)"""
+    """Pull updates from GitHub (admin only). Code changes reload automatically."""
     try:
-        # Get the project root (assuming backend is in /app in container)
-        project_root = os.environ.get("PROJECT_ROOT", "/app/..")
+        # Get the project root
+        project_root = os.environ.get("PROJECT_ROOT", "/project")
         
         # Add safe directory to fix ownership issues in Docker
         subprocess.run(
             ["git", "config", "--global", "--add", "safe.directory", project_root],
             cwd=project_root,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        
-        # Also add root as safe (for mounted volumes)
-        subprocess.run(
-            ["git", "config", "--global", "--add", "safe.directory", "/"],
             capture_output=True,
             text=True,
             timeout=10
@@ -194,29 +186,23 @@ async def update_system(_: User = Depends(get_current_admin)):
                 detail=f"Git pull failed: {pull_result.stderr}"
             )
         
-        # Trigger rebuild via docker-compose
-        rebuild_result = subprocess.run(
-            ["docker-compose", "build", "--no-cache"],
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-            timeout=300
-        )
+        # Check what was updated
+        git_output = pull_result.stdout.strip()
         
-        # Restart services
-        restart_result = subprocess.run(
-            ["docker-compose", "up", "-d"],
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
+        # Determine if restart is needed
+        needs_restart = any(x in git_output.lower() for x in [
+            'requirements.txt', 'dockerfile', 'docker-compose', 'package.json'
+        ])
         
         return {
             "status": "success",
-            "message": "Update initiated. Services will restart momentarily.",
-            "git_output": pull_result.stdout,
-            "rebuild_output": rebuild_result.stdout if rebuild_result.returncode == 0 else None
+            "message": "Updates pulled successfully. " + (
+                "Container restart may be needed for dependency changes." 
+                if needs_restart 
+                else "Code changes will reload automatically."
+            ),
+            "git_output": git_output,
+            "needs_restart": needs_restart
         }
     
     except subprocess.TimeoutExpired:
@@ -229,3 +215,4 @@ async def update_system(_: User = Depends(get_current_admin)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
