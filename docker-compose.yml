@@ -33,7 +33,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/app
-      - ./.git:/app/../.git:ro
+      - .:/project
     environment:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-township}:${DB_PASSWORD:-township}@db/${DB_NAME:-township_db}
       REDIS_URL: redis://redis:6379/0
@@ -43,7 +43,7 @@ services:
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-admin123}
       GOOGLE_VERTEX_PROJECT: ${GOOGLE_VERTEX_PROJECT:-}
       GOOGLE_VERTEX_LOCATION: ${GOOGLE_VERTEX_LOCATION:-us-central1}
-      PROJECT_ROOT: /app/..
+      PROJECT_ROOT: /project
     depends_on:
       db:
         condition: service_healthy
