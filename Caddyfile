@@ -1,0 +1,21 @@
+{$DOMAIN:localhost} {
+    # Frontend - SPA routing
+    handle {
+        reverse_proxy frontend:5173
+    }
+
+    # API routes
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Enable compression
+    encode gzip
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+}

@@ -1,0 +1,199 @@
+import {
+    AuthToken,
+    User,
+    ServiceDefinition,
+    ServiceRequest,
+    ServiceRequestDetail,
+    ServiceRequestCreate,
+    ManualIntakeCreate,
+    SystemSettings,
+    SystemSecret,
+    Statistics,
+    UserCreate,
+    ServiceCreate,
+    Department,
+} from '../types';
+
+const API_BASE = '/api';
+
+class ApiClient {
+    private token: string | null = null;
+
+    setToken(token: string | null) {
+        this.token = token;
+    }
+
+    private async request<T>(
+        endpoint: string,
+        options: RequestInit = {}
+    ): Promise<T> {
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        };
+
+        if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            headers,
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Request failed' }));
+            throw new Error(error.detail || 'Request failed');
+        }
+
+        if (response.status === 204) {
+            return undefined as T;
+        }
+
+        return response.json();
+    }
+
+    // Auth
+    async login(username: string, password: string): Promise<AuthToken> {
+        const formData = new URLSearchParams();
+        formData.append('username', username);
+        formData.append('password', password);
+
+        const response = await fetch(`${API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Login failed' }));
+            throw new Error(error.detail || 'Login failed');
+        }
+
+        return response.json();
+    }
+
+    async getMe(): Promise<User> {
+        return this.request<User>('/auth/me');
+    }
+
+    // Services (Public)
+    async getServices(): Promise<ServiceDefinition[]> {
+        return this.request<ServiceDefinition[]>('/services/');
+    }
+
+    // Services (Admin)
+    async createService(data: ServiceCreate): Promise<ServiceDefinition> {
+        return this.request<ServiceDefinition>('/services/', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteService(id: number): Promise<void> {
+        return this.request<void>(`/services/${id}`, { method: 'DELETE' });
+    }
+
+    // Departments
+    async getDepartments(): Promise<Department[]> {
+        return this.request<Department[]>('/departments/');
+    }
+
+    async createDepartment(data: Partial<Department>): Promise<Department> {
+        return this.request<Department>('/departments/', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // Service Requests (Public)
+    async createRequest(data: ServiceRequestCreate): Promise<ServiceRequest> {
+        return this.request<ServiceRequest>('/open311/v2/requests.json', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // Service Requests (Staff)
+    async getRequests(status?: string): Promise<ServiceRequest[]> {
+        const params = status ? `?status=${status}` : '';
+        return this.request<ServiceRequest[]>(`/open311/v2/requests.json${params}`);
+    }
+
+    async getRequestDetail(requestId: string): Promise<ServiceRequestDetail> {
+        return this.request<ServiceRequestDetail>(`/open311/v2/requests/${requestId}.json`);
+    }
+
+    async updateRequestStatus(
+        requestId: string,
+        status: string,
+        notes?: string
+    ): Promise<ServiceRequestDetail> {
+        return this.request<ServiceRequestDetail>(`/open311/v2/requests/${requestId}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status, staff_notes: notes }),
+        });
+    }
+
+    async createManualIntake(data: ManualIntakeCreate): Promise<ServiceRequest> {
+        return this.request<ServiceRequest>('/open311/v2/requests/manual', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // Users (Admin)
+    async getUsers(): Promise<User[]> {
+        return this.request<User[]>('/users/');
+    }
+
+    async createUser(data: UserCreate): Promise<User> {
+        return this.request<User>('/users/', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteUser(id: number): Promise<void> {
+        return this.request<void>(`/users/${id}`, { method: 'DELETE' });
+    }
+
+    // System Settings
+    async getSettings(): Promise<SystemSettings> {
+        return this.request<SystemSettings>('/system/settings');
+    }
+
+    async updateSettings(data: Partial<SystemSettings>): Promise<SystemSettings> {
+        return this.request<SystemSettings>('/system/settings', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // System Secrets (Admin)
+    async getSecrets(): Promise<SystemSecret[]> {
+        return this.request<SystemSecret[]>('/system/secrets');
+    }
+
+    async updateSecret(keyName: string, value: string): Promise<SystemSecret> {
+        return this.request<SystemSecret>('/system/secrets', {
+            method: 'POST',
+            body: JSON.stringify({ key_name: keyName, key_value: value }),
+        });
+    }
+
+    // Statistics
+    async getStatistics(): Promise<Statistics> {
+        return this.request<Statistics>('/system/statistics');
+    }
+
+    // System Update (Admin)
+    async updateSystem(): Promise<{ status: string; message: string }> {
+        return this.request<{ status: string; message: string }>('/system/update', {
+            method: 'POST',
+        });
+    }
+}
+
+export const api = new ApiClient();
+export default api;

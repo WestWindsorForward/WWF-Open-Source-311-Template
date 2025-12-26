@@ -1,0 +1,74 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { SettingsProvider } from './context/SettingsContext';
+import ResidentPortal from './pages/ResidentPortal';
+import StaffDashboard from './pages/StaffDashboard';
+import AdminConsole from './pages/AdminConsole';
+import Login from './pages/Login';
+
+// Protected route wrapper
+function ProtectedRoute({
+    children,
+    requiredRole
+}: {
+    children: React.ReactNode;
+    requiredRole?: 'staff' | 'admin';
+}) {
+    const { isAuthenticated, isLoading, user } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (requiredRole === 'admin' && user?.role !== 'admin') {
+        return <Navigate to="/staff" replace />;
+    }
+
+    return <>{children}</>;
+}
+
+function AppRoutes() {
+    return (
+        <Routes>
+            <Route path="/" element={<ResidentPortal />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+                path="/staff"
+                element={
+                    <ProtectedRoute requiredRole="staff">
+                        <StaffDashboard />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/admin"
+                element={
+                    <ProtectedRoute requiredRole="admin">
+                        <AdminConsole />
+                    </ProtectedRoute>
+                }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+    );
+}
+
+export default function App() {
+    return (
+        <BrowserRouter>
+            <SettingsProvider>
+                <AuthProvider>
+                    <AppRoutes />
+                </AuthProvider>
+            </SettingsProvider>
+        </BrowserRouter>
+    );
+}

@@ -1,0 +1,463 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import {
+    Search,
+    ArrowLeft,
+    MapPin,
+    CheckCircle2,
+    Send,
+    AlertCircle,
+    Circle,
+    Lightbulb,
+    Trash2,
+    Footprints,
+    SignpostBig,
+    Volume2,
+    HelpCircle,
+    Sparkles,
+} from 'lucide-react';
+import { Button, Input, Textarea, Card } from '../components/ui';
+import { useSettings } from '../context/SettingsContext';
+import { api } from '../services/api';
+import { ServiceDefinition, ServiceRequestCreate } from '../types';
+
+// Icon mapping for service categories
+const iconMap: Record<string, React.FC<{ className?: string }>> = {
+    Circle,
+    Lightbulb,
+    Trash2,
+    Footprints,
+    SignpostBig,
+    Volume2,
+    HelpCircle,
+    AlertCircle,
+    Spray: AlertCircle, // Fallback
+};
+
+type Step = 'categories' | 'form' | 'success';
+
+export default function ResidentPortal() {
+    const { settings } = useSettings();
+    const [step, setStep] = useState<Step>('categories');
+    const [services, setServices] = useState<ServiceDefinition[]>([]);
+    const [selectedService, setSelectedService] = useState<ServiceDefinition | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submittedId, setSubmittedId] = useState<string | null>(null);
+
+    // Form state
+    const [formData, setFormData] = useState<ServiceRequestCreate>({
+        service_code: '',
+        description: '',
+        address: '',
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+    });
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        loadServices();
+    }, []);
+
+    const loadServices = async () => {
+        try {
+            const data = await api.getServices();
+            setServices(data);
+        } catch (err) {
+            console.error('Failed to load services:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const filteredServices = services.filter(
+        (s) =>
+            s.service_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const handleSelectService = (service: ServiceDefinition) => {
+        setSelectedService(service);
+        setFormData((prev) => ({ ...prev, service_code: service.service_code }));
+        setStep('form');
+    };
+
+    const validateForm = (): boolean => {
+        const errors: Record<string, string> = {};
+
+        if (!formData.description || formData.description.length < 10) {
+            errors.description = 'Please provide a detailed description (at least 10 characters)';
+        }
+        if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+            errors.email = 'Please enter a valid email address';
+        }
+
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!validateForm()) return;
+
+        setIsSubmitting(true);
+        try {
+            const result = await api.createRequest(formData);
+            setSubmittedId(result.service_request_id);
+            setStep('success');
+        } catch (err) {
+            console.error('Failed to submit request:', err);
+            setFormErrors({ submit: 'Failed to submit request. Please try again.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleReset = () => {
+        setStep('categories');
+        setSelectedService(null);
+        setFormData({
+            service_code: '',
+            description: '',
+            address: '',
+            first_name: '',
+            last_name: '',
+            email: '',
+            phone: '',
+        });
+        setFormErrors({});
+        setSubmittedId(null);
+    };
+
+    const getIcon = (iconName: string) => {
+        const IconComponent = iconMap[iconName] || AlertCircle;
+        return <IconComponent className="w-8 h-8" />;
+    };
+
+    return (
+        <div className="min-h-screen flex flex-col">
+            {/* Navigation */}
+            <nav className="glass-sidebar py-4 px-6 flex items-center justify-between sticky top-0 z-40">
+                <div className="flex items-center gap-3">
+                    {settings?.logo_url ? (
+                        <img src={settings.logo_url} alt="Logo" className="h-10 w-auto" />
+                    ) : (
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
+                            <Sparkles className="w-6 h-6 text-white" />
+                        </div>
+                    )}
+                    <h1 className="text-xl font-semibold text-white hidden sm:block">
+                        {settings?.township_name || 'Township 311'}
+                    </h1>
+                </div>
+                <Link
+                    to="/login"
+                    className="text-white/60 hover:text-white text-sm font-medium transition-colors"
+                >
+                    Staff Login
+                </Link>
+            </nav>
+
+            {/* Main Content */}
+            <main className="flex-1 px-4 py-8 md:px-8 max-w-6xl mx-auto w-full">
+                <AnimatePresence mode="wait">
+                    {step === 'categories' && (
+                        <motion.div
+                            key="categories"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="space-y-8"
+                        >
+                            {/* Hero Section */}
+                            <div className="text-center space-y-6">
+                                <motion.div
+                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ delay: 0.1 }}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500/20 border border-primary-500/30"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                                    <span className="text-sm font-medium text-primary-200">
+                                        Community Support Active
+                                    </span>
+                                </motion.div>
+
+                                <motion.h1
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                    className="text-4xl md:text-5xl lg:text-6xl font-bold text-gradient"
+                                >
+                                    {settings?.hero_text || 'How can we help?'}
+                                </motion.h1>
+
+                                <motion.p
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="text-lg text-white/60 max-w-xl mx-auto"
+                                >
+                                    Report issues, request services, and help make our community better.
+                                    Select a category below to get started.
+                                </motion.p>
+
+                                {/* Search */}
+                                <motion.div
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    transition={{ delay: 0.4 }}
+                                    className="max-w-md mx-auto"
+                                >
+                                    <div className="relative">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search services..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="glass-input pl-12"
+                                        />
+                                    </div>
+                                </motion.div>
+                            </div>
+
+                            {/* Service Categories Grid */}
+                            {isLoading ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="w-10 h-10 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            ) : (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.5 }}
+                                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                                >
+                                    {filteredServices.map((service, index) => (
+                                        <motion.div
+                                            key={service.id}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.1 * index }}
+                                        >
+                                            <Card
+                                                hover
+                                                onClick={() => handleSelectService(service)}
+                                                className="h-full"
+                                            >
+                                                <div className="flex flex-col items-center text-center space-y-3">
+                                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500/30 to-primary-600/30 flex items-center justify-center text-primary-300">
+                                                        {getIcon(service.icon)}
+                                                    </div>
+                                                    <h3 className="font-semibold text-white">
+                                                        {service.service_name}
+                                                    </h3>
+                                                    <p className="text-sm text-white/50 line-clamp-2">
+                                                        {service.description}
+                                                    </p>
+                                                </div>
+                                            </Card>
+                                        </motion.div>
+                                    ))}
+                                </motion.div>
+                            )}
+
+                            {filteredServices.length === 0 && !isLoading && (
+                                <div className="text-center py-12">
+                                    <p className="text-white/60">No services found matching your search.</p>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+
+                    {step === 'form' && selectedService && (
+                        <motion.div
+                            key="form"
+                            initial={{ opacity: 0, x: 50 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -50 }}
+                            className="max-w-2xl mx-auto space-y-6"
+                        >
+                            {/* Back button */}
+                            <button
+                                onClick={() => setStep('categories')}
+                                className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                                <span>Back to categories</span>
+                            </button>
+
+                            {/* Selected service indicator */}
+                            <div className="flex items-center gap-4 p-4 glass-card">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500/30 to-primary-600/30 flex items-center justify-center text-primary-300">
+                                    {getIcon(selectedService.icon)}
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-semibold text-white">
+                                        {selectedService.service_name}
+                                    </h2>
+                                    <p className="text-sm text-white/50">{selectedService.description}</p>
+                                </div>
+                            </div>
+
+                            {/* Form */}
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <Card>
+                                    <div className="space-y-5">
+                                        <Textarea
+                                            label="Description *"
+                                            placeholder="Please describe the issue in detail..."
+                                            value={formData.description}
+                                            onChange={(e) =>
+                                                setFormData((prev) => ({ ...prev, description: e.target.value }))
+                                            }
+                                            error={formErrors.description}
+                                            required
+                                        />
+
+                                        <Input
+                                            label="Location / Address"
+                                            placeholder="Street address or intersection"
+                                            leftIcon={<MapPin className="w-5 h-5" />}
+                                            value={formData.address}
+                                            onChange={(e) =>
+                                                setFormData((prev) => ({ ...prev, address: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+                                </Card>
+
+                                <Card>
+                                    <h3 className="text-lg font-semibold text-white mb-4">
+                                        Contact Information
+                                    </h3>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <Input
+                                                label="First Name"
+                                                placeholder="John"
+                                                value={formData.first_name}
+                                                onChange={(e) =>
+                                                    setFormData((prev) => ({ ...prev, first_name: e.target.value }))
+                                                }
+                                            />
+                                            <Input
+                                                label="Last Name"
+                                                placeholder="Doe"
+                                                value={formData.last_name}
+                                                onChange={(e) =>
+                                                    setFormData((prev) => ({ ...prev, last_name: e.target.value }))
+                                                }
+                                            />
+                                        </div>
+
+                                        <Input
+                                            label="Email *"
+                                            type="email"
+                                            placeholder="you@example.com"
+                                            value={formData.email}
+                                            onChange={(e) =>
+                                                setFormData((prev) => ({ ...prev, email: e.target.value }))
+                                            }
+                                            error={formErrors.email}
+                                            required
+                                        />
+
+                                        <Input
+                                            label="Phone (optional)"
+                                            type="tel"
+                                            placeholder="(555) 123-4567"
+                                            value={formData.phone}
+                                            onChange={(e) =>
+                                                setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+                                </Card>
+
+                                {formErrors.submit && (
+                                    <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300">
+                                        {formErrors.submit}
+                                    </div>
+                                )}
+
+                                <Button
+                                    type="submit"
+                                    size="lg"
+                                    className="w-full"
+                                    isLoading={isSubmitting}
+                                    rightIcon={<Send className="w-5 h-5" />}
+                                >
+                                    Submit Request
+                                </Button>
+                            </form>
+                        </motion.div>
+                    )}
+
+                    {step === 'success' && (
+                        <motion.div
+                            key="success"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="max-w-lg mx-auto text-center space-y-8 py-12"
+                        >
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', delay: 0.2 }}
+                                className="w-24 h-24 mx-auto rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center glow-effect"
+                                style={{ boxShadow: '0 0 60px rgba(34, 197, 94, 0.4)' }}
+                            >
+                                <CheckCircle2 className="w-12 h-12 text-green-400" />
+                            </motion.div>
+
+                            <div className="space-y-4">
+                                <h2 className="text-3xl font-bold text-white">Request Submitted!</h2>
+                                <p className="text-white/60">
+                                    Thank you for helping improve our community. Your request has been
+                                    received and will be reviewed shortly.
+                                </p>
+                                {submittedId && (
+                                    <div className="inline-block px-4 py-2 rounded-lg bg-white/10 border border-white/20">
+                                        <span className="text-white/50 text-sm">Request ID: </span>
+                                        <span className="font-mono text-white font-medium">{submittedId}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <Button onClick={handleReset} size="lg">
+                                Submit Another Request
+                            </Button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </main>
+
+            {/* Footer */}
+            <footer className="glass-sidebar py-6 px-4 mt-auto">
+                <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <p className="text-white/40 text-sm">
+                        © {new Date().getFullYear()} {settings?.township_name || 'Township 311'}. All rights reserved.
+                    </p>
+                    <div className="flex items-center gap-6 text-sm">
+                        <a href="#" className="text-white/40 hover:text-white/80 transition-colors">
+                            Privacy Policy
+                        </a>
+                        <a href="#" className="text-white/40 hover:text-white/80 transition-colors">
+                            Accessibility
+                        </a>
+                        <a href="#" className="text-white/40 hover:text-white/80 transition-colors">
+                            Terms of Service
+                        </a>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    );
+}

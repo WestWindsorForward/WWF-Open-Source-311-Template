@@ -1,0 +1,143 @@
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models import User, Department, ServiceDefinition, SystemSettings, SystemSecret
+from app.core.auth import get_password_hash
+from app.core.config import get_settings
+from app.db.session import SessionLocal, init_db
+
+settings = get_settings()
+
+
+# Default service categories
+DEFAULT_SERVICES = [
+    {
+        "service_code": "POTHOLE",
+        "service_name": "Pothole",
+        "description": "Report potholes on roads or parking lots",
+        "icon": "Circle"
+    },
+    {
+        "service_code": "STREETLIGHT",
+        "service_name": "Street Light",
+        "description": "Report broken or malfunctioning street lights",
+        "icon": "Lightbulb"
+    },
+    {
+        "service_code": "GRAFFITI",
+        "service_name": "Graffiti",
+        "description": "Report graffiti on public or private property",
+        "icon": "Spray"
+    },
+    {
+        "service_code": "TRASH",
+        "service_name": "Trash / Litter",
+        "description": "Report illegal dumping or litter issues",
+        "icon": "Trash2"
+    },
+    {
+        "service_code": "SIDEWALK",
+        "service_name": "Sidewalk Issue",
+        "description": "Report damaged or hazardous sidewalks",
+        "icon": "Footprints"
+    },
+    {
+        "service_code": "SIGN",
+        "service_name": "Sign Problem",
+        "description": "Report damaged, missing, or obscured signs",
+        "icon": "SignpostBig"
+    },
+    {
+        "service_code": "NOISE",
+        "service_name": "Noise Complaint",
+        "description": "Report excessive noise violations",
+        "icon": "Volume2"
+    },
+    {
+        "service_code": "OTHER",
+        "service_name": "Other Issue",
+        "description": "Report any other municipal concern",
+        "icon": "HelpCircle"
+    }
+]
+
+# Default departments
+DEFAULT_DEPARTMENTS = [
+    {"name": "Public Works", "description": "Roads, infrastructure, and maintenance", "routing_email": None},
+    {"name": "Parks & Recreation", "description": "Parks, trails, and recreation facilities", "routing_email": None},
+    {"name": "Code Enforcement", "description": "Property maintenance and code violations", "routing_email": None},
+]
+
+# Default secrets (keys only, not values)
+DEFAULT_SECRETS = [
+    {"key_name": "GOOGLE_MAPS_API_KEY", "description": "Google Maps API key for geocoding"},
+    {"key_name": "VERTEX_AI_PROJECT", "description": "Google Cloud project for Vertex AI"},
+    {"key_name": "TWILIO_ACCOUNT_SID", "description": "Twilio account SID for SMS"},
+    {"key_name": "TWILIO_AUTH_TOKEN", "description": "Twilio auth token for SMS"},
+    {"key_name": "TWILIO_PHONE_NUMBER", "description": "Twilio phone number for SMS"},
+]
+
+
+async def seed_database():
+    """Initialize database with default data"""
+    
+    # Create tables
+    await init_db()
+    
+    async with SessionLocal() as db:
+        # Check if already seeded
+        result = await db.execute(select(User).limit(1))
+        if result.scalar_one_or_none():
+            print("Database already seeded, skipping...")
+            return
+        
+        print("Seeding database...")
+        
+        # Create initial admin user
+        admin = User(
+            username=settings.initial_admin_user,
+            email=settings.initial_admin_email,
+            full_name="System Administrator",
+            hashed_password=get_password_hash(settings.initial_admin_password),
+            role="admin",
+            is_active=True
+        )
+        db.add(admin)
+        
+        # Create departments
+        dept_objects = []
+        for dept_data in DEFAULT_DEPARTMENTS:
+            dept = Department(**dept_data)
+            db.add(dept)
+            dept_objects.append(dept)
+        
+        await db.flush()  # Get IDs for relationships
+        
+        # Create service definitions
+        for service_data in DEFAULT_SERVICES:
+            service = ServiceDefinition(**service_data)
+            # Assign to first department by default
+            if dept_objects:
+                service.departments.append(dept_objects[0])
+            db.add(service)
+        
+        # Create system settings (singleton)
+        settings_obj = SystemSettings(
+            township_name="Your Township",
+            hero_text="How can we help?",
+            primary_color="#6366f1",
+            modules={"ai_analysis": False, "sms_alerts": False}
+        )
+        db.add(settings_obj)
+        
+        # Create secret placeholders
+        for secret_data in DEFAULT_SECRETS:
+            secret = SystemSecret(**secret_data, is_configured=False)
+            db.add(secret)
+        
+        await db.commit()
+        print("Database seeded successfully!")
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(seed_database())

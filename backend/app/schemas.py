@@ -1,0 +1,223 @@
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+from enum import Enum
+
+
+# ============ Enums ============
+class UserRole(str, Enum):
+    admin = "admin"
+    staff = "staff"
+
+
+class RequestStatus(str, Enum):
+    open = "open"
+    in_progress = "in_progress"
+    closed = "closed"
+
+
+class RequestSource(str, Enum):
+    resident_portal = "resident_portal"
+    phone = "phone"
+    walk_in = "walk_in"
+    email = "email"
+
+
+# ============ Auth ============
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+# ============ User ============
+class UserBase(BaseModel):
+    username: str = Field(..., min_length=3, max_length=100)
+    email: EmailStr
+    full_name: Optional[str] = None
+    role: UserRole = UserRole.staff
+
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=6)
+
+
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ============ Department ============
+class DepartmentBase(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = None
+    routing_email: Optional[EmailStr] = None
+
+
+class DepartmentCreate(DepartmentBase):
+    pass
+
+
+class DepartmentResponse(DepartmentBase):
+    id: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+# ============ Service Definition ============
+class ServiceBase(BaseModel):
+    service_code: str = Field(..., min_length=2, max_length=50)
+    service_name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = None
+    icon: str = "AlertCircle"
+
+
+class ServiceCreate(ServiceBase):
+    department_ids: Optional[List[int]] = []
+
+
+class ServiceResponse(ServiceBase):
+    id: int
+    is_active: bool
+    departments: List[DepartmentResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+# ============ Service Request (Open311) ============
+class ServiceRequestCreate(BaseModel):
+    service_code: str
+    description: str = Field(..., min_length=10)
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    long: Optional[float] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: EmailStr
+    phone: Optional[str] = None
+    media_url: Optional[str] = None
+
+
+class ServiceRequestUpdate(BaseModel):
+    status: Optional[RequestStatus] = None
+    priority: Optional[int] = Field(None, ge=1, le=10)
+    staff_notes: Optional[str] = None
+    assigned_to: Optional[str] = None
+
+
+class ServiceRequestResponse(BaseModel):
+    id: int
+    service_request_id: str
+    service_code: str
+    service_name: str
+    description: str
+    status: str
+    priority: int
+    address: Optional[str] = None
+    lat: Optional[float] = None
+    long: Optional[float] = None
+    requested_datetime: Optional[datetime] = None
+    updated_datetime: Optional[datetime] = None
+    source: str
+    flagged: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class ServiceRequestDetailResponse(ServiceRequestResponse):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: str
+    phone: Optional[str] = None
+    media_url: Optional[str] = None
+    ai_analysis: Optional[Dict[str, Any]] = None
+    flag_reason: Optional[str] = None
+    staff_notes: Optional[str] = None
+    assigned_to: Optional[str] = None
+    closed_datetime: Optional[datetime] = None
+
+
+# ============ Manual Intake ============
+class ManualIntakeCreate(BaseModel):
+    service_code: str
+    description: str = Field(..., min_length=10)
+    address: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    source: RequestSource = RequestSource.phone
+
+
+# ============ System Settings ============
+class SystemSettingsBase(BaseModel):
+    township_name: str = "Your Township"
+    logo_url: Optional[str] = None
+    favicon_url: Optional[str] = None
+    hero_text: str = "How can we help?"
+    primary_color: str = "#6366f1"
+    modules: Dict[str, bool] = {"ai_analysis": False, "sms_alerts": False}
+
+
+class SystemSettingsResponse(SystemSettingsBase):
+    id: int
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ============ System Secrets ============
+class SecretBase(BaseModel):
+    key_name: str
+    description: Optional[str] = None
+
+
+class SecretCreate(SecretBase):
+    key_value: str
+
+
+class SecretUpdate(BaseModel):
+    key_value: str
+
+
+class SecretResponse(SecretBase):
+    id: int
+    is_configured: bool
+
+    class Config:
+        from_attributes = True
+
+
+# ============ Statistics ============
+class StatisticsResponse(BaseModel):
+    total_requests: int
+    open_requests: int
+    in_progress_requests: int
+    closed_requests: int
+    requests_by_category: Dict[str, int]
+    requests_by_status: Dict[str, int]
+    recent_requests: List[ServiceRequestResponse]
