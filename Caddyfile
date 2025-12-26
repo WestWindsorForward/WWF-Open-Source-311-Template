@@ -1,4 +1,5 @@
-{$DOMAIN:localhost} {
+# Use IP address or domain
+:80 {
     # Frontend - SPA routing
     handle {
         reverse_proxy frontend:5173
