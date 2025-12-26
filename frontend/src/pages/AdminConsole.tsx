@@ -17,6 +17,9 @@ import {
     Sparkles,
     Check,
     AlertTriangle,
+    RotateCcw,
+    Mail,
+    MessageSquare,
 } from 'lucide-react';
 import { Button, Card, Modal, Input, Select, Badge } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -66,7 +69,12 @@ export default function AdminConsole() {
     const [secretValues, setSecretValues] = useState<Record<string, string>>({});
 
     // Modules state
-    const [modules, setModules] = useState({ ai_analysis: false, sms_alerts: false });
+    const [modules, setModules] = useState({ ai_analysis: false, sms_alerts: false, email_notifications: false });
+
+    // Password reset state
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [passwordResetUser, setPasswordResetUser] = useState<User | null>(null);
+    const [newPassword, setNewPassword] = useState('');
 
     // Update in progress
     const [isUpdating, setIsUpdating] = useState(false);
@@ -81,7 +89,11 @@ export default function AdminConsole() {
                 hero_text: settings.hero_text,
                 primary_color: settings.primary_color,
             });
-            setModules(settings.modules);
+            setModules({
+                ai_analysis: settings.modules?.ai_analysis || false,
+                sms_alerts: settings.modules?.sms_alerts || false,
+                email_notifications: settings.modules?.email_notifications || false,
+            });
         }
     }, [settings]);
 
@@ -187,6 +199,15 @@ export default function AdminConsole() {
         }
     };
 
+    const handleSaveSecretDirect = async (keyName: string, value: string) => {
+        try {
+            await api.updateSecret(keyName, value);
+            loadTabData();
+        } catch (err) {
+            console.error('Failed to update secret:', err);
+        }
+    };
+
     const handleSaveModules = async () => {
         setIsLoading(true);
         try {
@@ -218,6 +239,27 @@ export default function AdminConsole() {
     const handleLogout = () => {
         logout();
         navigate('/login');
+    };
+
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!passwordResetUser || !newPassword) return;
+        try {
+            await api.resetUserPassword(passwordResetUser.id, newPassword);
+            setShowPasswordModal(false);
+            setPasswordResetUser(null);
+            setNewPassword('');
+            setSaveMessage(`Password reset for ${passwordResetUser.username}`);
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (err) {
+            console.error('Failed to reset password:', err);
+        }
+    };
+
+    const openPasswordReset = (u: User) => {
+        setPasswordResetUser(u);
+        setNewPassword('');
+        setShowPasswordModal(true);
     };
 
     const tabs = [
@@ -481,14 +523,25 @@ export default function AdminConsole() {
                                                         </Badge>
                                                     </td>
                                                     <td className="p-4 text-right">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleDeleteUser(u.id)}
-                                                            disabled={u.id === user?.id}
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => openPasswordReset(u)}
+                                                                title="Reset password"
+                                                            >
+                                                                <RotateCcw className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleDeleteUser(u.id)}
+                                                                disabled={u.id === user?.id}
+                                                                title="Delete user"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -562,83 +615,104 @@ export default function AdminConsole() {
                                                     { value: 'twilio', label: 'Twilio' },
                                                     { value: 'http', label: 'Custom HTTP API' },
                                                 ]}
-                                                value={secretValues['SMS_PROVIDER'] || secrets.find(s => s.key_name === 'SMS_PROVIDER' && s.is_configured)?.key_value || 'none'}
+                                                value={secrets.find(s => s.key_name === 'SMS_PROVIDER')?.key_value || 'none'}
                                                 onChange={(e) => {
-                                                    setSecretValues((p) => ({ ...p, SMS_PROVIDER: e.target.value }));
-                                                    handleUpdateSecret('SMS_PROVIDER');
+                                                    handleSaveSecretDirect('SMS_PROVIDER', e.target.value);
                                                 }}
                                             />
 
                                             {/* Twilio Fields */}
-                                            {(secretValues['SMS_PROVIDER'] === 'twilio' ||
-                                                (!secretValues['SMS_PROVIDER'] && secrets.find(s => s.key_name === 'SMS_PROVIDER')?.key_value === 'twilio')) && (
-                                                    <div className="space-y-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="text-sm text-blue-300 flex items-start gap-2 mb-4">
-                                                            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                                            <span>
-                                                                Get your credentials at{' '}
-                                                                <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">
-                                                                    console.twilio.com
-                                                                </a>
-                                                                {' → Account Info'}
-                                                            </span>
-                                                        </div>
-                                                        {['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'].map(key => {
-                                                            const secret = secrets.find(s => s.key_name === key);
-                                                            return (
-                                                                <div key={key} className="flex flex-col sm:flex-row gap-2">
-                                                                    <div className="flex-1">
+                                            {secrets.find(s => s.key_name === 'SMS_PROVIDER')?.key_value === 'twilio' && (
+                                                <div className="space-y-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                                                    <div className="text-sm text-blue-300 flex items-start gap-2 mb-4">
+                                                        <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                                        <span>
+                                                            Get your credentials at{' '}
+                                                            <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">
+                                                                console.twilio.com
+                                                            </a>
+                                                            {' → Account Info'}
+                                                        </span>
+                                                    </div>
+                                                    {['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'].map(key => {
+                                                        const secret = secrets.find(s => s.key_name === key);
+                                                        const isConfigured = secret?.is_configured;
+                                                        return (
+                                                            <div key={key} className="space-y-2">
+                                                                <label className="block text-sm font-medium text-white/70">
+                                                                    {key.replace('TWILIO_', '').replace(/_/g, ' ')}
+                                                                </label>
+                                                                {isConfigured && !secretValues[key] ? (
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="flex-1 h-10 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center px-3">
+                                                                            <Check className="w-4 h-4 text-green-400 mr-2" />
+                                                                            <span className="text-green-300 text-sm">Saved securely</span>
+                                                                        </div>
+                                                                        <Button size="sm" variant="ghost" onClick={() => setSecretValues(p => ({ ...p, [key]: ' ' }))}>
+                                                                            Change
+                                                                        </Button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex gap-2">
                                                                         <Input
-                                                                            label={key.replace('TWILIO_', '').replace(/_/g, ' ')}
                                                                             type={key.includes('TOKEN') ? 'password' : 'text'}
                                                                             placeholder={key === 'TWILIO_PHONE_NUMBER' ? '+12125551234' : `Enter ${key.toLowerCase()}`}
-                                                                            value={secretValues[key] || ''}
+                                                                            value={secretValues[key]?.trim() || ''}
                                                                             onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
                                                                         />
-                                                                    </div>
-                                                                    <div className="flex items-end gap-2">
-                                                                        <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]}>
+                                                                        <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]?.trim()}>
                                                                             Save
                                                                         </Button>
-                                                                        {secret?.is_configured && <Badge variant="success">Set</Badge>}
                                                                     </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
 
                                             {/* HTTP API Fields */}
-                                            {(secretValues['SMS_PROVIDER'] === 'http' ||
-                                                (!secretValues['SMS_PROVIDER'] && secrets.find(s => s.key_name === 'SMS_PROVIDER')?.key_value === 'http')) && (
-                                                    <div className="space-y-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                                                        <div className="text-sm text-white/50 mb-4">
-                                                            Configure any HTTP-based SMS API (MessageBird, Vonage, etc.)
-                                                        </div>
-                                                        {['SMS_HTTP_API_URL', 'SMS_HTTP_API_KEY', 'SMS_FROM_NUMBER'].map(key => {
-                                                            const secret = secrets.find(s => s.key_name === key);
-                                                            return (
-                                                                <div key={key} className="flex flex-col sm:flex-row gap-2">
-                                                                    <div className="flex-1">
+                                            {secrets.find(s => s.key_name === 'SMS_PROVIDER')?.key_value === 'http' && (
+                                                <div className="space-y-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                                                    <div className="text-sm text-white/50 mb-4">
+                                                        Configure any HTTP-based SMS API (MessageBird, Vonage, etc.)
+                                                    </div>
+                                                    {['SMS_HTTP_API_URL', 'SMS_HTTP_API_KEY', 'SMS_FROM_NUMBER'].map(key => {
+                                                        const secret = secrets.find(s => s.key_name === key);
+                                                        const isConfigured = secret?.is_configured;
+                                                        return (
+                                                            <div key={key} className="space-y-2">
+                                                                <label className="block text-sm font-medium text-white/70">
+                                                                    {key.replace('SMS_HTTP_', '').replace('SMS_', '').replace(/_/g, ' ')}
+                                                                </label>
+                                                                {isConfigured && !secretValues[key] ? (
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="flex-1 h-10 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center px-3">
+                                                                            <Check className="w-4 h-4 text-green-400 mr-2" />
+                                                                            <span className="text-green-300 text-sm">Saved securely</span>
+                                                                        </div>
+                                                                        <Button size="sm" variant="ghost" onClick={() => setSecretValues(p => ({ ...p, [key]: ' ' }))}>
+                                                                            Change
+                                                                        </Button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex gap-2">
                                                                         <Input
-                                                                            label={key.replace('SMS_HTTP_', '').replace('SMS_', '').replace(/_/g, ' ')}
                                                                             type={key.includes('KEY') ? 'password' : 'text'}
                                                                             placeholder={key === 'SMS_HTTP_API_URL' ? 'https://api.provider.com/sms' : ''}
-                                                                            value={secretValues[key] || ''}
+                                                                            value={secretValues[key]?.trim() || ''}
                                                                             onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
                                                                         />
-                                                                    </div>
-                                                                    <div className="flex items-end gap-2">
-                                                                        <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]}>
+                                                                        <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]?.trim()}>
                                                                             Save
                                                                         </Button>
-                                                                        {secret?.is_configured && <Badge variant="success">Set</Badge>}
                                                                     </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </Card>
@@ -648,7 +722,7 @@ export default function AdminConsole() {
                                     <div className="space-y-4">
                                         <div className="flex items-center gap-3 pb-3 border-b border-white/10">
                                             <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                                                <Key className="w-5 h-5 text-blue-400" />
+                                                <Mail className="w-5 h-5 text-blue-400" />
                                             </div>
                                             <div>
                                                 <h3 className="font-semibold text-white">Email Notifications</h3>
@@ -662,74 +736,81 @@ export default function AdminConsole() {
                                                 { value: 'false', label: 'Disabled' },
                                                 { value: 'true', label: 'Enabled' },
                                             ]}
-                                            value={secretValues['EMAIL_ENABLED'] || secrets.find(s => s.key_name === 'EMAIL_ENABLED')?.key_value || 'false'}
+                                            value={secrets.find(s => s.key_name === 'EMAIL_ENABLED')?.key_value || 'false'}
                                             onChange={(e) => {
-                                                setSecretValues((p) => ({ ...p, EMAIL_ENABLED: e.target.value }));
-                                                api.updateSecret('EMAIL_ENABLED', e.target.value).then(() => loadTabData());
+                                                handleSaveSecretDirect('EMAIL_ENABLED', e.target.value);
                                             }}
                                         />
 
-                                        {(secretValues['EMAIL_ENABLED'] === 'true' ||
-                                            secrets.find(s => s.key_name === 'EMAIL_ENABLED')?.key_value === 'true') && (
-                                                <div className="space-y-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                                                    <div className="text-sm text-blue-300 flex items-start gap-2 mb-4">
-                                                        <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                                        <div>
-                                                            <strong>Gmail users:</strong> Enable 2FA, then create an App Password at{' '}
-                                                            <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">
-                                                                myaccount.google.com/apppasswords
-                                                            </a>
-                                                        </div>
+                                        {secrets.find(s => s.key_name === 'EMAIL_ENABLED')?.key_value === 'true' && (
+                                            <div className="space-y-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                                                <div className="text-sm text-blue-300 flex items-start gap-2 mb-4">
+                                                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                                    <div>
+                                                        <strong>Gmail users:</strong> Enable 2FA, then create an App Password at{' '}
+                                                        <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">
+                                                            myaccount.google.com/apppasswords
+                                                        </a>
                                                     </div>
+                                                </div>
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {[
-                                                            { key: 'SMTP_HOST', placeholder: 'smtp.gmail.com', label: 'SMTP Host' },
-                                                            { key: 'SMTP_PORT', placeholder: '587', label: 'SMTP Port' },
-                                                            { key: 'SMTP_USER', placeholder: 'you@example.com', label: 'Username' },
-                                                            { key: 'SMTP_PASSWORD', placeholder: 'App password', label: 'Password', type: 'password' },
-                                                            { key: 'SMTP_FROM_EMAIL', placeholder: 'noreply@township.gov', label: 'From Email' },
-                                                            { key: 'SMTP_FROM_NAME', placeholder: 'Township 311', label: 'From Name' },
-                                                        ].map(({ key, placeholder, label, type }) => {
-                                                            const secret = secrets.find(s => s.key_name === key);
-                                                            return (
-                                                                <div key={key} className="space-y-2">
-                                                                    <div className="flex gap-2">
-                                                                        <div className="flex-1">
-                                                                            <Input
-                                                                                label={label}
-                                                                                type={type || 'text'}
-                                                                                placeholder={placeholder}
-                                                                                value={secretValues[key] || ''}
-                                                                                onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
-                                                                            />
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {[
+                                                        { key: 'SMTP_HOST', placeholder: 'smtp.gmail.com', label: 'SMTP Host' },
+                                                        { key: 'SMTP_PORT', placeholder: '587', label: 'SMTP Port' },
+                                                        { key: 'SMTP_USER', placeholder: 'you@example.com', label: 'Username' },
+                                                        { key: 'SMTP_PASSWORD', placeholder: 'App password', label: 'Password', type: 'password' },
+                                                        { key: 'SMTP_FROM_EMAIL', placeholder: 'noreply@township.gov', label: 'From Email' },
+                                                        { key: 'SMTP_FROM_NAME', placeholder: 'Township 311', label: 'From Name' },
+                                                    ].map(({ key, placeholder, label, type }) => {
+                                                        const secret = secrets.find(s => s.key_name === key);
+                                                        const isConfigured = secret?.is_configured;
+                                                        return (
+                                                            <div key={key} className="space-y-2">
+                                                                <label className="block text-sm font-medium text-white/70">
+                                                                    {label}
+                                                                </label>
+                                                                {isConfigured && !secretValues[key] ? (
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="flex-1 h-10 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center px-3">
+                                                                            <Check className="w-4 h-4 text-green-400 mr-2" />
+                                                                            <span className="text-green-300 text-sm">Saved</span>
                                                                         </div>
+                                                                        <Button size="sm" variant="ghost" onClick={() => setSecretValues(p => ({ ...p, [key]: ' ' }))}>
+                                                                            Change
+                                                                        </Button>
                                                                     </div>
-                                                                    <div className="flex gap-2 items-center">
-                                                                        <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]}>
+                                                                ) : (
+                                                                    <div className="flex gap-2">
+                                                                        <Input
+                                                                            type={type || 'text'}
+                                                                            placeholder={placeholder}
+                                                                            value={secretValues[key]?.trim() || ''}
+                                                                            onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
+                                                                        />
+                                                                        <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]?.trim()}>
                                                                             Save
                                                                         </Button>
-                                                                        {secret?.is_configured && <Badge variant="success">Set</Badge>}
                                                                     </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-
-                                                    <Select
-                                                        label="Use TLS"
-                                                        options={[
-                                                            { value: 'true', label: 'Yes (Port 587)' },
-                                                            { value: 'false', label: 'No / Use SSL (Port 465)' },
-                                                        ]}
-                                                        value={secretValues['SMTP_USE_TLS'] || secrets.find(s => s.key_name === 'SMTP_USE_TLS')?.key_value || 'true'}
-                                                        onChange={(e) => {
-                                                            setSecretValues((p) => ({ ...p, SMTP_USE_TLS: e.target.value }));
-                                                            api.updateSecret('SMTP_USE_TLS', e.target.value).then(() => loadTabData());
-                                                        }}
-                                                    />
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            )}
+
+                                                <Select
+                                                    label="Use TLS"
+                                                    options={[
+                                                        { value: 'true', label: 'Yes (Port 587)' },
+                                                        { value: 'false', label: 'No / Use SSL (Port 465)' },
+                                                    ]}
+                                                    value={secrets.find(s => s.key_name === 'SMTP_USE_TLS')?.key_value || 'true'}
+                                                    onChange={(e) => {
+                                                        handleSaveSecretDirect('SMTP_USE_TLS', e.target.value);
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 </Card>
 
@@ -825,11 +906,11 @@ export default function AdminConsole() {
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                                                    <AlertTriangle className="w-6 h-6 text-green-400" />
+                                                    <MessageSquare className="w-6 h-6 text-green-400" />
                                                 </div>
                                                 <div>
                                                     <h3 className="font-semibold text-white">SMS Alerts</h3>
-                                                    <p className="text-sm text-white/50">Enable SMS notifications via Twilio</p>
+                                                    <p className="text-sm text-white/50">Enable SMS notifications to residents</p>
                                                 </div>
                                             </div>
                                             <button
@@ -839,6 +920,30 @@ export default function AdminConsole() {
                                             >
                                                 <div
                                                     className={`w-6 h-6 rounded-full bg-white transition-transform ${modules.sms_alerts ? 'translate-x-7' : 'translate-x-1'
+                                                        }`}
+                                                />
+                                            </button>
+                                        </div>
+                                    </Card>
+
+                                    <Card>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                                                    <Mail className="w-6 h-6 text-blue-400" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold text-white">Email Notifications</h3>
+                                                    <p className="text-sm text-white/50">Send email updates to residents</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => setModules((p) => ({ ...p, email_notifications: !p.email_notifications }))}
+                                                className={`w-14 h-8 rounded-full transition-colors ${modules.email_notifications ? 'bg-primary-500' : 'bg-white/20'
+                                                    }`}
+                                            >
+                                                <div
+                                                    className={`w-6 h-6 rounded-full bg-white transition-transform ${modules.email_notifications ? 'translate-x-7' : 'translate-x-1'
                                                         }`}
                                                 />
                                             </button>
@@ -919,6 +1024,28 @@ export default function AdminConsole() {
                     <div className="flex justify-end gap-3 pt-4">
                         <Button variant="ghost" onClick={() => setShowServiceModal(false)}>Cancel</Button>
                         <Button type="submit">Create Category</Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Password Reset Modal */}
+            <Modal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} title={`Reset Password for ${passwordResetUser?.username}`}>
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                    <p className="text-white/70">
+                        Enter a new password for {passwordResetUser?.full_name || passwordResetUser?.username}. They will need to use this password to log in.
+                    </p>
+                    <Input
+                        label="New Password"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        placeholder="Minimum 6 characters"
+                    />
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="ghost" onClick={() => setShowPasswordModal(false)}>Cancel</Button>
+                        <Button type="submit">Reset Password</Button>
                     </div>
                 </form>
             </Modal>

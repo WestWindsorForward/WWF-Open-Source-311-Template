@@ -113,6 +113,7 @@ export interface SystemSettings {
     modules: {
         ai_analysis: boolean;
         sms_alerts: boolean;
+        email_notifications?: boolean;
     };
     updated_at: string | null;
 }

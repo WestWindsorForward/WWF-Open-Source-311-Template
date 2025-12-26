@@ -117,3 +117,48 @@ async def delete_user(
     
     await db.delete(user)
     await db.commit()
+
+
+@router.post("/{user_id}/reset-password", response_model=UserResponse)
+async def reset_password(
+    user_id: int,
+    new_password: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin)
+):
+    """Reset user password (admin only)"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.hashed_password = get_password_hash(new_password)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+from pydantic import BaseModel
+
+class PasswordResetRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/{user_id}/reset-password-json", response_model=UserResponse)
+async def reset_password_json(
+    user_id: int,
+    data: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin)
+):
+    """Reset user password via JSON body (admin only)"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.hashed_password = get_password_hash(data.new_password)
+    await db.commit()
+    await db.refresh(user)
+    return user
+

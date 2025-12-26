@@ -158,6 +158,13 @@ class ApiClient {
         return this.request<void>(`/users/${id}`, { method: 'DELETE' });
     }
 
+    async resetUserPassword(id: number, newPassword: string): Promise<User> {
+        return this.request<User>(`/users/${id}/reset-password-json`, {
+            method: 'POST',
+            body: JSON.stringify({ new_password: newPassword }),
+        });
+    }
+
     // System Settings
     async getSettings(): Promise<SystemSettings> {
         return this.request<SystemSettings>('/system/settings');
