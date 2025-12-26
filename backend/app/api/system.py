@@ -96,6 +96,34 @@ async def create_or_update_secret(
     return secret
 
 
+@router.post("/secrets/sync")
+async def sync_secrets(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin)
+):
+    """Add any missing secrets from the default list (admin only)"""
+    from app.db.init_db import DEFAULT_SECRETS
+    
+    added = []
+    for secret_data in DEFAULT_SECRETS:
+        result = await db.execute(
+            select(SystemSecret).where(SystemSecret.key_name == secret_data["key_name"])
+        )
+        existing = result.scalar_one_or_none()
+        
+        if not existing:
+            secret = SystemSecret(
+                key_name=secret_data["key_name"],
+                description=secret_data.get("description", ""),
+                is_configured=False
+            )
+            db.add(secret)
+            added.append(secret_data["key_name"])
+    
+    await db.commit()
+    return {"status": "success", "added_secrets": added, "count": len(added)}
+
+
 # ============ Statistics ============
 
 @router.get("/statistics", response_model=StatisticsResponse)
