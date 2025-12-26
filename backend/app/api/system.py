@@ -62,9 +62,22 @@ async def list_secrets(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin)
 ):
-    """List all secrets (names only, admin only)"""
+    """List all secrets (admin only). Non-sensitive config values are returned."""
+    # These keys can have their values exposed (they're config choices, not secrets)
+    SAFE_TO_RETURN = {'SMS_PROVIDER', 'EMAIL_ENABLED', 'SMTP_USE_TLS', 'SMTP_PORT'}
+    
     result = await db.execute(select(SystemSecret))
-    return result.scalars().all()
+    secrets = result.scalars().all()
+    
+    response = []
+    for secret in secrets:
+        data = SecretResponse.model_validate(secret)
+        # Only include key_value for non-sensitive config options
+        if secret.key_name in SAFE_TO_RETURN and secret.is_configured:
+            data.key_value = secret.key_value
+        response.append(data)
+    
+    return response
 
 
 @router.post("/secrets", response_model=SecretResponse)

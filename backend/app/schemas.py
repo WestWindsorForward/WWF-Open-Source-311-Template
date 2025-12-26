@@ -207,6 +207,7 @@ class SecretUpdate(BaseModel):
 class SecretResponse(SecretBase):
     id: int
     is_configured: bool
+    key_value: Optional[str] = None  # Only returned for non-sensitive configuration secrets
 
     class Config:
         from_attributes = True

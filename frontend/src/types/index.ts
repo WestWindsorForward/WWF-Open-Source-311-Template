@@ -121,6 +121,7 @@ export interface SystemSettings {
 export interface SystemSecret {
     id: number;
     key_name: string;
+    key_value?: string;  // Only returned for some secrets (not sensitive ones)
     description: string | null;
     is_configured: boolean;
 }
