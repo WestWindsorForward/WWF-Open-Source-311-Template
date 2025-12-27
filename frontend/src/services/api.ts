@@ -250,6 +250,27 @@ class ApiClient {
     }> {
         return this.request(`/gis/reverse-geocode?lat=${lat}&lng=${lng}`);
     }
+
+    async searchCensusBoundary(townName: string, stateAbbr: string, layerType: string = 'township'): Promise<{
+        results: Array<{
+            name: string;
+            full_name: string;
+            geoid: string;
+            state: string;
+            layer_type: string;
+            geometry: any;
+        }>;
+        message?: string;
+    }> {
+        return this.request(`/gis/census-boundary-search?town_name=${encodeURIComponent(townName)}&state_abbr=${stateAbbr}&layer_type=${layerType}`);
+    }
+
+    async saveCensusBoundary(name: string, geometry: any): Promise<{ status: string; message: string }> {
+        return this.request(`/gis/boundaries/save-census?name=${encodeURIComponent(name)}`, {
+            method: 'POST',
+            body: JSON.stringify(geometry),
+        });
+    }
 }
 
 export const api = new ApiClient();
