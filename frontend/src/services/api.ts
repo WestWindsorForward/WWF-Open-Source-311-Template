@@ -224,6 +224,26 @@ class ApiClient {
         });
     }
 
+    // Domain Configuration (Admin)
+    async configureDomain(domain: string): Promise<{
+        status: string;
+        message: string;
+        steps_completed?: string[];
+        ssl_error?: string;
+        url?: string;
+    }> {
+        return this.request(`/system/domain/configure?domain=${encodeURIComponent(domain)}`, {
+            method: 'POST',
+        });
+    }
+
+    async getDomainStatus(): Promise<{
+        configured_domains: Array<{ domain: string; has_ssl: boolean }>;
+        server_ip: string;
+    }> {
+        return this.request('/system/domain/status');
+    }
+
     // GIS / Maps
     async getMapsConfig(): Promise<{
         has_google_maps: boolean;

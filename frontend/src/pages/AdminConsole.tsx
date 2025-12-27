@@ -731,14 +731,48 @@ export default function AdminConsole() {
                                             </code>
                                         </div>
 
+                                        {/* Auto-Configure Domain */}
+                                        <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20">
+                                            <p className="text-sm font-medium text-primary-300 mb-3">Auto-Configure Domain</p>
+                                            <p className="text-xs text-white/60 mb-3">
+                                                After setting up your DNS records, enter your domain below and we'll configure Nginx + SSL automatically.
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    placeholder="311.yourtownship.gov"
+                                                    value={(brandingForm as any).custom_domain || ''}
+                                                    onChange={(e) => setBrandingForm(p => ({ ...p, custom_domain: e.target.value }))}
+                                                    className="flex-1"
+                                                />
+                                                <Button
+                                                    onClick={async () => {
+                                                        const domain = (brandingForm as any).custom_domain;
+                                                        if (!domain) { alert('Please enter a domain'); return; }
+                                                        setIsLoading(true);
+                                                        try {
+                                                            const result = await api.configureDomain(domain);
+                                                            if (result.status === 'success') {
+                                                                alert(`✅ ${result.message}\n\nAccess at: ${result.url}`);
+                                                            } else {
+                                                                alert(`⚠️ ${result.message}\n\n${result.ssl_error || 'Check DNS propagation and try again.'}`);
+                                                            }
+                                                        } catch (err: any) { alert(`Error: ${err.message}`); }
+                                                        finally { setIsLoading(false); }
+                                                    }}
+                                                    isLoading={isLoading}
+                                                >
+                                                    Configure SSL
+                                                </Button>
+                                            </div>
+                                        </div>
+
                                         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                                            <p className="text-sm font-medium text-amber-300 mb-3">To connect a custom domain:</p>
+                                            <p className="text-sm font-medium text-amber-300 mb-3">Step 1: Set up DNS Records first</p>
                                             <ol className="text-sm text-white/70 space-y-2 list-decimal list-inside">
                                                 <li>Log into your domain registrar (GoDaddy, Namecheap, etc.)</li>
                                                 <li>Add an <strong className="text-white">A Record</strong> pointing to: <code className="text-primary-300 bg-black/30 px-1 rounded">132.226.32.116</code></li>
-                                                <li>Or add a <strong className="text-white">CNAME Record</strong> pointing to this server</li>
                                                 <li>Wait 5-30 minutes for DNS propagation</li>
-                                                <li>Contact your system administrator to update Nginx config</li>
+                                                <li>Then enter domain above & click "Configure SSL"</li>
                                             </ol>
                                         </div>
 

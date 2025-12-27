@@ -257,3 +257,225 @@ async def update_system(_: User = Depends(get_current_admin)):
             detail=str(e)
         )
 
+
+# ============ Custom Domain ============
+
+@router.post("/domain/configure")
+async def configure_domain(
+    domain: str,
+    _: User = Depends(get_current_admin)
+):
+    """Configure a custom domain with Nginx and SSL certificate"""
+    import re
+    
+    # Validate domain format
+    domain = domain.strip().lower()
+    domain_regex = r'^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$'
+    if not re.match(domain_regex, domain):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid domain format"
+        )
+    
+    # Nginx config template
+    nginx_config = f"""
+server {{
+    listen 80;
+    server_name {domain} www.{domain};
+    
+    location /.well-known/acme-challenge/ {{
+        root /var/www/certbot;
+    }}
+    
+    location / {{
+        return 301 https://$host$request_uri;
+    }}
+}}
+
+server {{
+    listen 443 ssl http2;
+    server_name {domain} www.{domain};
+    
+    ssl_certificate /etc/letsencrypt/live/{domain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{domain}/privkey.pem;
+    
+    location / {{
+        proxy_pass http://frontend:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }}
+    
+    location /api {{
+        proxy_pass http://backend:8000/api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }}
+}}
+"""
+    
+    config_path = f"/etc/nginx/conf.d/{domain}.conf"
+    certbot_webroot = "/var/www/certbot"
+    
+    steps_completed = []
+    
+    try:
+        # Step 1: Create webroot directory for certbot
+        subprocess.run(
+            ["sudo", "mkdir", "-p", certbot_webroot],
+            check=True, timeout=10
+        )
+        steps_completed.append("Created certbot webroot")
+        
+        # Step 2: Write a temporary HTTP-only config for initial certificate request
+        temp_config = f"""
+server {{
+    listen 80;
+    server_name {domain} www.{domain};
+    
+    location /.well-known/acme-challenge/ {{
+        root /var/www/certbot;
+    }}
+    
+    location / {{
+        proxy_pass http://frontend:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }}
+}}
+"""
+        # Write temp config
+        temp_path = f"/tmp/{domain}.conf"
+        with open(temp_path, 'w') as f:
+            f.write(temp_config)
+        
+        subprocess.run(
+            ["sudo", "cp", temp_path, config_path],
+            check=True, timeout=10
+        )
+        steps_completed.append("Created temporary Nginx config")
+        
+        # Step 3: Test and reload Nginx
+        subprocess.run(
+            ["sudo", "nginx", "-t"],
+            check=True, timeout=10
+        )
+        subprocess.run(
+            ["sudo", "nginx", "-s", "reload"],
+            check=True, timeout=10
+        )
+        steps_completed.append("Nginx config validated and reloaded")
+        
+        # Step 4: Request SSL certificate
+        certbot_result = subprocess.run(
+            [
+                "sudo", "certbot", "certonly", "--webroot",
+                "-w", certbot_webroot,
+                "-d", domain,
+                "-d", f"www.{domain}",
+                "--non-interactive",
+                "--agree-tos",
+                "--email", "admin@" + domain,
+                "--expand"
+            ],
+            capture_output=True, text=True, timeout=120
+        )
+        
+        if certbot_result.returncode != 0:
+            # Certbot failed - return info
+            return {
+                "status": "partial",
+                "message": "Domain configured but SSL certificate request failed. DNS may not be propagated yet.",
+                "steps_completed": steps_completed,
+                "ssl_error": certbot_result.stderr,
+                "next_steps": [
+                    "Ensure DNS A record points to 132.226.32.116",
+                    "Wait for DNS propagation (5-30 minutes)",
+                    "Try again by clicking 'Configure SSL' button"
+                ]
+            }
+        
+        steps_completed.append("SSL certificate obtained")
+        
+        # Step 5: Write final HTTPS config
+        with open(temp_path, 'w') as f:
+            f.write(nginx_config)
+        
+        subprocess.run(
+            ["sudo", "cp", temp_path, config_path],
+            check=True, timeout=10
+        )
+        steps_completed.append("Updated Nginx with HTTPS config")
+        
+        # Step 6: Final reload
+        subprocess.run(
+            ["sudo", "nginx", "-t"],
+            check=True, timeout=10
+        )
+        subprocess.run(
+            ["sudo", "nginx", "-s", "reload"],
+            check=True, timeout=10
+        )
+        steps_completed.append("Nginx reloaded with HTTPS")
+        
+        return {
+            "status": "success",
+            "message": f"Domain {domain} configured successfully with SSL!",
+            "steps_completed": steps_completed,
+            "url": f"https://{domain}"
+        }
+        
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Command failed: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/domain/status")
+async def get_domain_status(
+    _: User = Depends(get_current_admin)
+):
+    """Get current domain configuration status"""
+    try:
+        # Check for custom domain configs
+        result = subprocess.run(
+            ["ls", "/etc/nginx/conf.d/"],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        custom_domains = []
+        for filename in result.stdout.strip().split('\n'):
+            if filename and filename.endswith('.conf') and filename != 'default.conf':
+                domain = filename.replace('.conf', '')
+                
+                # Check if SSL cert exists
+                cert_path = f"/etc/letsencrypt/live/{domain}/fullchain.pem"
+                has_ssl = os.path.exists(cert_path)
+                
+                custom_domains.append({
+                    "domain": domain,
+                    "has_ssl": has_ssl,
+                    "config_file": f"/etc/nginx/conf.d/{filename}"
+                })
+        
+        return {
+            "configured_domains": custom_domains,
+            "server_ip": "132.226.32.116"
+        }
+    except Exception as e:
+        return {
+            "configured_domains": [],
+            "server_ip": "132.226.32.116",
+            "error": str(e)
+        }
