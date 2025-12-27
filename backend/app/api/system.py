@@ -263,9 +263,10 @@ async def update_system(_: User = Depends(get_current_admin)):
 @router.post("/domain/configure")
 async def configure_domain(
     domain: str,
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin)
 ):
-    """Configure a custom domain with Nginx and SSL certificate"""
+    """Generate Nginx config and setup script for custom domain"""
     import re
     
     # Validate domain format
@@ -277,8 +278,17 @@ async def configure_domain(
             detail="Invalid domain format"
         )
     
-    # Nginx config template
-    nginx_config = f"""
+    # Save domain to settings
+    result = await db.execute(select(SystemSettings).limit(1))
+    settings = result.scalar_one_or_none()
+    if settings:
+        settings.custom_domain = domain
+        await db.commit()
+    
+    # Generate Nginx config
+    nginx_config = f"""# Nginx config for {domain}
+# Save this to: /etc/nginx/conf.d/{domain}.conf
+
 server {{
     listen 80;
     server_name {domain} www.{domain};
@@ -300,7 +310,7 @@ server {{
     ssl_certificate_key /etc/letsencrypt/live/{domain}/privkey.pem;
     
     location / {{
-        proxy_pass http://frontend:3000;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -309,7 +319,7 @@ server {{
     }}
     
     location /api {{
-        proxy_pass http://backend:8000/api;
+        proxy_pass http://127.0.0.1:8000/api;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -319,21 +329,25 @@ server {{
 }}
 """
     
-    config_path = f"/etc/nginx/conf.d/{domain}.conf"
-    certbot_webroot = "/var/www/certbot"
-    
-    steps_completed = []
-    
-    try:
-        # Step 1: Create webroot directory for certbot
-        subprocess.run(
-            ["sudo", "mkdir", "-p", certbot_webroot],
-            check=True, timeout=10
-        )
-        steps_completed.append("Created certbot webroot")
-        
-        # Step 2: Write a temporary HTTP-only config for initial certificate request
-        temp_config = f"""
+    # Generate setup script
+    setup_script = f"""#!/bin/bash
+# Domain Setup Script for {domain}
+# Run this on your server with: sudo bash setup-{domain}.sh
+
+set -e
+
+DOMAIN="{domain}"
+EMAIL="admin@{domain}"
+
+echo "🚀 Setting up domain: $DOMAIN"
+
+# Step 1: Create directories
+echo "📁 Creating required directories..."
+mkdir -p /var/www/certbot
+
+# Step 2: Create temporary HTTP config for certbot verification
+echo "📝 Creating temporary Nginx config..."
+cat > /etc/nginx/conf.d/${{DOMAIN}}.conf << 'NGINX_TEMP'
 server {{
     listen 80;
     server_name {domain} www.{domain};
@@ -343,139 +357,64 @@ server {{
     }}
     
     location / {{
-        proxy_pass http://frontend:3000;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
     }}
 }}
+NGINX_TEMP
+
+# Step 3: Test and reload Nginx
+echo "🔄 Reloading Nginx..."
+nginx -t && nginx -s reload
+
+# Step 4: Get SSL certificate
+echo "🔐 Requesting SSL certificate from Let's Encrypt..."
+certbot certonly --webroot -w /var/www/certbot -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email $EMAIL
+
+# Step 5: Create final HTTPS config
+echo "📝 Creating HTTPS Nginx config..."
+cat > /etc/nginx/conf.d/${{DOMAIN}}.conf << 'NGINX_HTTPS'
+{nginx_config}
+NGINX_HTTPS
+
+# Step 6: Final reload
+echo "🔄 Final Nginx reload..."
+nginx -t && nginx -s reload
+
+echo ""
+echo "✅ SUCCESS! Domain configured with SSL."
+echo "🌐 Your site is now available at: https://{domain}"
+echo ""
+echo "Note: SSL certificates auto-renew via certbot timer."
 """
-        # Write temp config
-        temp_path = f"/tmp/{domain}.conf"
-        with open(temp_path, 'w') as f:
-            f.write(temp_config)
-        
-        subprocess.run(
-            ["sudo", "cp", temp_path, config_path],
-            check=True, timeout=10
-        )
-        steps_completed.append("Created temporary Nginx config")
-        
-        # Step 3: Test and reload Nginx
-        subprocess.run(
-            ["sudo", "nginx", "-t"],
-            check=True, timeout=10
-        )
-        subprocess.run(
-            ["sudo", "nginx", "-s", "reload"],
-            check=True, timeout=10
-        )
-        steps_completed.append("Nginx config validated and reloaded")
-        
-        # Step 4: Request SSL certificate
-        certbot_result = subprocess.run(
-            [
-                "sudo", "certbot", "certonly", "--webroot",
-                "-w", certbot_webroot,
-                "-d", domain,
-                "-d", f"www.{domain}",
-                "--non-interactive",
-                "--agree-tos",
-                "--email", "admin@" + domain,
-                "--expand"
-            ],
-            capture_output=True, text=True, timeout=120
-        )
-        
-        if certbot_result.returncode != 0:
-            # Certbot failed - return info
-            return {
-                "status": "partial",
-                "message": "Domain configured but SSL certificate request failed. DNS may not be propagated yet.",
-                "steps_completed": steps_completed,
-                "ssl_error": certbot_result.stderr,
-                "next_steps": [
-                    "Ensure DNS A record points to 132.226.32.116",
-                    "Wait for DNS propagation (5-30 minutes)",
-                    "Try again by clicking 'Configure SSL' button"
-                ]
-            }
-        
-        steps_completed.append("SSL certificate obtained")
-        
-        # Step 5: Write final HTTPS config
-        with open(temp_path, 'w') as f:
-            f.write(nginx_config)
-        
-        subprocess.run(
-            ["sudo", "cp", temp_path, config_path],
-            check=True, timeout=10
-        )
-        steps_completed.append("Updated Nginx with HTTPS config")
-        
-        # Step 6: Final reload
-        subprocess.run(
-            ["sudo", "nginx", "-t"],
-            check=True, timeout=10
-        )
-        subprocess.run(
-            ["sudo", "nginx", "-s", "reload"],
-            check=True, timeout=10
-        )
-        steps_completed.append("Nginx reloaded with HTTPS")
-        
-        return {
-            "status": "success",
-            "message": f"Domain {domain} configured successfully with SSL!",
-            "steps_completed": steps_completed,
-            "url": f"https://{domain}"
-        }
-        
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Command failed: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+    
+    return {
+        "status": "ready",
+        "message": f"Configuration generated for {domain}. Run the setup script on your server.",
+        "domain": domain,
+        "nginx_config": nginx_config,
+        "setup_script": setup_script,
+        "instructions": [
+            f"1. SSH into your server: ssh ubuntu@132.226.32.116",
+            f"2. Create the script: nano setup-{domain}.sh",
+            f"3. Paste the setup_script content and save",
+            f"4. Run: sudo bash setup-{domain}.sh",
+            f"5. Visit https://{domain} to verify"
+        ]
+    }
 
 
 @router.get("/domain/status")
 async def get_domain_status(
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin)
 ):
     """Get current domain configuration status"""
-    try:
-        # Check for custom domain configs
-        result = subprocess.run(
-            ["ls", "/etc/nginx/conf.d/"],
-            capture_output=True, text=True, timeout=10
-        )
-        
-        custom_domains = []
-        for filename in result.stdout.strip().split('\n'):
-            if filename and filename.endswith('.conf') and filename != 'default.conf':
-                domain = filename.replace('.conf', '')
-                
-                # Check if SSL cert exists
-                cert_path = f"/etc/letsencrypt/live/{domain}/fullchain.pem"
-                has_ssl = os.path.exists(cert_path)
-                
-                custom_domains.append({
-                    "domain": domain,
-                    "has_ssl": has_ssl,
-                    "config_file": f"/etc/nginx/conf.d/{filename}"
-                })
-        
-        return {
-            "configured_domains": custom_domains,
-            "server_ip": "132.226.32.116"
-        }
-    except Exception as e:
-        return {
-            "configured_domains": [],
-            "server_ip": "132.226.32.116",
-            "error": str(e)
-        }
+    result = await db.execute(select(SystemSettings).limit(1))
+    settings = result.scalar_one_or_none()
+    
+    return {
+        "custom_domain": settings.custom_domain if settings else None,
+        "server_ip": "132.226.32.116"
+    }

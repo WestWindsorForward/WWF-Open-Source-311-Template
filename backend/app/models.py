@@ -153,6 +153,7 @@ class SystemSettings(Base):
     favicon_url = Column(String(500))
     hero_text = Column(String(500), default="How can we help?")
     primary_color = Column(String(7), default="#6366f1")
+    custom_domain = Column(String(255))  # For custom domain configuration
     modules = Column(JSON, default={"ai_analysis": False, "sms_alerts": False})
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
