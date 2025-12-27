@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from app.db.session import get_db
@@ -17,7 +18,11 @@ async def list_users(
     _: User = Depends(get_current_admin)
 ):
     """List all users (admin only)"""
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.departments))
+        .order_by(User.created_at.desc())
+    )
     return result.scalars().all()
 
 
@@ -28,6 +33,8 @@ async def create_user(
     _: User = Depends(get_current_admin)
 ):
     """Create a new user (admin only)"""
+    from app.models import Department
+    
     # Check for existing username
     result = await db.execute(select(User).where(User.username == user_data.username))
     if result.scalar_one_or_none():
@@ -52,6 +59,15 @@ async def create_user(
         role=user_data.role.value,
         is_active=True
     )
+    
+    # Assign departments if provided
+    if user_data.department_ids:
+        result = await db.execute(
+            select(Department).where(Department.id.in_(user_data.department_ids))
+        )
+        departments = result.scalars().all()
+        user.departments = list(departments)
+    
     db.add(user)
     await db.commit()
     await db.refresh(user)

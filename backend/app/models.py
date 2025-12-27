@@ -14,6 +14,15 @@ service_departments = Table(
 )
 
 
+# Association table for User-Department many-to-many
+user_departments = Table(
+    "user_departments",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("department_id", Integer, ForeignKey("departments.id"), primary_key=True)
+)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -25,6 +34,13 @@ class User(Base):
     role = Column(String(20), default="staff")  # admin, staff
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Staff can be assigned to multiple departments
+    departments = relationship(
+        "Department",
+        secondary=user_departments,
+        back_populates="staff_members"
+    )
 
 
 class Department(Base):
@@ -39,6 +55,12 @@ class Department(Base):
     services = relationship(
         "ServiceDefinition",
         secondary=service_departments,
+        back_populates="departments"
+    )
+    
+    staff_members = relationship(
+        "User",
+        secondary=user_departments,
         back_populates="departments"
     )
 

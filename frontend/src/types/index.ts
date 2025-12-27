@@ -7,6 +7,7 @@ export interface User {
     role: 'admin' | 'staff';
     is_active: boolean;
     created_at?: string;
+    departments?: { id: number; name: string }[];
 }
 
 export interface UserCreate {
@@ -15,6 +16,7 @@ export interface UserCreate {
     full_name?: string;
     role: 'admin' | 'staff';
     password: string;
+    department_ids?: number[];
 }
 
 // Department types

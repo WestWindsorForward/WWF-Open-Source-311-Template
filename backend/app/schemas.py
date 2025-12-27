@@ -48,6 +48,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
+    department_ids: Optional[List[int]] = []
 
 
 class UserUpdate(BaseModel):
@@ -55,12 +56,22 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+    department_ids: Optional[List[int]] = None
+
+
+class DepartmentBrief(BaseModel):
+    id: int
+    name: str
+    
+    class Config:
+        from_attributes = True
 
 
 class UserResponse(UserBase):
     id: int
     is_active: bool
     created_at: Optional[datetime] = None
+    departments: List[DepartmentBrief] = []
 
     class Config:
         from_attributes = True

@@ -51,6 +51,7 @@ export default function AdminConsole() {
         full_name: '',
         password: '',
         role: 'staff' as 'staff' | 'admin',
+        department_ids: [] as number[],
     });
 
     // Services state
@@ -106,8 +107,12 @@ export default function AdminConsole() {
         try {
             switch (currentTab) {
                 case 'users':
-                    const usersData = await api.getUsers();
+                    const [usersData, userDepts] = await Promise.all([
+                        api.getUsers(),
+                        api.getDepartments(),
+                    ]);
                     setUsers(usersData);
+                    setDepartments(userDepts);
                     break;
                 case 'services':
                     const [servicesData, deptsData] = await Promise.all([
@@ -148,7 +153,7 @@ export default function AdminConsole() {
         try {
             await api.createUser(newUser);
             setShowUserModal(false);
-            setNewUser({ username: '', email: '', full_name: '', password: '', role: 'staff' });
+            setNewUser({ username: '', email: '', full_name: '', password: '', role: 'staff', department_ids: [] });
             loadTabData();
         } catch (err) {
             console.error('Failed to create user:', err);
@@ -993,6 +998,33 @@ export default function AdminConsole() {
                         value={newUser.role}
                         onChange={(e) => setNewUser((p) => ({ ...p, role: e.target.value as 'staff' | 'admin' }))}
                     />
+
+                    {/* Department Assignment */}
+                    {newUser.role === 'staff' && departments.length > 0 && (
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-white/70">Assign to Departments</label>
+                            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 rounded-lg bg-white/5 border border-white/10">
+                                {departments.map((dept) => (
+                                    <label key={dept.id} className="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-1 rounded">
+                                        <input
+                                            type="checkbox"
+                                            checked={newUser.department_ids.includes(dept.id)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setNewUser((p) => ({ ...p, department_ids: [...p.department_ids, dept.id] }));
+                                                } else {
+                                                    setNewUser((p) => ({ ...p, department_ids: p.department_ids.filter(id => id !== dept.id) }));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-white/20 bg-white/10 text-primary-500 focus:ring-primary-500"
+                                        />
+                                        <span className="text-sm text-white/80">{dept.name}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex justify-end gap-3 pt-4">
                         <Button variant="ghost" onClick={() => setShowUserModal(false)}>Cancel</Button>
                         <Button type="submit">Create User</Button>
