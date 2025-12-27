@@ -106,6 +106,17 @@ class ApiClient {
         });
     }
 
+    async updateDepartment(id: number, data: Partial<Department>): Promise<Department> {
+        return this.request<Department>(`/departments/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteDepartment(id: number): Promise<void> {
+        return this.request<void>(`/departments/${id}`, { method: 'DELETE' });
+    }
+
     // Service Requests (Public)
     async createRequest(data: ServiceRequestCreate): Promise<ServiceRequest> {
         return this.request<ServiceRequest>('/open311/v2/requests.json', {

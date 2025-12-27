@@ -20,6 +20,8 @@ import {
     RotateCcw,
     Mail,
     MessageSquare,
+    Building2,
+    Edit,
 } from 'lucide-react';
 import { Button, Card, Modal, Input, Select, Badge } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -27,7 +29,7 @@ import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
 import { User, ServiceDefinition, SystemSettings, SystemSecret, Department } from '../types';
 
-type Tab = 'branding' | 'users' | 'services' | 'secrets' | 'modules';
+type Tab = 'branding' | 'users' | 'departments' | 'services' | 'secrets' | 'modules';
 
 export default function AdminConsole() {
     const navigate = useNavigate();
@@ -63,6 +65,15 @@ export default function AdminConsole() {
         service_name: '',
         description: '',
         icon: 'AlertCircle',
+    });
+
+    // Department management state
+    const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+    const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+    const [newDepartment, setNewDepartment] = useState({
+        name: '',
+        description: '',
+        routing_email: '',
     });
 
     // Secrets state
@@ -114,6 +125,10 @@ export default function AdminConsole() {
                     setUsers(usersData);
                     setDepartments(userDepts);
                     break;
+                case 'departments':
+                    const deptsOnly = await api.getDepartments();
+                    setDepartments(deptsOnly);
+                    break;
                 case 'services':
                     const [servicesData, deptsData] = await Promise.all([
                         api.getServices(),
@@ -151,12 +166,22 @@ export default function AdminConsole() {
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.createUser(newUser);
+            // Clean up data - remove empty strings and send proper format
+            const userData = {
+                username: newUser.username,
+                email: newUser.email,
+                password: newUser.password,
+                role: newUser.role,
+                full_name: newUser.full_name || undefined,
+                department_ids: newUser.department_ids.length > 0 ? newUser.department_ids : undefined,
+            };
+            await api.createUser(userData as any);
             setShowUserModal(false);
             setNewUser({ username: '', email: '', full_name: '', password: '', role: 'staff', department_ids: [] });
             loadTabData();
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to create user:', err);
+            alert(err.message || 'Failed to create user');
         }
     };
 
@@ -189,6 +214,44 @@ export default function AdminConsole() {
             loadTabData();
         } catch (err) {
             console.error('Failed to delete service:', err);
+        }
+    };
+
+    // Department handlers
+    const handleCreateDepartment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            if (editingDepartment) {
+                await api.updateDepartment(editingDepartment.id, newDepartment);
+            } else {
+                await api.createDepartment(newDepartment);
+            }
+            setShowDepartmentModal(false);
+            setEditingDepartment(null);
+            setNewDepartment({ name: '', description: '', routing_email: '' });
+            loadTabData();
+        } catch (err) {
+            console.error('Failed to save department:', err);
+        }
+    };
+
+    const handleEditDepartment = (dept: Department) => {
+        setEditingDepartment(dept);
+        setNewDepartment({
+            name: dept.name,
+            description: dept.description || '',
+            routing_email: dept.routing_email || '',
+        });
+        setShowDepartmentModal(true);
+    };
+
+    const handleDeleteDepartment = async (deptId: number) => {
+        if (!confirm('Are you sure you want to delete this department?')) return;
+        try {
+            await api.deleteDepartment(deptId);
+            loadTabData();
+        } catch (err) {
+            console.error('Failed to delete department:', err);
         }
     };
 
@@ -270,6 +333,7 @@ export default function AdminConsole() {
     const tabs = [
         { id: 'branding', icon: Palette, label: 'Branding' },
         { id: 'users', icon: Users, label: 'Users' },
+        { id: 'departments', icon: Building2, label: 'Departments' },
         { id: 'services', icon: Grid3X3, label: 'Service Categories' },
         { id: 'secrets', icon: Key, label: 'API Keys' },
         { id: 'modules', icon: Puzzle, label: 'Modules' },
@@ -553,6 +617,64 @@ export default function AdminConsole() {
                                         </tbody>
                                     </table>
                                 </Card>
+                            </div>
+                        )}
+                        {/* Departments Tab */}
+                        {currentTab === 'departments' && (
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h1 className="text-2xl font-bold text-white">Departments</h1>
+                                    <Button
+                                        leftIcon={<Plus className="w-4 h-4" />}
+                                        onClick={() => {
+                                            setEditingDepartment(null);
+                                            setNewDepartment({ name: '', description: '', routing_email: '' });
+                                            setShowDepartmentModal(true);
+                                        }}
+                                    >
+                                        Add Department
+                                    </Button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {departments.map((dept) => (
+                                        <Card key={dept.id} className="relative group">
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-300">
+                                                    <Building2 className="w-6 h-6" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-white">{dept.name}</h3>
+                                                    <p className="text-sm text-white/50 mt-1">{dept.description || 'No description'}</p>
+                                                    {dept.routing_email && (
+                                                        <p className="text-xs text-white/30 mt-2 font-mono">{dept.routing_email}</p>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        onClick={() => handleEditDepartment(dept)}
+                                                        className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white/10 rounded-lg transition-all"
+                                                    >
+                                                        <Edit className="w-4 h-4 text-white/60" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteDepartment(dept.id)}
+                                                        className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/20 rounded-lg transition-all"
+                                                    >
+                                                        <Trash2 className="w-4 h-4 text-red-400" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+
+                                {departments.length === 0 && (
+                                    <Card className="text-center py-8">
+                                        <Building2 className="w-12 h-12 mx-auto text-white/20 mb-3" />
+                                        <p className="text-white/50">No departments yet. Add your first department to organize staff.</p>
+                                    </Card>
+                                )}
                             </div>
                         )}
 
@@ -846,23 +968,36 @@ export default function AdminConsole() {
 
                                             {['GOOGLE_MAPS_API_KEY', 'VERTEX_AI_PROJECT'].map(key => {
                                                 const secret = secrets.find(s => s.key_name === key);
+                                                const isConfigured = secret?.is_configured;
+                                                const label = key === 'GOOGLE_MAPS_API_KEY' ? 'Google Maps API Key' : 'Vertex AI Project ID';
                                                 return (
-                                                    <div key={key} className="flex flex-col sm:flex-row gap-2">
-                                                        <div className="flex-1">
-                                                            <Input
-                                                                label={key === 'GOOGLE_MAPS_API_KEY' ? 'Google Maps API Key' : 'Vertex AI Project ID'}
-                                                                type="password"
-                                                                placeholder={key === 'GOOGLE_MAPS_API_KEY' ? 'AIza...' : 'my-gcp-project'}
-                                                                value={secretValues[key] || ''}
-                                                                onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
-                                                            />
-                                                        </div>
-                                                        <div className="flex items-end gap-2">
-                                                            <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]}>
-                                                                Save
-                                                            </Button>
-                                                            {secret?.is_configured && <Badge variant="success">Set</Badge>}
-                                                        </div>
+                                                    <div key={key} className="space-y-2">
+                                                        <label className="block text-sm font-medium text-white/70">
+                                                            {label}
+                                                        </label>
+                                                        {isConfigured && !secretValues[key] ? (
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="flex-1 h-10 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center px-3">
+                                                                    <Check className="w-4 h-4 text-green-400 mr-2" />
+                                                                    <span className="text-green-300 text-sm">Saved securely</span>
+                                                                </div>
+                                                                <Button size="sm" variant="ghost" onClick={() => setSecretValues(p => ({ ...p, [key]: ' ' }))}>
+                                                                    Change
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex gap-2">
+                                                                <Input
+                                                                    type={key === 'GOOGLE_MAPS_API_KEY' ? 'password' : 'text'}
+                                                                    placeholder={key === 'GOOGLE_MAPS_API_KEY' ? 'AIza...' : 'my-gcp-project'}
+                                                                    value={secretValues[key]?.trim() || ''}
+                                                                    onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
+                                                                />
+                                                                <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]?.trim()}>
+                                                                    Save
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -960,6 +1095,43 @@ export default function AdminConsole() {
                     </div>
                 </div>
             </div>
+
+            {/* Add/Edit Department Modal */}
+            <Modal
+                isOpen={showDepartmentModal}
+                onClose={() => {
+                    setShowDepartmentModal(false);
+                    setEditingDepartment(null);
+                }}
+                title={editingDepartment ? 'Edit Department' : 'Add New Department'}
+            >
+                <form onSubmit={handleCreateDepartment} className="space-y-4">
+                    <Input
+                        label="Department Name"
+                        value={newDepartment.name}
+                        onChange={(e) => setNewDepartment((p) => ({ ...p, name: e.target.value }))}
+                        placeholder="e.g., Public Works"
+                        required
+                    />
+                    <Input
+                        label="Description"
+                        value={newDepartment.description}
+                        onChange={(e) => setNewDepartment((p) => ({ ...p, description: e.target.value }))}
+                        placeholder="Handles roads, parks, infrastructure..."
+                    />
+                    <Input
+                        label="Routing Email"
+                        type="email"
+                        value={newDepartment.routing_email}
+                        onChange={(e) => setNewDepartment((p) => ({ ...p, routing_email: e.target.value }))}
+                        placeholder="publicworks@township.gov"
+                    />
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="ghost" onClick={() => setShowDepartmentModal(false)}>Cancel</Button>
+                        <Button type="submit">{editingDepartment ? 'Save Changes' : 'Create Department'}</Button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Add User Modal */}
             <Modal isOpen={showUserModal} onClose={() => setShowUserModal(false)} title="Add New User">
