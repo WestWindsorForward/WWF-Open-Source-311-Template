@@ -715,6 +715,59 @@ export default function AdminConsole() {
                                         </div>
                                     )}
                                 </Card>
+
+                                {/* Domain Connection */}
+                                <Card className="mt-6">
+                                    <h3 className="text-lg font-semibold text-white mb-4">Custom Domain</h3>
+                                    <p className="text-sm text-white/50 mb-4">
+                                        Connect your own domain (e.g., 311.yourtownship.gov) to this 311 portal.
+                                    </p>
+
+                                    <div className="space-y-4">
+                                        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                            <p className="text-sm font-medium text-white mb-2">Current URL</p>
+                                            <code className="text-primary-300 text-sm bg-black/30 px-2 py-1 rounded">
+                                                {window.location.origin}
+                                            </code>
+                                        </div>
+
+                                        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                                            <p className="text-sm font-medium text-amber-300 mb-3">To connect a custom domain:</p>
+                                            <ol className="text-sm text-white/70 space-y-2 list-decimal list-inside">
+                                                <li>Log into your domain registrar (GoDaddy, Namecheap, etc.)</li>
+                                                <li>Add an <strong className="text-white">A Record</strong> pointing to: <code className="text-primary-300 bg-black/30 px-1 rounded">132.226.32.116</code></li>
+                                                <li>Or add a <strong className="text-white">CNAME Record</strong> pointing to this server</li>
+                                                <li>Wait 5-30 minutes for DNS propagation</li>
+                                                <li>Contact your system administrator to update Nginx config</li>
+                                            </ol>
+                                        </div>
+
+                                        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                            <p className="text-sm font-medium text-white mb-3">DNS Records to Add</p>
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="text-white/50">
+                                                        <th className="text-left py-1">Type</th>
+                                                        <th className="text-left py-1">Host</th>
+                                                        <th className="text-left py-1">Value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="text-white/80">
+                                                    <tr>
+                                                        <td className="py-1">A</td>
+                                                        <td className="py-1">@ or 311</td>
+                                                        <td className="py-1"><code className="text-primary-300">132.226.32.116</code></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="py-1">A</td>
+                                                        <td className="py-1">www</td>
+                                                        <td className="py-1"><code className="text-primary-300">132.226.32.116</code></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </Card>
                             </div>
                         )}
 
