@@ -266,8 +266,9 @@ async def configure_domain(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin)
 ):
-    """Generate Nginx config and setup script for custom domain"""
+    """Configure custom domain with automatic HTTPS via Caddy"""
     import re
+    import httpx
     
     # Validate domain format
     domain = domain.strip().lower()
@@ -285,123 +286,87 @@ async def configure_domain(
         settings.custom_domain = domain
         await db.commit()
     
-    # Generate Nginx config
-    nginx_config = f"""# Nginx config for {domain}
-# Save this to: /etc/nginx/conf.d/{domain}.conf
+    # Generate Caddyfile with custom domain (Caddy auto-handles HTTPS)
+    caddyfile_content = f"""# Caddy configuration for Township 311
+# Auto-generated - Custom domain: {domain}
 
-server {{
-    listen 80;
-    server_name {domain} www.{domain};
-    
-    location /.well-known/acme-challenge/ {{
-        root /var/www/certbot;
+# Custom domain with automatic HTTPS
+{domain} {{
+    # API routes
+    handle /api/* {{
+        reverse_proxy backend:8000
     }}
-    
-    location / {{
-        return 301 https://$host$request_uri;
+
+    # Frontend - SPA routing
+    handle {{
+        reverse_proxy frontend:5173
+    }}
+
+    encode gzip
+
+    header {{
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
     }}
 }}
 
-server {{
-    listen 443 ssl http2;
-    server_name {domain} www.{domain};
-    
-    ssl_certificate /etc/letsencrypt/live/{domain}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{domain}/privkey.pem;
-    
-    location / {{
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+# www redirect to main domain
+www.{domain} {{
+    redir https://{domain}{{uri}} permanent
+}}
+
+# Also keep IP access on HTTP for fallback
+:80 {{
+    handle /api/* {{
+        reverse_proxy backend:8000
     }}
-    
-    location /api {{
-        proxy_pass http://127.0.0.1:8000/api;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+    handle {{
+        reverse_proxy frontend:5173
     }}
+    encode gzip
 }}
 """
     
-    # Generate setup script
-    setup_script = f"""#!/bin/bash
-# Domain Setup Script for {domain}
-# Run this on your server with: sudo bash setup-{domain}.sh
-
-set -e
-
-DOMAIN="{domain}"
-EMAIL="admin@{domain}"
-
-echo "🚀 Setting up domain: $DOMAIN"
-
-# Step 1: Create directories
-echo "📁 Creating required directories..."
-mkdir -p /var/www/certbot
-
-# Step 2: Create temporary HTTP config for certbot verification
-echo "📝 Creating temporary Nginx config..."
-cat > /etc/nginx/conf.d/${{DOMAIN}}.conf << 'NGINX_TEMP'
-server {{
-    listen 80;
-    server_name {domain} www.{domain};
+    # Write Caddyfile to shared volume
+    caddyfile_path = os.environ.get("PROJECT_ROOT", "/project") + "/Caddyfile"
     
-    location /.well-known/acme-challenge/ {{
-        root /var/www/certbot;
-    }}
+    try:
+        with open(caddyfile_path, 'w') as f:
+            f.write(caddyfile_content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to write Caddyfile: {str(e)}"
+        )
     
-    location / {{
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-    }}
-}}
-NGINX_TEMP
-
-# Step 3: Test and reload Nginx
-echo "🔄 Reloading Nginx..."
-nginx -t && nginx -s reload
-
-# Step 4: Get SSL certificate
-echo "🔐 Requesting SSL certificate from Let's Encrypt..."
-certbot certonly --webroot -w /var/www/certbot -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email $EMAIL
-
-# Step 5: Create final HTTPS config
-echo "📝 Creating HTTPS Nginx config..."
-cat > /etc/nginx/conf.d/${{DOMAIN}}.conf << 'NGINX_HTTPS'
-{nginx_config}
-NGINX_HTTPS
-
-# Step 6: Final reload
-echo "🔄 Final Nginx reload..."
-nginx -t && nginx -s reload
-
-echo ""
-echo "✅ SUCCESS! Domain configured with SSL."
-echo "🌐 Your site is now available at: https://{domain}"
-echo ""
-echo "Note: SSL certificates auto-renew via certbot timer."
-"""
+    # Try to reload Caddy via its admin API
+    reload_success = False
+    reload_message = ""
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Try to load the new Caddyfile config
+            response = await client.post(
+                "http://caddy:2019/load",
+                content=caddyfile_content,
+                headers={"Content-Type": "text/caddyfile"}
+            )
+            if response.status_code == 200:
+                reload_success = True
+                reload_message = "Caddy reloaded - HTTPS will be active shortly!"
+            else:
+                reload_message = f"Caddy API returned {response.status_code}. Container restart may be needed."
+    except Exception as e:
+        reload_message = f"Caddyfile saved but could not reload Caddy automatically. Please run: docker-compose restart caddy"
     
     return {
-        "status": "ready",
-        "message": f"Configuration generated for {domain}. Run the setup script on your server.",
+        "status": "success" if reload_success else "partial",
+        "message": f"Domain {domain} configured! {reload_message}",
         "domain": domain,
-        "nginx_config": nginx_config,
-        "setup_script": setup_script,
-        "instructions": [
-            f"1. SSH into your server: ssh ubuntu@132.226.32.116",
-            f"2. Create the script: nano setup-{domain}.sh",
-            f"3. Paste the setup_script content and save",
-            f"4. Run: sudo bash setup-{domain}.sh",
-            f"5. Visit https://{domain} to verify"
-        ]
+        "url": f"https://{domain}",
+        "reload_success": reload_success,
+        "next_step": None if reload_success else "Run: docker-compose restart caddy"
     }
 
 

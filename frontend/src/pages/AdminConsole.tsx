@@ -751,28 +751,27 @@ export default function AdminConsole() {
                                                         setIsLoading(true);
                                                         try {
                                                             const result = await api.configureDomain(domain);
-                                                            if (result.status === 'ready') {
-                                                                // Copy script to clipboard
-                                                                await navigator.clipboard.writeText(result.setup_script || '');
+                                                            if (result.status === 'success') {
                                                                 alert(
-                                                                    `✅ Setup script generated and copied to clipboard!\n\n` +
-                                                                    `Instructions:\n` +
-                                                                    `1. SSH into server: ssh ubuntu@132.226.32.116\n` +
-                                                                    `2. Create file: nano setup-${domain}.sh\n` +
-                                                                    `3. Paste the script (Ctrl+Shift+V)\n` +
-                                                                    `4. Save and exit (Ctrl+X, Y, Enter)\n` +
-                                                                    `5. Run: sudo bash setup-${domain}.sh\n\n` +
-                                                                    `The script will automatically configure Nginx and SSL.`
+                                                                    `✅ ${result.message}\n\n` +
+                                                                    `Your site will be available at:\n${result.url}\n\n` +
+                                                                    `HTTPS certificate is being automatically provisioned by Caddy.`
+                                                                );
+                                                            } else if (result.status === 'partial') {
+                                                                alert(
+                                                                    `⚠️ ${result.message}\n\n` +
+                                                                    `Next step: ${result.next_step || 'Restart Caddy container'}\n\n` +
+                                                                    `Run on server:\nssh ubuntu@132.226.32.116\ncd ~/WWF-Open-Source-311-Template\ndocker-compose restart caddy`
                                                                 );
                                                             } else {
-                                                                alert(`⚠️ ${result.message}`);
+                                                                alert(`Error: ${result.message}`);
                                                             }
                                                         } catch (err: any) { alert(`Error: ${err.message}`); }
                                                         finally { setIsLoading(false); }
                                                     }}
                                                     isLoading={isLoading}
                                                 >
-                                                    Generate Setup Script
+                                                    Configure Domain
                                                 </Button>
                                             </div>
                                         </div>

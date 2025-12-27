@@ -229,9 +229,9 @@ class ApiClient {
         status: string;
         message: string;
         domain?: string;
-        nginx_config?: string;
-        setup_script?: string;
-        instructions?: string[];
+        url?: string;
+        reload_success?: boolean;
+        next_step?: string | null;
     }> {
         return this.request(`/system/domain/configure?domain=${encodeURIComponent(domain)}`, {
             method: 'POST',
