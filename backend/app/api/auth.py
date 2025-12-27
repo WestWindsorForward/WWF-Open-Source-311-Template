@@ -16,9 +16,17 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    """OAuth2 password flow login"""
+    """OAuth2 password flow login - accepts username or email"""
+    from sqlalchemy import or_
+    
+    # Allow login with either username OR email
     result = await db.execute(
-        select(User).where(User.username == form_data.username)
+        select(User).where(
+            or_(
+                User.username == form_data.username,
+                User.email == form_data.username
+            )
+        )
     )
     user = result.scalar_one_or_none()
     
