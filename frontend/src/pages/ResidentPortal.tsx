@@ -448,7 +448,12 @@ export default function ResidentPortal() {
                                                                 </a>
                                                             )}
                                                             {contact.url && (
-                                                                <a href={contact.url} target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:text-primary-300 underline">
+                                                                <a
+                                                                    href={contact.url.startsWith('http') ? contact.url : `https://${contact.url}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-primary-400 hover:text-primary-300 underline"
+                                                                >
                                                                     🔗 Visit Website
                                                                 </a>
                                                             )}
