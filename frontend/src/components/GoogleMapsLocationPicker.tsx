@@ -55,7 +55,7 @@ const loadGoogleMapsScript = (apiKey: string): Promise<void> => {
 export default function GoogleMapsLocationPicker({
     apiKey,
     defaultCenter = { lat: 40.3573, lng: -74.6672 }, // Default to central NJ
-    defaultZoom = 15,
+    defaultZoom = 17,
     value,
     onChange,
     placeholder = 'Search for an address...',
@@ -72,9 +72,9 @@ export default function GoogleMapsLocationPicker({
     const [inputValue, setInputValue] = useState(value?.address || '');
     const [isLocating, setIsLocating] = useState(false);
 
-    // Sync input value with external value
+    // Sync input value with external value ONLY when address changes from parent
     useEffect(() => {
-        if (value?.address !== undefined && value.address !== inputValue) {
+        if (value?.address !== undefined && value.address !== inputValue && value.address !== '') {
             setInputValue(value.address);
         }
     }, [value?.address]);
@@ -83,7 +83,7 @@ export default function GoogleMapsLocationPicker({
     const reverseGeocode = useCallback(async (lat: number, lng: number): Promise<string> => {
         return new Promise((resolve) => {
             const geocoder = new window.google.maps.Geocoder();
-            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+            geocoder.geocode({ location: { lat, lng } }, (results: google.maps.GeocoderResult[] | null, status: google.maps.GeocoderStatus) => {
                 if (status === 'OK' && results && results[0]) {
                     resolve(results[0].formatted_address);
                 } else {
@@ -93,25 +93,38 @@ export default function GoogleMapsLocationPicker({
         });
     }, []);
 
-    // Place marker on map
+    // Place marker on map with a visible custom pin
     const placeMarker = useCallback((position: google.maps.LatLng | google.maps.LatLngLiteral) => {
         if (!mapRef.current) return;
 
+        const positionObj = position instanceof window.google.maps.LatLng
+            ? { lat: position.lat(), lng: position.lng() }
+            : position;
+
         if (markerRef.current) {
-            markerRef.current.setPosition(position);
+            markerRef.current.setPosition(positionObj);
         } else {
+            // Create a custom marker with a visible pin icon
             markerRef.current = new window.google.maps.Marker({
-                position,
+                position: positionObj,
                 map: mapRef.current,
                 draggable: true,
                 animation: window.google.maps.Animation.DROP,
                 icon: {
-                    path: window.google.maps.SymbolPath.CIRCLE,
-                    scale: 10,
-                    fillColor: '#6366f1',
-                    fillOpacity: 1,
-                    strokeColor: '#ffffff',
-                    strokeWeight: 3,
+                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="50" viewBox="0 0 40 50">
+                            <defs>
+                                <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.4"/>
+                                </filter>
+                            </defs>
+                            <path d="M20 0 C8.954 0 0 8.954 0 20 C0 35 20 50 20 50 C20 50 40 35 40 20 C40 8.954 31.046 0 20 0 Z" 
+                                  fill="#6366f1" filter="url(#shadow)"/>
+                            <circle cx="20" cy="18" r="8" fill="white"/>
+                        </svg>
+                    `),
+                    scaledSize: new window.google.maps.Size(40, 50),
+                    anchor: new window.google.maps.Point(20, 50),
                 },
             });
 
@@ -127,7 +140,7 @@ export default function GoogleMapsLocationPicker({
         }
 
         // Center map on marker
-        mapRef.current.panTo(position);
+        mapRef.current.panTo(positionObj);
     }, [onChange, reverseGeocode]);
 
     // Initialize Google Maps
@@ -146,23 +159,26 @@ export default function GoogleMapsLocationPicker({
 
                 if (!isMounted || !mapContainerRef.current || !inputRef.current) return;
 
-                // Create map
+                // Create map in SATELLITE/HYBRID mode
                 const map = new window.google.maps.Map(mapContainerRef.current, {
                     center: value?.lat && value?.lng ? { lat: value.lat, lng: value.lng } : defaultCenter,
                     zoom: defaultZoom,
-                    styles: [
-                        { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
-                        { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
-                        { elementType: 'labels.text.fill', stylers: [{ color: '#8b8b8b' }] },
-                        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2d2d44' }] },
-                        { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca3af' }] },
-                        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e0e1a' }] },
-                        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'on' }] },
-                        { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1a2e1a' }] },
-                    ],
-                    mapTypeControl: false,
+                    mapTypeId: 'hybrid', // Satellite with labels
+                    mapTypeControl: true,
+                    mapTypeControlOptions: {
+                        style: window.google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                        position: window.google.maps.ControlPosition.TOP_RIGHT,
+                        mapTypeIds: ['roadmap', 'satellite', 'hybrid'],
+                    },
                     streetViewControl: false,
-                    fullscreenControl: false,
+                    fullscreenControl: true,
+                    fullscreenControlOptions: {
+                        position: window.google.maps.ControlPosition.RIGHT_BOTTOM,
+                    },
+                    zoomControl: true,
+                    zoomControlOptions: {
+                        position: window.google.maps.ControlPosition.RIGHT_CENTER,
+                    },
                 });
                 mapRef.current = map;
 
@@ -177,7 +193,7 @@ export default function GoogleMapsLocationPicker({
                 // Bias autocomplete to map bounds
                 autocomplete.bindTo('bounds', map);
 
-                // Handle place selection
+                // Handle place selection from autocomplete dropdown ONLY
                 autocomplete.addListener('place_changed', () => {
                     const place = autocomplete.getPlace();
 
@@ -195,9 +211,14 @@ export default function GoogleMapsLocationPicker({
                     // Zoom to location
                     if (place.geometry.viewport) {
                         map.fitBounds(place.geometry.viewport);
+                        // Set a max zoom after fitting bounds
+                        const listener = map.addListener('idle', () => {
+                            if (map.getZoom()! > 19) map.setZoom(19);
+                            window.google.maps.event.removeListener(listener);
+                        });
                     } else {
                         map.setCenter(place.geometry.location);
-                        map.setZoom(18);
+                        map.setZoom(19);
                     }
 
                     placeMarker(place.geometry.location);
@@ -237,7 +258,14 @@ export default function GoogleMapsLocationPicker({
         return () => {
             isMounted = false;
         };
-    }, [apiKey, defaultCenter, defaultZoom, onChange, placeMarker, reverseGeocode, value?.lat, value?.lng]);
+    }, [apiKey]); // Only re-init when apiKey changes, not on every value change
+
+    // Update marker position when value changes from parent
+    useEffect(() => {
+        if (mapRef.current && value?.lat && value?.lng && !isLoading) {
+            placeMarker({ lat: value.lat, lng: value.lng });
+        }
+    }, [value?.lat, value?.lng, isLoading, placeMarker]);
 
     // Handle "Use my location" button
     const handleUseMyLocation = () => {
@@ -256,7 +284,7 @@ export default function GoogleMapsLocationPicker({
                 if (mapRef.current) {
                     const location = new window.google.maps.LatLng(lat, lng);
                     mapRef.current.setCenter(location);
-                    mapRef.current.setZoom(18);
+                    mapRef.current.setZoom(19);
                     placeMarker(location);
 
                     const address = await reverseGeocode(lat, lng);
@@ -275,10 +303,14 @@ export default function GoogleMapsLocationPicker({
         );
     };
 
-    // Handle manual input changes
+    // Handle manual input changes - only update local state, not parent
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);
-        // Don't update parent until place is selected from autocomplete or map is clicked
+        // Don't call onChange here - only update when:
+        // 1. User selects from autocomplete dropdown
+        // 2. User clicks on the map
+        // 3. User drags the marker
+        // 4. User uses "my location" button
     };
 
     if (error) {
@@ -291,7 +323,7 @@ export default function GoogleMapsLocationPicker({
     }
 
     return (
-        <div className={`space-y-3 ${className}`}>
+        <div className={`space-y-4 ${className}`}>
             {/* Address Input with Autocomplete */}
             <div className="relative">
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none z-10" />
@@ -301,15 +333,16 @@ export default function GoogleMapsLocationPicker({
                     placeholder={placeholder}
                     value={inputValue}
                     onChange={handleInputChange}
-                    className="glass-input pl-12 pr-12 w-full"
+                    className="w-full h-12 pl-12 pr-14 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 transition-all"
                     disabled={isLoading}
+                    autoComplete="off"
                 />
                 {/* Use my location button */}
                 <button
                     type="button"
                     onClick={handleUseMyLocation}
                     disabled={isLoading || isLocating}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 rounded-lg bg-primary-500/20 hover:bg-primary-500/30 transition-colors disabled:opacity-50"
                     title="Use my current location"
                 >
                     {isLocating ? (
@@ -321,33 +354,43 @@ export default function GoogleMapsLocationPicker({
             </div>
 
             {/* Map Container */}
-            <div className="relative rounded-xl overflow-hidden border border-white/10">
+            <div className="relative rounded-2xl overflow-hidden border-2 border-white/10 shadow-xl">
                 {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/5 z-10">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
                         <div className="text-center">
-                            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                            <p className="text-sm text-white/50">Loading map...</p>
+                            <div className="w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                            <p className="text-sm text-white/60">Loading map...</p>
                         </div>
                     </div>
                 )}
                 <div
                     ref={mapContainerRef}
-                    className="w-full h-64 md:h-80"
-                    style={{ minHeight: '256px' }}
+                    className="w-full h-72 md:h-96"
+                    style={{ minHeight: '288px' }}
                 />
                 {/* Instructions overlay */}
-                <div className="absolute bottom-2 left-2 right-2 text-center">
-                    <p className="text-xs text-white/50 bg-black/50 rounded-lg px-3 py-1.5 inline-block backdrop-blur-sm">
-                        Click on the map to select a precise location
-                    </p>
-                </div>
+                {!value?.lat && !value?.lng && !isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="bg-black/60 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
+                            <MapPin className="w-6 h-6 text-primary-400 mx-auto mb-2" />
+                            <p className="text-sm text-white/80">
+                                Search for an address or click on the map
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Selected coordinates display */}
+            {/* Selected location info */}
             {value?.lat && value?.lng && (
-                <p className="text-xs text-white/40 text-center">
-                    📍 {value.lat.toFixed(6)}, {value.lng.toFixed(6)}
-                </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-white/50 bg-white/5 rounded-xl px-4 py-2">
+                    <MapPin className="w-4 h-4 text-primary-400" />
+                    <span>
+                        {value.lat.toFixed(6)}, {value.lng.toFixed(6)}
+                    </span>
+                    <span className="text-white/30">•</span>
+                    <span className="text-primary-400">Drag pin to adjust</span>
+                </div>
             )}
         </div>
     );
