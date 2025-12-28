@@ -91,7 +91,7 @@ const ICON_LIBRARY: { name: string; icon: LucideIcon }[] = [
     { name: 'Users', icon: Users },
 ];
 
-type Tab = 'branding' | 'users' | 'departments' | 'services' | 'secrets' | 'modules';
+type Tab = 'branding' | 'users' | 'departments' | 'services' | 'secrets' | 'modules' | 'maps';
 
 export default function AdminConsole() {
     const navigate = useNavigate();
@@ -170,6 +170,15 @@ export default function AdminConsole() {
     // Modules state
     const [modules, setModules] = useState({ ai_analysis: false, sms_alerts: false, email_notifications: false });
 
+    // Maps tab state
+    const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+    const [townshipSearch, setTownshipSearch] = useState('');
+    const [townshipPlaceId, setTownshipPlaceId] = useState<string | null>(null);
+    const [townshipPlaceName, setTownshipPlaceName] = useState<string | null>(null);
+    const [isSearchingTownship, setIsSearchingTownship] = useState(false);
+    const townshipInputRef = React.useRef<HTMLInputElement>(null);
+    const townshipAutocompleteRef = React.useRef<google.maps.places.Autocomplete | null>(null);
+
 
     // Password reset state
     const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -201,6 +210,59 @@ export default function AdminConsole() {
         loadTabData();
     }, [currentTab]);
 
+    // Initialize Google Places Autocomplete for Maps tab
+    useEffect(() => {
+        if (currentTab !== 'maps' || !mapsApiKey || !townshipInputRef.current) return;
+
+        // Load Google Maps script if not already loaded
+        const initAutocomplete = async () => {
+            // Check if Google Maps is loaded
+            if (!window.google?.maps?.places) {
+                // Load the script
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places`;
+                script.async = true;
+                script.onload = () => {
+                    setupAutocomplete();
+                };
+                document.head.appendChild(script);
+            } else {
+                setupAutocomplete();
+            }
+        };
+
+        const setupAutocomplete = () => {
+            if (!townshipInputRef.current || townshipAutocompleteRef.current) return;
+
+            const autocomplete = new window.google.maps.places.Autocomplete(townshipInputRef.current, {
+                types: ['locality', 'administrative_area_level_3', 'sublocality'],
+                componentRestrictions: { country: 'us' },
+                fields: ['place_id', 'name', 'formatted_address'],
+            });
+
+            autocomplete.addListener('place_changed', () => {
+                const place = autocomplete.getPlace();
+                if (place.place_id) {
+                    setTownshipPlaceId(place.place_id);
+                    setTownshipPlaceName(place.formatted_address || place.name || '');
+                    setTownshipSearch(place.formatted_address || place.name || '');
+                }
+            });
+
+            townshipAutocompleteRef.current = autocomplete;
+        };
+
+        initAutocomplete();
+
+        return () => {
+            // Cleanup autocomplete on tab change
+            if (townshipAutocompleteRef.current) {
+                window.google?.maps?.event?.clearInstanceListeners(townshipAutocompleteRef.current);
+                townshipAutocompleteRef.current = null;
+            }
+        };
+    }, [currentTab, mapsApiKey]);
+
     const loadTabData = async () => {
         setIsLoading(true);
         try {
@@ -229,7 +291,19 @@ export default function AdminConsole() {
                     const secretsData = await api.getSecrets();
                     setSecrets(secretsData);
                     break;
+                case 'maps':
+                    // Load Maps API key
+                    try {
+                        const mapsConfig = await api.getMapsConfig();
+                        if (mapsConfig.google_maps_api_key) {
+                            setMapsApiKey(mapsConfig.google_maps_api_key);
+                        }
+                    } catch (err) {
+                        console.error('Failed to load Maps config:', err);
+                    }
+                    break;
             }
+
         } catch (err) {
             console.error('Failed to load data:', err);
         } finally {
@@ -503,6 +577,7 @@ export default function AdminConsole() {
         { id: 'services', icon: Grid3X3, label: 'Service Categories' },
         { id: 'secrets', icon: Key, label: 'API Keys' },
         { id: 'modules', icon: Puzzle, label: 'Modules' },
+        { id: 'maps', icon: MapPin, label: 'Maps' },
     ];
 
     return (
@@ -1374,6 +1449,67 @@ export default function AdminConsole() {
                                         </div>
                                     </Card>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Maps Tab */}
+                        {currentTab === 'maps' && (
+                            <div className="space-y-6">
+                                <div>
+                                    <h2 className="text-2xl font-bold text-white mb-2">Maps Configuration</h2>
+                                    <p className="text-white/60">
+                                        Configure map settings and boundaries for your township.
+                                    </p>
+                                </div>
+
+                                {/* Township Boundary */}
+                                <Card>
+                                    <h3 className="text-lg font-semibold text-white mb-4">Township Boundary</h3>
+                                    <p className="text-sm text-white/50 mb-4">
+                                        Search for your township using Google Places to set the boundary area.
+                                    </p>
+
+                                    {!mapsApiKey ? (
+                                        <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+                                            <p className="text-sm text-yellow-300">
+                                                ⚠️ Google Maps API key is required. Please configure it in the API Keys section first.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="relative">
+                                                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none z-10" />
+                                                <input
+                                                    ref={townshipInputRef}
+                                                    type="text"
+                                                    placeholder="Search for your township (e.g., West Windsor Township, NJ)"
+                                                    value={townshipSearch}
+                                                    onChange={(e) => setTownshipSearch(e.target.value)}
+                                                    className="w-full h-12 pl-12 pr-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                                    disabled={isSearchingTownship}
+                                                />
+                                            </div>
+
+                                            {townshipPlaceId && (
+                                                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+                                                    <p className="text-sm text-green-300 mb-2">✓ Township Selected</p>
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-white/50 text-sm">Name:</span>
+                                                            <span className="text-white font-medium">{townshipPlaceName}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-white/50 text-sm">Place ID:</span>
+                                                            <code className="text-primary-300 text-sm bg-black/30 px-2 py-1 rounded font-mono">
+                                                                {townshipPlaceId}
+                                                            </code>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </Card>
                             </div>
                         )}
                     </div>
