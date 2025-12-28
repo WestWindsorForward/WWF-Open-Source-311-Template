@@ -104,7 +104,7 @@ export default function GoogleMapsLocationPicker({
         if (markerRef.current) {
             markerRef.current.setPosition(positionObj);
         } else {
-            // Create a custom marker with a polished pin icon
+            // Create a simple, standard Google Maps-style pin marker
             markerRef.current = new window.google.maps.Marker({
                 position: positionObj,
                 map: mapRef.current,
@@ -112,24 +112,19 @@ export default function GoogleMapsLocationPicker({
                 animation: window.google.maps.Animation.DROP,
                 icon: {
                     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
                             <defs>
-                                <linearGradient id="pinGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#818cf8"/>
-                                    <stop offset="100%" style="stop-color:#4f46e5"/>
-                                </linearGradient>
-                                <filter id="shadow" x="-30%" y="-10%" width="160%" height="140%">
-                                    <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.35"/>
+                                <filter id="shadow" x="-50%" y="-20%" width="200%" height="150%">
+                                    <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
                                 </filter>
                             </defs>
-                            <path d="M24 0 C10.745 0 0 10.745 0 24 C0 42 24 60 24 60 C24 60 48 42 48 24 C48 10.745 37.255 0 24 0 Z" 
-                                  fill="url(#pinGradient)" filter="url(#shadow)"/>
-                            <circle cx="24" cy="22" r="10" fill="white" opacity="0.95"/>
-                            <circle cx="24" cy="22" r="5" fill="#4f46e5"/>
+                            <path d="M14 0 C6.268 0 0 6.268 0 14 C0 24.5 14 40 14 40 C14 40 28 24.5 28 14 C28 6.268 21.732 0 14 0 Z" 
+                                  fill="#6366f1" filter="url(#shadow)"/>
+                            <circle cx="14" cy="14" r="5" fill="white"/>
                         </svg>
                     `),
-                    scaledSize: new window.google.maps.Size(48, 60),
-                    anchor: new window.google.maps.Point(24, 60),
+                    scaledSize: new window.google.maps.Size(28, 40),
+                    anchor: new window.google.maps.Point(14, 40),
                 },
             });
 
@@ -375,16 +370,10 @@ export default function GoogleMapsLocationPicker({
                 />
                 {/* Instructions overlay - only when no location selected */}
                 {!value?.lat && !value?.lng && !isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/90 backdrop-blur-md rounded-2xl px-6 py-5 text-center border border-white/10 shadow-2xl max-w-xs mx-4">
-                            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary-500/20 flex items-center justify-center">
-                                <MapPin className="w-6 h-6 text-primary-400" />
-                            </div>
-                            <p className="text-base font-medium text-white mb-1">
-                                Select a Location
-                            </p>
-                            <p className="text-sm text-white/60">
-                                Type an address above or tap anywhere on the map to place a pin
+                    <div className="absolute inset-0 flex items-end justify-center pb-8 pointer-events-none">
+                        <div className="bg-slate-900 rounded-xl px-5 py-3 text-center shadow-lg border border-slate-700">
+                            <p className="text-sm text-white">
+                                <span className="text-primary-400">📍</span> Tap the map to select a location, or search above
                             </p>
                         </div>
                     </div>
