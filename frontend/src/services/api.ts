@@ -249,14 +249,44 @@ class ApiClient {
     async getMapsConfig(): Promise<{
         has_google_maps: boolean;
         google_maps_api_key: string | null;
-        map_id: string | null;
-        township_place_id: string | null;
+        township_boundary: object | null;
         default_center: { lat: number; lng: number };
         default_zoom: number;
     }> {
         return this.request('/gis/config');
     }
 
+    async searchOsmTownship(query: string): Promise<{
+        results: Array<{
+            osm_id: number;
+            display_name: string;
+            type: string;
+            class: string;
+            lat: string;
+            lon: string;
+            boundingbox: string[];
+        }>;
+    }> {
+        return this.request(`/gis/osm/search?query=${encodeURIComponent(query)}`);
+    }
+
+    async fetchOsmBoundary(osmId: number): Promise<{
+        geojson: object;
+        osm_id: number;
+    }> {
+        return this.request(`/gis/osm/boundary/${osmId}`);
+    }
+
+    async saveTownshipBoundary(geojsonData: object, name?: string): Promise<{
+        status: string;
+        message: string;
+    }> {
+        const url = name ? `/gis/township-boundary?name=${encodeURIComponent(name)}` : '/gis/township-boundary';
+        return this.request(url, {
+            method: 'POST',
+            body: JSON.stringify(geojsonData),
+        });
+    }
 
     async geocodeAddress(address: string): Promise<{
         lat: number;
@@ -274,6 +304,7 @@ class ApiClient {
     }> {
         return this.request(`/gis/reverse-geocode?lat=${lat}&lng=${lng}`);
     }
+
 
     async searchCensusBoundary(townName: string, stateAbbr: string, layerType: string = 'township'): Promise<{
         results: Array<{

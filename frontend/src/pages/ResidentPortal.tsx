@@ -81,8 +81,7 @@ export default function ResidentPortal() {
         lng: null
     });
     const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
-    const [mapId, setMapId] = useState<string | null>(null);
-    const [townshipPlaceId, setTownshipPlaceId] = useState<string | null>(null);
+    const [townshipBoundary, setTownshipBoundary] = useState<object | null>(null);
 
     // Load Maps API key and configuration
     useEffect(() => {
@@ -90,14 +89,12 @@ export default function ResidentPortal() {
             if (config.google_maps_api_key) {
                 setMapsApiKey(config.google_maps_api_key);
             }
-            if (config.map_id) {
-                setMapId(config.map_id);
-            }
-            if (config.township_place_id) {
-                setTownshipPlaceId(config.township_place_id);
+            if (config.township_boundary) {
+                setTownshipBoundary(config.township_boundary);
             }
         }).catch(() => { });
     }, []);
+
 
     useEffect(() => {
         loadServices();
@@ -508,9 +505,9 @@ export default function ResidentPortal() {
                                                     </label>
                                                     <GoogleMapsLocationPicker
                                                         apiKey={mapsApiKey}
-                                                        mapId={mapId}
-                                                        townshipPlaceId={townshipPlaceId}
+                                                        townshipBoundary={townshipBoundary}
                                                         value={location}
+
                                                         onChange={(newLocation) => {
                                                             setLocation(newLocation);
                                                             // Save both address AND coordinates

@@ -172,35 +172,21 @@ async def get_maps_config(db: AsyncSession = Depends(get_db)):
     """Get maps configuration for frontend"""
     api_key = await get_google_api_key(db)
     
-    # Get Map ID for Vector Maps with Feature Layers
-    map_id_result = await db.execute(
-        select(SystemSecret).where(SystemSecret.key_name == "GOOGLE_MAPS_MAP_ID")
-    )
-    map_id_secret = map_id_result.scalar_one_or_none()
-    map_id = map_id_secret.key_value if map_id_secret and map_id_secret.is_configured else None
-    
-    # Get Township Place ID for boundary styling
-    place_id_result = await db.execute(
-        select(SystemSecret).where(SystemSecret.key_name == "TOWNSHIP_PLACE_ID")
-    )
-    place_id_secret = place_id_result.scalar_one_or_none()
-    township_place_id = place_id_secret.key_value if place_id_secret and place_id_secret.is_configured else None
-    
-    # Get township settings for default center
+    # Get township settings
     result = await db.execute(select(SystemSettings).limit(1))
     settings = result.scalar_one_or_none()
     
     return {
         "has_google_maps": bool(api_key),
         "google_maps_api_key": api_key if api_key else None,
-        "map_id": map_id,
-        "township_place_id": township_place_id,
+        "township_boundary": settings.township_boundary if settings else None,
         "default_center": {
             "lat": 40.4168,  # Default to a central location
             "lng": -74.5430
         },
         "default_zoom": 12
     }
+
 
 
 
@@ -315,6 +301,138 @@ async def save_census_boundary(
         service.load_boundary_from_geojson(name, geojson_data)
         
         return {"status": "success", "message": f"Boundary '{name}' saved successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# ========== OSM / Nominatim Township Boundary Endpoints ==========
+
+@router.get("/osm/search")
+async def search_osm_township(
+    query: str,
+    _: User = Depends(get_current_admin)
+):
+    """Search for a township/city boundary using OpenStreetMap Nominatim"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Search Nominatim for the location
+            nominatim_url = "https://nominatim.openstreetmap.org/search"
+            params = {
+                "q": query,
+                "format": "json",
+                "limit": "5",
+                "addressdetails": "1"
+            }
+            headers = {
+                "User-Agent": "Township311/1.0 (township311-service)"
+            }
+            
+            response = await client.get(nominatim_url, params=params, headers=headers)
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Failed to connect to Nominatim"
+                )
+            
+            results = response.json()
+            
+            # Filter to only include results that are relations (have boundaries)
+            filtered_results = []
+            for r in results:
+                if r.get("osm_type") == "relation":
+                    filtered_results.append({
+                        "osm_id": r.get("osm_id"),
+                        "display_name": r.get("display_name"),
+                        "type": r.get("type"),
+                        "class": r.get("class"),
+                        "lat": r.get("lat"),
+                        "lon": r.get("lon"),
+                        "boundingbox": r.get("boundingbox")
+                    })
+            
+            return {"results": filtered_results}
+            
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to search Nominatim: {str(e)}"
+        )
+
+
+@router.get("/osm/boundary/{osm_id}")
+async def fetch_osm_boundary(
+    osm_id: int,
+    _: User = Depends(get_current_admin)
+):
+    """Fetch GeoJSON boundary from polygons.openstreetmap.fr for an OSM relation"""
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Fetch GeoJSON from polygons.openstreetmap.fr
+            polygon_url = f"https://polygons.openstreetmap.fr/get_geojson.py?id={osm_id}"
+            
+            response = await client.get(polygon_url)
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Failed to fetch boundary from OpenStreetMap. The boundary may not be available."
+                )
+            
+            geojson = response.json()
+            
+            return {"geojson": geojson, "osm_id": osm_id}
+            
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to fetch boundary: {str(e)}"
+        )
+
+
+@router.post("/township-boundary")
+async def save_township_boundary(
+    geojson_data: dict,
+    name: str = None,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Save the township boundary GeoJSON to system settings"""
+    try:
+        # Get or create system settings
+        result = await db.execute(select(SystemSettings).limit(1))
+        settings = result.scalar_one_or_none()
+        
+        if not settings:
+            settings = SystemSettings()
+            db.add(settings)
+        
+        # Normalize to FeatureCollection if needed
+        boundary_data = geojson_data
+        if "type" in geojson_data:
+            if geojson_data["type"] in ["Polygon", "MultiPolygon"]:
+                boundary_data = {
+                    "type": "FeatureCollection",
+                    "features": [{
+                        "type": "Feature",
+                        "geometry": geojson_data,
+                        "properties": {"name": name or "Township Boundary"}
+                    }]
+                }
+            elif geojson_data["type"] == "Feature":
+                boundary_data = {
+                    "type": "FeatureCollection",
+                    "features": [geojson_data]
+                }
+        
+        settings.township_boundary = boundary_data
+        await db.commit()
+        
+        return {"status": "success", "message": "Township boundary saved successfully"}
+        
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

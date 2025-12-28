@@ -10,8 +10,7 @@ declare global {
 
 interface GoogleMapsLocationPickerProps {
     apiKey: string;
-    mapId?: string | null;
-    townshipPlaceId?: string | null;
+    townshipBoundary?: object | null; // GeoJSON boundary from OpenStreetMap
     defaultCenter?: { lat: number; lng: number };
     defaultZoom?: number;
     value?: { address: string; lat: number | null; lng: number | null };
@@ -19,6 +18,7 @@ interface GoogleMapsLocationPickerProps {
     placeholder?: string;
     className?: string;
 }
+
 
 // Script loading state to prevent multiple loads
 let googleMapsLoadingPromise: Promise<void> | null = null;
@@ -56,8 +56,7 @@ const loadGoogleMapsScript = (apiKey: string): Promise<void> => {
 
 export default function GoogleMapsLocationPicker({
     apiKey,
-    mapId,
-    townshipPlaceId,
+    townshipBoundary,
     defaultCenter = { lat: 40.3573, lng: -74.6672 }, // Default to central NJ
     defaultZoom = 17,
     value,
@@ -65,6 +64,7 @@ export default function GoogleMapsLocationPicker({
     placeholder = 'Search for an address...',
     className = '',
 }: GoogleMapsLocationPickerProps) {
+
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const mapRef = useRef<google.maps.Map | null>(null);
@@ -185,56 +185,26 @@ export default function GoogleMapsLocationPicker({
                     },
                 };
 
-                // Add mapId for Vector Maps if provided
-                if (mapId) {
-                    (mapOptions as any).mapId = mapId;
-                }
-
                 const map = new window.google.maps.Map(mapContainerRef.current, mapOptions);
                 mapRef.current = map;
 
-                // Apply data-driven styling for township boundary if mapId and townshipPlaceId are provided
-                if (mapId && townshipPlaceId) {
-                    // Try to get the locality feature layer for boundary styling
+                // Add township boundary overlay if GeoJSON is provided
+                if (townshipBoundary) {
                     try {
-                        // @ts-ignore - Feature layers API (newer API not in standard types)
-                        const localityLayer = map.getFeatureLayer?.('LOCALITY');
-                        if (localityLayer) {
-                            // @ts-ignore - Feature layer style function
-                            localityLayer.style = (params: { feature: { placeId: string } }) => {
-                                if (params.feature.placeId === townshipPlaceId) {
-                                    return {
-                                        fillColor: '#6366f1',
-                                        fillOpacity: 0.15,
-                                        strokeColor: '#6366f1',
-                                        strokeOpacity: 0.8,
-                                        strokeWeight: 3,
-                                    };
-                                }
-                                return null;
-                            };
-                        }
+                        // Add the GeoJSON boundary to the map's data layer
+                        map.data.addGeoJson(townshipBoundary);
 
-                        // Also try administrative_area_level_3 for townships
-                        // @ts-ignore - Feature layers API
-                        const adminLayer = map.getFeatureLayer?.('ADMINISTRATIVE_AREA_LEVEL_3');
-                        if (adminLayer) {
-                            // @ts-ignore - Feature layer style function
-                            adminLayer.style = (params: { feature: { placeId: string } }) => {
-                                if (params.feature.placeId === townshipPlaceId) {
-                                    return {
-                                        fillColor: '#6366f1',
-                                        fillOpacity: 0.15,
-                                        strokeColor: '#6366f1',
-                                        strokeOpacity: 0.8,
-                                        strokeWeight: 3,
-                                    };
-                                }
-                                return null;
-                            };
-                        }
+                        // Style the boundary with semi-transparent fill and stroke
+                        map.data.setStyle({
+                            fillColor: '#6366f1',
+                            fillOpacity: 0.15,
+                            strokeColor: '#6366f1',
+                            strokeWeight: 3,
+                            strokeOpacity: 0.8,
+                            clickable: false,
+                        });
                     } catch (e) {
-                        console.warn('Feature layers not available:', e);
+                        console.warn('Failed to add township boundary:', e);
                     }
                 }
 

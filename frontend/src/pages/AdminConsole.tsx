@@ -172,14 +172,23 @@ export default function AdminConsole() {
 
     // Maps tab state
     const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
-    const [mapId, setMapId] = useState('');
     const [townshipSearch, setTownshipSearch] = useState('');
-    const [townshipPlaceId, setTownshipPlaceId] = useState<string | null>(null);
-    const [townshipPlaceName, setTownshipPlaceName] = useState<string | null>(null);
+    const [osmSearchResults, setOsmSearchResults] = useState<Array<{
+        osm_id: number;
+        display_name: string;
+        type: string;
+        class: string;
+        lat: string;
+        lon: string;
+    }>>([]);
+    const [selectedOsmResult, setSelectedOsmResult] = useState<{
+        osm_id: number;
+        display_name: string;
+    } | null>(null);
+    const [townshipBoundary, setTownshipBoundary] = useState<object | null>(null);
     const [isSearchingTownship, setIsSearchingTownship] = useState(false);
+    const [isFetchingBoundary, setIsFetchingBoundary] = useState(false);
     const [isSavingMaps, setIsSavingMaps] = useState(false);
-    const townshipInputRef = React.useRef<HTMLInputElement>(null);
-    const townshipAutocompleteRef = React.useRef<google.maps.places.Autocomplete | null>(null);
 
 
     // Password reset state
@@ -211,59 +220,6 @@ export default function AdminConsole() {
     useEffect(() => {
         loadTabData();
     }, [currentTab]);
-
-    // Initialize Google Places Autocomplete for Maps tab
-    useEffect(() => {
-        if (currentTab !== 'maps' || !mapsApiKey || !townshipInputRef.current) return;
-
-        // Load Google Maps script if not already loaded
-        const initAutocomplete = async () => {
-            // Check if Google Maps is loaded
-            if (!window.google?.maps?.places) {
-                // Load the script
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsApiKey}&libraries=places`;
-                script.async = true;
-                script.onload = () => {
-                    setupAutocomplete();
-                };
-                document.head.appendChild(script);
-            } else {
-                setupAutocomplete();
-            }
-        };
-
-        const setupAutocomplete = () => {
-            if (!townshipInputRef.current || townshipAutocompleteRef.current) return;
-
-            const autocomplete = new window.google.maps.places.Autocomplete(townshipInputRef.current, {
-                types: ['locality', 'administrative_area_level_3', 'sublocality'],
-                componentRestrictions: { country: 'us' },
-                fields: ['place_id', 'name', 'formatted_address'],
-            });
-
-            autocomplete.addListener('place_changed', () => {
-                const place = autocomplete.getPlace();
-                if (place.place_id) {
-                    setTownshipPlaceId(place.place_id);
-                    setTownshipPlaceName(place.formatted_address || place.name || '');
-                    setTownshipSearch(place.formatted_address || place.name || '');
-                }
-            });
-
-            townshipAutocompleteRef.current = autocomplete;
-        };
-
-        initAutocomplete();
-
-        return () => {
-            // Cleanup autocomplete on tab change
-            if (townshipAutocompleteRef.current) {
-                window.google?.maps?.event?.clearInstanceListeners(townshipAutocompleteRef.current);
-                townshipAutocompleteRef.current = null;
-            }
-        };
-    }, [currentTab, mapsApiKey]);
 
     const loadTabData = async () => {
         setIsLoading(true);
@@ -300,18 +256,14 @@ export default function AdminConsole() {
                         if (mapsConfig.google_maps_api_key) {
                             setMapsApiKey(mapsConfig.google_maps_api_key);
                         }
-                        if (mapsConfig.map_id) {
-                            setMapId(mapsConfig.map_id);
-                        }
-                        if (mapsConfig.township_place_id) {
-                            setTownshipPlaceId(mapsConfig.township_place_id);
-                            // We don't have the name stored, but show the place ID
-                            setTownshipPlaceName(null);
+                        if (mapsConfig.township_boundary) {
+                            setTownshipBoundary(mapsConfig.township_boundary);
                         }
                     } catch (err) {
                         console.error('Failed to load Maps config:', err);
                     }
                     break;
+
 
             }
 
@@ -336,7 +288,54 @@ export default function AdminConsole() {
     };
 
 
+    // OSM Search and Boundary handlers for Maps tab
+    const handleOsmSearch = async () => {
+        if (!townshipSearch.trim()) return;
+
+        setIsSearchingTownship(true);
+        setOsmSearchResults([]);
+        setSelectedOsmResult(null);
+
+        try {
+            const response = await api.searchOsmTownship(townshipSearch);
+            setOsmSearchResults(response.results);
+
+            if (response.results.length === 0) {
+                alert('No matching townships found. Try a different search term.');
+            }
+        } catch (err) {
+            console.error('OSM search failed:', err);
+            alert('Failed to search for township');
+        } finally {
+            setIsSearchingTownship(false);
+        }
+    };
+
+    const handleFetchBoundary = async () => {
+        if (!selectedOsmResult) return;
+
+        setIsFetchingBoundary(true);
+
+        try {
+            const response = await api.fetchOsmBoundary(selectedOsmResult.osm_id);
+
+            // Save the boundary
+            await api.saveTownshipBoundary(response.geojson, selectedOsmResult.display_name);
+
+            setTownshipBoundary(response.geojson);
+            setSelectedOsmResult(null);
+            setSaveMessage('Township boundary saved successfully!');
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (err) {
+            console.error('Failed to fetch boundary:', err);
+            alert('Failed to fetch boundary. The boundary may not be available for this location.');
+        } finally {
+            setIsFetchingBoundary(false);
+        }
+    };
+
     const handleCreateUser = async (e: React.FormEvent) => {
+
         e.preventDefault();
         try {
             // Clean up data - remove empty strings and send proper format
@@ -1483,104 +1482,107 @@ export default function AdminConsole() {
                                     </Card>
                                 ) : (
                                     <>
-                                        {/* Map ID Configuration */}
-                                        <Card>
-                                            <h3 className="text-lg font-semibold text-white mb-2">Map ID (Vector Maps)</h3>
-                                            <p className="text-sm text-white/50 mb-4">
-                                                To display township boundaries, you need a Map ID with Feature Layers enabled.
-                                            </p>
-
-                                            <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20 mb-4">
-                                                <p className="text-sm font-medium text-primary-300 mb-2">Setup Instructions:</p>
-                                                <ol className="text-xs text-white/60 space-y-1 list-decimal list-inside">
-                                                    <li>Go to <a href="https://console.cloud.google.com/google/maps-apis/client-libraries" target="_blank" rel="noopener noreferrer" className="text-primary-400 underline">Google Cloud Console → Map Management</a></li>
-                                                    <li>Create a new Map ID with "JavaScript" type and "Vector" rendering</li>
-                                                    <li>Click on the Map ID → Enable "Locality" or "Administrative area level 3" Feature Layer</li>
-                                                    <li>Copy the Map ID and paste it below</li>
-                                                </ol>
-                                            </div>
-
-                                            <Input
-                                                label="Map ID"
-                                                placeholder="e.g., 8e0a97af9386fef"
-                                                value={mapId}
-                                                onChange={(e) => setMapId(e.target.value)}
-                                            />
-                                        </Card>
-
-                                        {/* Township Boundary */}
+                                        {/* Township Boundary Search */}
                                         <Card>
                                             <h3 className="text-lg font-semibold text-white mb-2">Township Boundary</h3>
                                             <p className="text-sm text-white/50 mb-4">
-                                                Search for your township to get its Place ID for boundary styling.
+                                                Search for your township using OpenStreetMap to get its boundary.
                                             </p>
 
-                                            <div className="relative mb-4">
-                                                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none z-10" />
-                                                <input
-                                                    ref={townshipInputRef}
-                                                    type="text"
-                                                    placeholder="Search for your township (e.g., West Windsor Township, NJ)"
-                                                    value={townshipSearch}
-                                                    onChange={(e) => setTownshipSearch(e.target.value)}
-                                                    className="w-full h-12 pl-12 pr-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 transition-all"
-                                                    disabled={isSearchingTownship}
-                                                />
+                                            <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20 mb-4">
+                                                <p className="text-sm font-medium text-primary-300 mb-2">How it works:</p>
+                                                <ol className="text-xs text-white/60 space-y-1 list-decimal list-inside">
+                                                    <li>Search for your township name (e.g., "West Windsor Township, NJ")</li>
+                                                    <li>Select from the search results</li>
+                                                    <li>Click "Fetch Boundary" to get the GeoJSON boundary data</li>
+                                                    <li>The boundary will be displayed on the resident portal map</li>
+                                                </ol>
                                             </div>
 
-                                            {townshipPlaceId && (
-                                                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
-                                                    <p className="text-sm text-green-300 mb-2">✓ Township Selected</p>
-                                                    <div className="space-y-2">
-                                                        {townshipPlaceName && (
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-white/50 text-sm">Name:</span>
-                                                                <span className="text-white font-medium">{townshipPlaceName}</span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-white/50 text-sm">Place ID:</span>
-                                                            <code className="text-primary-300 text-sm bg-black/30 px-2 py-1 rounded font-mono break-all">
-                                                                {townshipPlaceId}
-                                                            </code>
-                                                        </div>
+                                            {/* Search Input */}
+                                            <div className="flex gap-2 mb-4">
+                                                <div className="relative flex-1">
+                                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none z-10" />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search for your township..."
+                                                        value={townshipSearch}
+                                                        onChange={(e) => setTownshipSearch(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                handleOsmSearch();
+                                                            }
+                                                        }}
+                                                        className="w-full h-12 pl-12 pr-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                                                        disabled={isSearchingTownship}
+                                                    />
+                                                </div>
+                                                <Button
+                                                    onClick={handleOsmSearch}
+                                                    isLoading={isSearchingTownship}
+                                                    disabled={!townshipSearch.trim()}
+                                                >
+                                                    Search
+                                                </Button>
+                                            </div>
+
+                                            {/* Search Results */}
+                                            {osmSearchResults.length > 0 && (
+                                                <div className="mb-4">
+                                                    <p className="text-sm text-white/60 mb-2">Select your township:</p>
+                                                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                                                        {osmSearchResults.map((result) => (
+                                                            <button
+                                                                key={result.osm_id}
+                                                                onClick={() => {
+                                                                    setSelectedOsmResult(result);
+                                                                    setOsmSearchResults([]);
+                                                                }}
+                                                                className="w-full p-3 rounded-xl text-left transition-all bg-white/5 hover:bg-white/10 border border-white/10"
+                                                            >
+                                                                <p className="text-sm text-white font-medium">{result.display_name}</p>
+                                                                <p className="text-xs text-white/40 mt-1">
+                                                                    OSM ID: {result.osm_id} • Type: {result.type}
+                                                                </p>
+                                                            </button>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
-                                        </Card>
 
-                                        {/* Save Button */}
-                                        <div className="flex justify-end">
-                                            <Button
-                                                onClick={async () => {
-                                                    setIsSavingMaps(true);
-                                                    try {
-                                                        // Save Map ID
-                                                        if (mapId) {
-                                                            await api.updateSecret('GOOGLE_MAPS_MAP_ID', mapId);
-                                                        }
-                                                        // Save Township Place ID
-                                                        if (townshipPlaceId) {
-                                                            await api.updateSecret('TOWNSHIP_PLACE_ID', townshipPlaceId);
-                                                        }
-                                                        setSaveMessage('Maps configuration saved!');
-                                                        setTimeout(() => setSaveMessage(null), 3000);
-                                                    } catch (err) {
-                                                        console.error('Failed to save maps config:', err);
-                                                        alert('Failed to save configuration');
-                                                    } finally {
-                                                        setIsSavingMaps(false);
-                                                    }
-                                                }}
-                                                isLoading={isSavingMaps}
-                                                disabled={!mapId && !townshipPlaceId}
-                                            >
-                                                Save Maps Configuration
-                                            </Button>
-                                        </div>
+                                            {/* Selected Township */}
+                                            {selectedOsmResult && (
+                                                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 mb-4">
+                                                    <p className="text-sm text-blue-300 mb-2">Selected Township</p>
+                                                    <p className="text-white font-medium text-sm">{selectedOsmResult.display_name}</p>
+                                                    <p className="text-xs text-white/50 mt-1">OSM ID: {selectedOsmResult.osm_id}</p>
+                                                    <div className="mt-3">
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={handleFetchBoundary}
+                                                            isLoading={isFetchingBoundary}
+                                                        >
+                                                            Fetch & Save Boundary
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Current Boundary Status */}
+                                            {townshipBoundary && (
+                                                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+                                                    <p className="text-sm text-green-300 mb-2">✓ Township Boundary Configured</p>
+                                                    <p className="text-xs text-white/60">
+                                                        Boundary data is saved and will be displayed on the resident portal map.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </Card>
                                     </>
                                 )}
                             </div>
+
                         )}
 
                     </div>

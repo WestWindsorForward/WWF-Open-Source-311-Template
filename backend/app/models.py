@@ -155,7 +155,9 @@ class SystemSettings(Base):
     primary_color = Column(String(7), default="#6366f1")
     custom_domain = Column(String(255))  # For custom domain configuration
     modules = Column(JSON, default={"ai_analysis": False, "sms_alerts": False})
+    township_boundary = Column(JSON)  # GeoJSON boundary from OpenStreetMap
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 
 
 class SystemSecret(Base):
