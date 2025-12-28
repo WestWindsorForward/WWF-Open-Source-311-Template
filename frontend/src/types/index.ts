@@ -39,13 +39,18 @@ export interface ServiceDefinition {
     departments: Department[];
     routing_mode?: 'township' | 'third_party' | 'road_based';
     routing_config?: {
-        url?: string;
+        // Township mode
+        route_to?: 'all_staff' | 'specific_staff';
+        staff_ids?: number[];
+        // Third party mode
         message?: string;
-        default?: 'township' | 'third_party';
-        township_roads?: string[];
-        county_roads?: string[];
-        third_party_url?: string;
+        contacts?: { name: string; phone: string; url: string }[];
+        // Road-based mode
+        default_handler?: 'township' | 'third_party';
+        exclusion_list?: string[];
+        inclusion_list?: string[];
         third_party_message?: string;
+        third_party_contacts?: { name: string; phone: string; url: string }[];
     };
     assigned_department_id?: number;
     assigned_department?: Department;

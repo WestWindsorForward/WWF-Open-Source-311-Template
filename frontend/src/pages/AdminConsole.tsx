@@ -22,12 +22,74 @@ import {
     MessageSquare,
     Building2,
     Edit,
+    Phone,
+    UserCheck,
+    AlertCircle,
+    Car,
+    Trash,
+    Lightbulb,
+    TreePine,
+    Building,
+    Hammer,
+    Droplet,
+    Bug,
+    PaintBucket,
+    Wrench,
+    Route,
+    MapPin,
+    Home,
+    Zap,
+    Shield,
+    Heart,
+    Star,
+    Flag,
+    Bell,
+    Camera,
+    Clock,
+    FileText,
+    Settings,
+    HelpCircle,
+    Info,
+    type LucideIcon,
 } from 'lucide-react';
 import { Button, Card, Modal, Input, Select, Badge } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
 import { User, ServiceDefinition, SystemSettings, SystemSecret, Department } from '../types';
+
+// Icon library for service categories
+const ICON_LIBRARY: { name: string; icon: LucideIcon }[] = [
+    { name: 'AlertCircle', icon: AlertCircle },
+    { name: 'Car', icon: Car },
+    { name: 'Trash', icon: Trash },
+    { name: 'Lightbulb', icon: Lightbulb },
+    { name: 'TreePine', icon: TreePine },
+    { name: 'Building', icon: Building },
+    { name: 'Hammer', icon: Hammer },
+    { name: 'Droplet', icon: Droplet },
+    { name: 'Bug', icon: Bug },
+    { name: 'PaintBucket', icon: PaintBucket },
+    { name: 'Wrench', icon: Wrench },
+    { name: 'Route', icon: Route },
+    { name: 'MapPin', icon: MapPin },
+    { name: 'Home', icon: Home },
+    { name: 'Zap', icon: Zap },
+    { name: 'Shield', icon: Shield },
+    { name: 'Heart', icon: Heart },
+    { name: 'Star', icon: Star },
+    { name: 'Flag', icon: Flag },
+    { name: 'Bell', icon: Bell },
+    { name: 'Camera', icon: Camera },
+    { name: 'Mail', icon: Mail },
+    { name: 'Phone', icon: Phone },
+    { name: 'Clock', icon: Clock },
+    { name: 'FileText', icon: FileText },
+    { name: 'Settings', icon: Settings },
+    { name: 'HelpCircle', icon: HelpCircle },
+    { name: 'Info', icon: Info },
+    { name: 'Users', icon: Users },
+];
 
 type Tab = 'branding' | 'users' | 'departments' | 'services' | 'secrets' | 'modules';
 
@@ -73,14 +135,20 @@ export default function AdminConsole() {
     const [serviceRouting, setServiceRouting] = useState({
         routing_mode: 'township' as 'township' | 'third_party' | 'road_based',
         assigned_department_id: null as number | null,
+        icon: 'AlertCircle',
         routing_config: {
-            url: '',
+            // Township mode
+            route_to: 'all_staff' as 'all_staff' | 'specific_staff',
+            staff_ids: [] as number[],
+            // Third party mode
             message: '',
-            default: 'township' as 'township' | 'third_party',
-            township_roads: '',
-            county_roads: '',
-            third_party_url: '',
+            contacts: [] as { name: string; phone: string; url: string }[],
+            // Road-based mode
+            default_handler: 'township' as 'township' | 'third_party',
+            exclusion_list: '', // County roads (when township is default)
+            inclusion_list: '', // Township roads (when third party is default)
             third_party_message: '',
+            third_party_contacts: [] as { name: string; phone: string; url: string }[],
         },
     });
 
@@ -278,14 +346,20 @@ export default function AdminConsole() {
         setServiceRouting({
             routing_mode: service.routing_mode || 'township',
             assigned_department_id: service.assigned_department_id || null,
+            icon: service.icon || 'AlertCircle',
             routing_config: {
-                url: config.url || '',
+                // Township mode
+                route_to: config.route_to || 'all_staff',
+                staff_ids: config.staff_ids || [],
+                // Third party mode
                 message: config.message || '',
-                default: config.default || 'township',
-                township_roads: config.township_roads?.join(', ') || '',
-                county_roads: config.county_roads?.join(', ') || '',
-                third_party_url: config.third_party_url || '',
+                contacts: config.contacts || [],
+                // Road-based mode
+                default_handler: config.default_handler || 'township',
+                exclusion_list: Array.isArray(config.exclusion_list) ? config.exclusion_list.join(', ') : '',
+                inclusion_list: Array.isArray(config.inclusion_list) ? config.inclusion_list.join(', ') : '',
                 third_party_message: config.third_party_message || '',
+                third_party_contacts: config.third_party_contacts || [],
             },
         });
         setShowServiceEditModal(true);
@@ -297,23 +371,28 @@ export default function AdminConsole() {
 
         try {
             const config: Record<string, any> = {};
-            if (serviceRouting.routing_mode === 'third_party') {
-                config.url = serviceRouting.routing_config.url;
+
+            if (serviceRouting.routing_mode === 'township') {
+                config.route_to = serviceRouting.routing_config.route_to;
+                config.staff_ids = serviceRouting.routing_config.staff_ids;
+            } else if (serviceRouting.routing_mode === 'third_party') {
                 config.message = serviceRouting.routing_config.message;
+                config.contacts = serviceRouting.routing_config.contacts;
             } else if (serviceRouting.routing_mode === 'road_based') {
-                config.default = serviceRouting.routing_config.default;
-                config.township_roads = serviceRouting.routing_config.township_roads
-                    .split(',').map(r => r.trim()).filter(Boolean);
-                config.county_roads = serviceRouting.routing_config.county_roads
-                    .split(',').map(r => r.trim()).filter(Boolean);
-                config.third_party_url = serviceRouting.routing_config.third_party_url;
+                config.default_handler = serviceRouting.routing_config.default_handler;
+                config.exclusion_list = serviceRouting.routing_config.exclusion_list
+                    .split(',').map((r: string) => r.trim()).filter(Boolean);
+                config.inclusion_list = serviceRouting.routing_config.inclusion_list
+                    .split(',').map((r: string) => r.trim()).filter(Boolean);
                 config.third_party_message = serviceRouting.routing_config.third_party_message;
+                config.third_party_contacts = serviceRouting.routing_config.third_party_contacts;
             }
 
             await api.updateService(editingService.id, {
                 routing_mode: serviceRouting.routing_mode,
                 routing_config: config,
                 assigned_department_id: serviceRouting.assigned_department_id || undefined,
+                icon: serviceRouting.icon,
             });
 
             setShowServiceEditModal(false);
@@ -1525,33 +1604,15 @@ export default function AdminConsole() {
                 }}
                 title={`Configure Routing: ${editingService?.service_name || ''}`}
             >
-                <form onSubmit={handleSaveServiceRouting} className="space-y-5">
-                    {/* Department Assignment */}
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/70">Assigned Department</label>
-                        <select
-                            value={serviceRouting.assigned_department_id || ''}
-                            onChange={(e) => setServiceRouting(p => ({
-                                ...p,
-                                assigned_department_id: e.target.value ? parseInt(e.target.value) : null
-                            }))}
-                            className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            <option value="">No department assigned</option>
-                            {departments.map(d => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
+                <form onSubmit={handleSaveServiceRouting} className="space-y-5 max-h-[70vh] overflow-y-auto pr-2">
                     {/* Routing Mode */}
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/70">Routing Mode</label>
                         <div className="grid grid-cols-3 gap-2">
                             {[
-                                { value: 'township', label: 'Township Handles', desc: 'Standard - we process this' },
-                                { value: 'third_party', label: '3rd Party', desc: 'Redirect to external service' },
-                                { value: 'road_based', label: 'Road-Based', desc: 'Route by road name' },
+                                { value: 'township', label: 'Township Handles', desc: 'We process this request' },
+                                { value: 'third_party', label: '3rd Party Only', desc: 'Block & redirect' },
+                                { value: 'road_based', label: 'Road-Based', desc: 'Route by address' },
                             ].map(mode => (
                                 <button
                                     type="button"
@@ -1569,99 +1630,244 @@ export default function AdminConsole() {
                         </div>
                     </div>
 
+                    {/* Icon Picker */}
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/70">Category Icon</label>
+                        <div className="grid grid-cols-10 gap-1 p-2 rounded-lg bg-white/5 border border-white/10 max-h-24 overflow-y-auto">
+                            {ICON_LIBRARY.map(({ name, icon: IconComponent }) => (
+                                <button
+                                    type="button"
+                                    key={name}
+                                    onClick={() => setServiceRouting(p => ({ ...p, icon: name }))}
+                                    className={`p-2 rounded transition-colors ${serviceRouting.icon === name
+                                        ? 'bg-primary-500 text-white'
+                                        : 'bg-white/5 text-white/60 hover:bg-white/10'
+                                        }`}
+                                    title={name}
+                                >
+                                    <IconComponent className="w-4 h-4" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Township Mode Config */}
+                    {serviceRouting.routing_mode === 'township' && (
+                        <div className="space-y-4 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                            <h4 className="font-medium text-green-300 flex items-center gap-2">
+                                <Check className="w-4 h-4" /> Township Handles This
+                            </h4>
+
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-white/70">Assign to Department</label>
+                                <select
+                                    value={serviceRouting.assigned_department_id || ''}
+                                    onChange={(e) => setServiceRouting(p => ({
+                                        ...p,
+                                        assigned_department_id: e.target.value ? parseInt(e.target.value) : null,
+                                        routing_config: { ...p.routing_config, staff_ids: [] }
+                                    }))}
+                                    className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
+                                >
+                                    <option value="">Select department...</option>
+                                    {departments.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {serviceRouting.assigned_department_id && (
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-white/70">Route To</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setServiceRouting(p => ({
+                                                ...p,
+                                                routing_config: { ...p.routing_config, route_to: 'all_staff', staff_ids: [] }
+                                            }))}
+                                            className={`p-3 rounded-lg border text-center ${serviceRouting.routing_config.route_to === 'all_staff'
+                                                ? 'bg-primary-500/20 border-primary-500 text-white'
+                                                : 'bg-white/5 border-white/10 text-white/70'
+                                                }`}
+                                        >
+                                            <Users className="w-5 h-5 mx-auto mb-1" />
+                                            <div className="text-sm font-medium">All Staff in Dept</div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setServiceRouting(p => ({
+                                                ...p,
+                                                routing_config: { ...p.routing_config, route_to: 'specific_staff' }
+                                            }))}
+                                            className={`p-3 rounded-lg border text-center ${serviceRouting.routing_config.route_to === 'specific_staff'
+                                                ? 'bg-primary-500/20 border-primary-500 text-white'
+                                                : 'bg-white/5 border-white/10 text-white/70'
+                                                }`}
+                                        >
+                                            <UserCheck className="w-5 h-5 mx-auto mb-1" />
+                                            <div className="text-sm font-medium">Specific Staff</div>
+                                        </button>
+                                    </div>
+                                    {serviceRouting.routing_config.route_to === 'specific_staff' && (
+                                        <p className="text-xs text-white/40 bg-white/5 p-2 rounded">
+                                            Staff member selection coming soon. Currently routes to all staff.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Third Party Config */}
                     {serviceRouting.routing_mode === 'third_party' && (
-                        <div className="space-y-4 p-4 rounded-lg bg-white/5 border border-white/10">
-                            <h4 className="font-medium text-white">Third Party Redirect</h4>
-                            <Input
-                                label="Redirect URL"
-                                placeholder="https://county.gov/roads"
-                                value={serviceRouting.routing_config.url}
-                                onChange={(e) => setServiceRouting(p => ({
+                        <div className="space-y-4 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                            <h4 className="font-medium text-red-300 flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4" /> Third Party Only (Blocks Submission)
+                            </h4>
+                            <p className="text-sm text-white/50">Users cannot submit requests. They see message + contacts.</p>
+
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-white/70">Message to Display</label>
+                                <textarea
+                                    rows={3}
+                                    placeholder="This service is handled by the County..."
+                                    value={serviceRouting.routing_config.message}
+                                    onChange={(e) => setServiceRouting(p => ({
+                                        ...p,
+                                        routing_config: { ...p.routing_config, message: e.target.value }
+                                    }))}
+                                    className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-white/70">Contact Info (Name / Phone / URL)</label>
+                                {serviceRouting.routing_config.contacts.map((contact, idx) => (
+                                    <div key={idx} className="flex gap-2">
+                                        <input placeholder="Name" value={contact.name} onChange={(e) => {
+                                            const c = [...serviceRouting.routing_config.contacts];
+                                            c[idx] = { ...c[idx], name: e.target.value };
+                                            setServiceRouting(p => ({ ...p, routing_config: { ...p.routing_config, contacts: c } }));
+                                        }} className="flex-1 h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3" />
+                                        <input placeholder="Phone" value={contact.phone} onChange={(e) => {
+                                            const c = [...serviceRouting.routing_config.contacts];
+                                            c[idx] = { ...c[idx], phone: e.target.value };
+                                            setServiceRouting(p => ({ ...p, routing_config: { ...p.routing_config, contacts: c } }));
+                                        }} className="flex-1 h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3" />
+                                        <input placeholder="URL" value={contact.url} onChange={(e) => {
+                                            const c = [...serviceRouting.routing_config.contacts];
+                                            c[idx] = { ...c[idx], url: e.target.value };
+                                            setServiceRouting(p => ({ ...p, routing_config: { ...p.routing_config, contacts: c } }));
+                                        }} className="flex-1 h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3" />
+                                        <button type="button" onClick={() => {
+                                            const c = serviceRouting.routing_config.contacts.filter((_, i) => i !== idx);
+                                            setServiceRouting(p => ({ ...p, routing_config: { ...p.routing_config, contacts: c } }));
+                                        }} className="p-2 text-red-400 hover:text-red-300"><X className="w-4 h-4" /></button>
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => setServiceRouting(p => ({
                                     ...p,
-                                    routing_config: { ...p.routing_config, url: e.target.value }
-                                }))}
-                            />
-                            <Input
-                                label="Message to Show"
-                                placeholder="This is handled by the County..."
-                                value={serviceRouting.routing_config.message}
-                                onChange={(e) => setServiceRouting(p => ({
-                                    ...p,
-                                    routing_config: { ...p.routing_config, message: e.target.value }
-                                }))}
-                            />
+                                    routing_config: { ...p.routing_config, contacts: [...p.routing_config.contacts, { name: '', phone: '', url: '' }] }
+                                }))} className="text-sm text-primary-400 hover:text-primary-300 flex items-center gap-1">
+                                    <Plus className="w-4 h-4" /> Add Contact
+                                </button>
+                            </div>
                         </div>
                     )}
 
                     {/* Road-Based Config */}
                     {serviceRouting.routing_mode === 'road_based' && (
-                        <div className="space-y-4 p-4 rounded-lg bg-white/5 border border-white/10">
-                            <h4 className="font-medium text-white">Road-Based Routing</h4>
+                        <div className="space-y-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            <h4 className="font-medium text-amber-300 flex items-center gap-2">
+                                <Route className="w-4 h-4" /> Road-Based Routing
+                            </h4>
 
+                            {/* Default Handler */}
                             <div className="space-y-2">
-                                <label className="block text-sm font-medium text-white/70">Default if road not matched</label>
+                                <label className="block text-sm font-medium text-white/70">Default Handler</label>
                                 <select
-                                    value={serviceRouting.routing_config.default}
+                                    value={serviceRouting.routing_config.default_handler}
                                     onChange={(e) => setServiceRouting(p => ({
                                         ...p,
-                                        routing_config: { ...p.routing_config, default: e.target.value as any }
+                                        routing_config: { ...p.routing_config, default_handler: e.target.value as any }
                                     }))}
                                     className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
                                 >
-                                    <option value="township">Township handles (default)</option>
-                                    <option value="third_party">Redirect to 3rd party</option>
+                                    <option value="township">Township handles by default</option>
+                                    <option value="third_party">Third party handles by default</option>
                                 </select>
                             </div>
 
+                            {/* Township Department */}
                             <div className="space-y-2">
-                                <label className="block text-sm font-medium text-green-300">Township Roads (we handle)</label>
-                                <textarea
-                                    rows={3}
-                                    placeholder="Main St, Oak Ave, Elm Rd..."
-                                    value={serviceRouting.routing_config.township_roads}
+                                <label className="block text-sm font-medium text-white/70">Township Department</label>
+                                <select
+                                    value={serviceRouting.assigned_department_id || ''}
                                     onChange={(e) => setServiceRouting(p => ({
                                         ...p,
-                                        routing_config: { ...p.routing_config, township_roads: e.target.value }
+                                        assigned_department_id: e.target.value ? parseInt(e.target.value) : null
                                     }))}
-                                    className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                />
-                                <p className="text-xs text-white/40">Comma-separated list of roads the township maintains</p>
+                                    className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
+                                >
+                                    <option value="">Select department...</option>
+                                    {departments.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-amber-300">County/State Roads (redirect)</label>
+                            {/* Conditional Road Lists */}
+                            {serviceRouting.routing_config.default_handler === 'township' ? (
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-red-300">
+                                        Exclusion List (Roads handled by Third Party)
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        placeholder="County Rd 1, Route 206, State Hwy 27..."
+                                        value={serviceRouting.routing_config.exclusion_list}
+                                        onChange={(e) => setServiceRouting(p => ({
+                                            ...p,
+                                            routing_config: { ...p.routing_config, exclusion_list: e.target.value }
+                                        }))}
+                                        className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2"
+                                    />
+                                    <p className="text-xs text-white/40">These roads will redirect to third party</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-green-300">
+                                        Inclusion List (Roads we handle)
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        placeholder="Main St, Oak Ave, Elm Rd..."
+                                        value={serviceRouting.routing_config.inclusion_list}
+                                        onChange={(e) => setServiceRouting(p => ({
+                                            ...p,
+                                            routing_config: { ...p.routing_config, inclusion_list: e.target.value }
+                                        }))}
+                                        className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2"
+                                    />
+                                    <p className="text-xs text-white/40">Only these roads will be processed by township</p>
+                                </div>
+                            )}
+
+                            {/* Third Party Redirect Message */}
+                            <div className="space-y-2 pt-2 border-t border-white/10">
+                                <label className="block text-sm font-medium text-white/70">Third Party Redirect Message</label>
                                 <textarea
-                                    rows={3}
-                                    placeholder="County Rd 1, Route 206, State Hwy 27..."
-                                    value={serviceRouting.routing_config.county_roads}
+                                    rows={2}
+                                    placeholder="This road is maintained by the County..."
+                                    value={serviceRouting.routing_config.third_party_message}
                                     onChange={(e) => setServiceRouting(p => ({
                                         ...p,
-                                        routing_config: { ...p.routing_config, county_roads: e.target.value }
+                                        routing_config: { ...p.routing_config, third_party_message: e.target.value }
                                     }))}
-                                    className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2"
                                 />
-                                <p className="text-xs text-white/40">Comma-separated list of roads that should be redirected</p>
                             </div>
-
-                            <Input
-                                label="Third Party URL (for county roads)"
-                                placeholder="https://county.gov/roads"
-                                value={serviceRouting.routing_config.third_party_url}
-                                onChange={(e) => setServiceRouting(p => ({
-                                    ...p,
-                                    routing_config: { ...p.routing_config, third_party_url: e.target.value }
-                                }))}
-                            />
-                            <Input
-                                label="Redirect Message"
-                                placeholder="This road is maintained by the County..."
-                                value={serviceRouting.routing_config.third_party_message}
-                                onChange={(e) => setServiceRouting(p => ({
-                                    ...p,
-                                    routing_config: { ...p.routing_config, third_party_message: e.target.value }
-                                }))}
-                            />
                         </div>
                     )}
 
