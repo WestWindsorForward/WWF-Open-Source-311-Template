@@ -172,10 +172,12 @@ export default function AdminConsole() {
 
     // Maps tab state
     const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+    const [mapId, setMapId] = useState('');
     const [townshipSearch, setTownshipSearch] = useState('');
     const [townshipPlaceId, setTownshipPlaceId] = useState<string | null>(null);
     const [townshipPlaceName, setTownshipPlaceName] = useState<string | null>(null);
     const [isSearchingTownship, setIsSearchingTownship] = useState(false);
+    const [isSavingMaps, setIsSavingMaps] = useState(false);
     const townshipInputRef = React.useRef<HTMLInputElement>(null);
     const townshipAutocompleteRef = React.useRef<google.maps.places.Autocomplete | null>(null);
 
@@ -292,16 +294,25 @@ export default function AdminConsole() {
                     setSecrets(secretsData);
                     break;
                 case 'maps':
-                    // Load Maps API key
+                    // Load Maps configuration
                     try {
                         const mapsConfig = await api.getMapsConfig();
                         if (mapsConfig.google_maps_api_key) {
                             setMapsApiKey(mapsConfig.google_maps_api_key);
                         }
+                        if (mapsConfig.map_id) {
+                            setMapId(mapsConfig.map_id);
+                        }
+                        if (mapsConfig.township_place_id) {
+                            setTownshipPlaceId(mapsConfig.township_place_id);
+                            // We don't have the name stored, but show the place ID
+                            setTownshipPlaceName(null);
+                        }
                     } catch (err) {
                         console.error('Failed to load Maps config:', err);
                     }
                     break;
+
             }
 
         } catch (err) {
@@ -1458,26 +1469,53 @@ export default function AdminConsole() {
                                 <div>
                                     <h2 className="text-2xl font-bold text-white mb-2">Maps Configuration</h2>
                                     <p className="text-white/60">
-                                        Configure map settings and boundaries for your township.
+                                        Configure map settings and township boundary for data-driven styling.
                                     </p>
                                 </div>
 
-                                {/* Township Boundary */}
-                                <Card>
-                                    <h3 className="text-lg font-semibold text-white mb-4">Township Boundary</h3>
-                                    <p className="text-sm text-white/50 mb-4">
-                                        Search for your township using Google Places to set the boundary area.
-                                    </p>
-
-                                    {!mapsApiKey ? (
+                                {!mapsApiKey ? (
+                                    <Card>
                                         <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
                                             <p className="text-sm text-yellow-300">
                                                 ⚠️ Google Maps API key is required. Please configure it in the API Keys section first.
                                             </p>
                                         </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            <div className="relative">
+                                    </Card>
+                                ) : (
+                                    <>
+                                        {/* Map ID Configuration */}
+                                        <Card>
+                                            <h3 className="text-lg font-semibold text-white mb-2">Map ID (Vector Maps)</h3>
+                                            <p className="text-sm text-white/50 mb-4">
+                                                To display township boundaries, you need a Map ID with Feature Layers enabled.
+                                            </p>
+
+                                            <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20 mb-4">
+                                                <p className="text-sm font-medium text-primary-300 mb-2">Setup Instructions:</p>
+                                                <ol className="text-xs text-white/60 space-y-1 list-decimal list-inside">
+                                                    <li>Go to <a href="https://console.cloud.google.com/google/maps-apis/client-libraries" target="_blank" rel="noopener noreferrer" className="text-primary-400 underline">Google Cloud Console → Map Management</a></li>
+                                                    <li>Create a new Map ID with "JavaScript" type and "Vector" rendering</li>
+                                                    <li>Click on the Map ID → Enable "Locality" or "Administrative area level 3" Feature Layer</li>
+                                                    <li>Copy the Map ID and paste it below</li>
+                                                </ol>
+                                            </div>
+
+                                            <Input
+                                                label="Map ID"
+                                                placeholder="e.g., 8e0a97af9386fef"
+                                                value={mapId}
+                                                onChange={(e) => setMapId(e.target.value)}
+                                            />
+                                        </Card>
+
+                                        {/* Township Boundary */}
+                                        <Card>
+                                            <h3 className="text-lg font-semibold text-white mb-2">Township Boundary</h3>
+                                            <p className="text-sm text-white/50 mb-4">
+                                                Search for your township to get its Place ID for boundary styling.
+                                            </p>
+
+                                            <div className="relative mb-4">
                                                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 pointer-events-none z-10" />
                                                 <input
                                                     ref={townshipInputRef}
@@ -1494,24 +1532,57 @@ export default function AdminConsole() {
                                                 <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
                                                     <p className="text-sm text-green-300 mb-2">✓ Township Selected</p>
                                                     <div className="space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-white/50 text-sm">Name:</span>
-                                                            <span className="text-white font-medium">{townshipPlaceName}</span>
-                                                        </div>
+                                                        {townshipPlaceName && (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-white/50 text-sm">Name:</span>
+                                                                <span className="text-white font-medium">{townshipPlaceName}</span>
+                                                            </div>
+                                                        )}
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-white/50 text-sm">Place ID:</span>
-                                                            <code className="text-primary-300 text-sm bg-black/30 px-2 py-1 rounded font-mono">
+                                                            <code className="text-primary-300 text-sm bg-black/30 px-2 py-1 rounded font-mono break-all">
                                                                 {townshipPlaceId}
                                                             </code>
                                                         </div>
                                                     </div>
                                                 </div>
                                             )}
+                                        </Card>
+
+                                        {/* Save Button */}
+                                        <div className="flex justify-end">
+                                            <Button
+                                                onClick={async () => {
+                                                    setIsSavingMaps(true);
+                                                    try {
+                                                        // Save Map ID
+                                                        if (mapId) {
+                                                            await api.updateSecret('GOOGLE_MAPS_MAP_ID', mapId);
+                                                        }
+                                                        // Save Township Place ID
+                                                        if (townshipPlaceId) {
+                                                            await api.updateSecret('TOWNSHIP_PLACE_ID', townshipPlaceId);
+                                                        }
+                                                        setSaveMessage('Maps configuration saved!');
+                                                        setTimeout(() => setSaveMessage(null), 3000);
+                                                    } catch (err) {
+                                                        console.error('Failed to save maps config:', err);
+                                                        alert('Failed to save configuration');
+                                                    } finally {
+                                                        setIsSavingMaps(false);
+                                                    }
+                                                }}
+                                                isLoading={isSavingMaps}
+                                                disabled={!mapId && !townshipPlaceId}
+                                            >
+                                                Save Maps Configuration
+                                            </Button>
                                         </div>
-                                    )}
-                                </Card>
+                                    </>
+                                )}
                             </div>
                         )}
+
                     </div>
                 </div>
             </div>

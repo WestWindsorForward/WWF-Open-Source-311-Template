@@ -172,6 +172,20 @@ async def get_maps_config(db: AsyncSession = Depends(get_db)):
     """Get maps configuration for frontend"""
     api_key = await get_google_api_key(db)
     
+    # Get Map ID for Vector Maps with Feature Layers
+    map_id_result = await db.execute(
+        select(SystemSecret).where(SystemSecret.key_name == "GOOGLE_MAPS_MAP_ID")
+    )
+    map_id_secret = map_id_result.scalar_one_or_none()
+    map_id = map_id_secret.key_value if map_id_secret and map_id_secret.is_configured else None
+    
+    # Get Township Place ID for boundary styling
+    place_id_result = await db.execute(
+        select(SystemSecret).where(SystemSecret.key_name == "TOWNSHIP_PLACE_ID")
+    )
+    place_id_secret = place_id_result.scalar_one_or_none()
+    township_place_id = place_id_secret.key_value if place_id_secret and place_id_secret.is_configured else None
+    
     # Get township settings for default center
     result = await db.execute(select(SystemSettings).limit(1))
     settings = result.scalar_one_or_none()
@@ -179,12 +193,15 @@ async def get_maps_config(db: AsyncSession = Depends(get_db)):
     return {
         "has_google_maps": bool(api_key),
         "google_maps_api_key": api_key if api_key else None,
+        "map_id": map_id,
+        "township_place_id": township_place_id,
         "default_center": {
             "lat": 40.4168,  # Default to a central location
             "lng": -74.5430
         },
         "default_zoom": 12
     }
+
 
 
 # State FIPS codes for Census API

@@ -81,12 +81,20 @@ export default function ResidentPortal() {
         lng: null
     });
     const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+    const [mapId, setMapId] = useState<string | null>(null);
+    const [townshipPlaceId, setTownshipPlaceId] = useState<string | null>(null);
 
-    // Load Maps API key
+    // Load Maps API key and configuration
     useEffect(() => {
         api.getMapsConfig().then((config) => {
             if (config.google_maps_api_key) {
                 setMapsApiKey(config.google_maps_api_key);
+            }
+            if (config.map_id) {
+                setMapId(config.map_id);
+            }
+            if (config.township_place_id) {
+                setTownshipPlaceId(config.township_place_id);
             }
         }).catch(() => { });
     }, []);
@@ -500,6 +508,8 @@ export default function ResidentPortal() {
                                                     </label>
                                                     <GoogleMapsLocationPicker
                                                         apiKey={mapsApiKey}
+                                                        mapId={mapId}
+                                                        townshipPlaceId={townshipPlaceId}
                                                         value={location}
                                                         onChange={(newLocation) => {
                                                             setLocation(newLocation);
@@ -517,6 +527,7 @@ export default function ResidentPortal() {
                                                         }}
                                                         placeholder="Search for an address or click on the map..."
                                                     />
+
                                                 </div>
                                             ) : (
                                                 <>

@@ -249,11 +249,14 @@ class ApiClient {
     async getMapsConfig(): Promise<{
         has_google_maps: boolean;
         google_maps_api_key: string | null;
+        map_id: string | null;
+        township_place_id: string | null;
         default_center: { lat: number; lng: number };
         default_zoom: number;
     }> {
         return this.request('/gis/config');
     }
+
 
     async geocodeAddress(address: string): Promise<{
         lat: number;

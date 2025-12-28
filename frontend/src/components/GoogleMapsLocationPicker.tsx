@@ -10,6 +10,8 @@ declare global {
 
 interface GoogleMapsLocationPickerProps {
     apiKey: string;
+    mapId?: string | null;
+    townshipPlaceId?: string | null;
     defaultCenter?: { lat: number; lng: number };
     defaultZoom?: number;
     value?: { address: string; lat: number | null; lng: number | null };
@@ -54,6 +56,8 @@ const loadGoogleMapsScript = (apiKey: string): Promise<void> => {
 
 export default function GoogleMapsLocationPicker({
     apiKey,
+    mapId,
+    townshipPlaceId,
     defaultCenter = { lat: 40.3573, lng: -74.6672 }, // Default to central NJ
     defaultZoom = 17,
     value,
@@ -159,8 +163,8 @@ export default function GoogleMapsLocationPicker({
 
                 if (!isMounted || !mapContainerRef.current || !inputRef.current) return;
 
-                // Create map in SATELLITE/HYBRID mode
-                const map = new window.google.maps.Map(mapContainerRef.current, {
+                // Create map - use mapId if provided for Vector Maps with Feature Layers
+                const mapOptions: google.maps.MapOptions = {
                     center: value?.lat && value?.lng ? { lat: value.lat, lng: value.lng } : defaultCenter,
                     zoom: defaultZoom,
                     mapTypeId: 'hybrid', // Satellite with labels
@@ -179,8 +183,61 @@ export default function GoogleMapsLocationPicker({
                     zoomControlOptions: {
                         position: window.google.maps.ControlPosition.RIGHT_CENTER,
                     },
-                });
+                };
+
+                // Add mapId for Vector Maps if provided
+                if (mapId) {
+                    (mapOptions as any).mapId = mapId;
+                }
+
+                const map = new window.google.maps.Map(mapContainerRef.current, mapOptions);
                 mapRef.current = map;
+
+                // Apply data-driven styling for township boundary if mapId and townshipPlaceId are provided
+                if (mapId && townshipPlaceId) {
+                    // Try to get the locality feature layer for boundary styling
+                    try {
+                        // @ts-ignore - Feature layers API (newer API not in standard types)
+                        const localityLayer = map.getFeatureLayer?.('LOCALITY');
+                        if (localityLayer) {
+                            // @ts-ignore - Feature layer style function
+                            localityLayer.style = (params: { feature: { placeId: string } }) => {
+                                if (params.feature.placeId === townshipPlaceId) {
+                                    return {
+                                        fillColor: '#6366f1',
+                                        fillOpacity: 0.15,
+                                        strokeColor: '#6366f1',
+                                        strokeOpacity: 0.8,
+                                        strokeWeight: 3,
+                                    };
+                                }
+                                return null;
+                            };
+                        }
+
+                        // Also try administrative_area_level_3 for townships
+                        // @ts-ignore - Feature layers API
+                        const adminLayer = map.getFeatureLayer?.('ADMINISTRATIVE_AREA_LEVEL_3');
+                        if (adminLayer) {
+                            // @ts-ignore - Feature layer style function
+                            adminLayer.style = (params: { feature: { placeId: string } }) => {
+                                if (params.feature.placeId === townshipPlaceId) {
+                                    return {
+                                        fillColor: '#6366f1',
+                                        fillOpacity: 0.15,
+                                        strokeColor: '#6366f1',
+                                        strokeOpacity: 0.8,
+                                        strokeWeight: 3,
+                                    };
+                                }
+                                return null;
+                            };
+                        }
+                    } catch (e) {
+                        console.warn('Feature layers not available:', e);
+                    }
+                }
+
 
                 // Create autocomplete
                 const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {

@@ -71,6 +71,8 @@ DEFAULT_DEPARTMENTS = [
 DEFAULT_SECRETS = [
     # Google Maps / GIS
     {"key_name": "GOOGLE_MAPS_API_KEY", "description": "Google Maps API key for geocoding and maps"},
+    {"key_name": "GOOGLE_MAPS_MAP_ID", "description": "Google Maps Map ID (from Cloud Console, with Feature Layers enabled)"},
+    {"key_name": "TOWNSHIP_PLACE_ID", "description": "Google Places ID of the township boundary"},
     
     # AI Analysis
     {"key_name": "VERTEX_AI_PROJECT", "description": "Google Cloud project for Vertex AI"},
