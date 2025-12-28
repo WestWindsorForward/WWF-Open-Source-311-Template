@@ -503,7 +503,13 @@ export default function ResidentPortal() {
                                                         value={location}
                                                         onChange={(newLocation) => {
                                                             setLocation(newLocation);
-                                                            setFormData((prev) => ({ ...prev, address: newLocation.address }));
+                                                            // Save both address AND coordinates
+                                                            setFormData((prev) => ({
+                                                                ...prev,
+                                                                address: newLocation.address,
+                                                                lat: newLocation.lat ?? undefined,
+                                                                long: newLocation.lng ?? undefined,
+                                                            }));
                                                             // Check road-based blocking when address changes
                                                             if (selectedService.routing_mode === 'road_based') {
                                                                 checkRoadBasedBlocking(newLocation.address, selectedService);

@@ -368,20 +368,15 @@ export default function GoogleMapsLocationPicker({
                     className="w-full h-72 md:h-96"
                     style={{ minHeight: '288px' }}
                 />
-                {/* Instructions overlay - only when no location selected */}
-                {!value?.lat && !value?.lng && !isLoading && (
-                    <div className="absolute inset-0 flex items-end justify-center pb-8 pointer-events-none">
-                        <div className="bg-slate-900 rounded-xl px-5 py-3 text-center shadow-lg border border-slate-700">
-                            <p className="text-sm text-white">
-                                <span className="text-primary-400">📍</span> Tap the map to select a location, or search above
-                            </p>
-                        </div>
-                    </div>
-                )}
             </div>
 
-            {/* Selected location info - mobile responsive */}
-            {value?.lat && value?.lng && (
+            {/* Instructions or Selected location info - shown BELOW the map */}
+            {!value?.lat && !value?.lng && !isLoading ? (
+                <div className="flex items-center justify-center gap-2 text-sm bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                    <span className="text-primary-400">📍</span>
+                    <span className="text-white/70">Tap the map to select a location, or search above</span>
+                </div>
+            ) : value?.lat && value?.lng ? (
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3 text-sm bg-white/5 rounded-xl px-4 py-3 border border-white/10">
                     <div className="flex items-center gap-2 text-white/60">
                         <MapPin className="w-4 h-4 text-primary-400 flex-shrink-0" />
@@ -394,7 +389,8 @@ export default function GoogleMapsLocationPicker({
                         📍 Drag the pin to fine-tune
                     </span>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }
+
