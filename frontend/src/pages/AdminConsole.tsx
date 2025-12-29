@@ -1735,6 +1735,10 @@ export default function AdminConsole() {
                                                             service_codes: [],
                                                             geojson: null,
                                                         });
+                                                        // Ensure services are loaded for category selection
+                                                        if (services.length === 0) {
+                                                            api.getServices().then(setServices).catch(console.error);
+                                                        }
                                                         setShowLayerModal(true);
                                                     }}
                                                     leftIcon={<Plus className="w-4 h-4" />}
@@ -2562,43 +2566,70 @@ export default function AdminConsole() {
 
                     {/* Category selector */}
                     <div>
-                        <label className="block text-sm font-medium text-white/70 mb-2">
-                            Apply to Categories
-                            <span className="text-white/40 font-normal ml-2">(leave empty for all)</span>
-                        </label>
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 rounded-lg bg-white/5 border border-white/10">
-                            {services.map((service) => (
-                                <label
-                                    key={service.service_code}
-                                    className="flex items-center gap-2 text-sm text-white/70 hover:text-white cursor-pointer p-2 rounded hover:bg-white/5"
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-white/70">
+                                Show for Categories
+                            </label>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setNewLayer(p => ({ ...p, service_codes: services.map(s => s.service_code) }))}
+                                    className="text-xs text-primary-400 hover:text-primary-300"
                                 >
-                                    <input
-                                        type="checkbox"
-                                        checked={newLayer.service_codes.includes(service.service_code)}
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setNewLayer(p => ({
-                                                    ...p,
-                                                    service_codes: [...p.service_codes, service.service_code]
-                                                }));
-                                            } else {
-                                                setNewLayer(p => ({
-                                                    ...p,
-                                                    service_codes: p.service_codes.filter(c => c !== service.service_code)
-                                                }));
-                                            }
-                                        }}
-                                        className="rounded"
-                                    />
-                                    {service.service_name}
-                                </label>
-                            ))}
+                                    Select All
+                                </button>
+                                <span className="text-white/20">|</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setNewLayer(p => ({ ...p, service_codes: [] }))}
+                                    className="text-xs text-white/40 hover:text-white/60"
+                                >
+                                    Clear All
+                                </button>
+                            </div>
                         </div>
-                        {newLayer.service_codes.length > 0 && (
-                            <p className="text-xs text-primary-400 mt-1">
-                                Layer will show only for {newLayer.service_codes.length} selected {newLayer.service_codes.length === 1 ? 'category' : 'categories'}
+                        {services.length === 0 ? (
+                            <p className="text-sm text-white/40 p-3 rounded-lg bg-white/5 border border-white/10">
+                                Loading categories...
                             </p>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 rounded-lg bg-white/5 border border-white/10">
+                                {services.map((service) => (
+                                    <label
+                                        key={service.service_code}
+                                        className="flex items-center gap-2 text-sm text-white/70 hover:text-white cursor-pointer p-2 rounded hover:bg-white/10"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={newLayer.service_codes.includes(service.service_code)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setNewLayer(p => ({
+                                                        ...p,
+                                                        service_codes: [...p.service_codes, service.service_code]
+                                                    }));
+                                                } else {
+                                                    setNewLayer(p => ({
+                                                        ...p,
+                                                        service_codes: p.service_codes.filter(c => c !== service.service_code)
+                                                    }));
+                                                }
+                                            }}
+                                            className="w-4 h-4 rounded border-white/30 bg-white/10 text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
+                                        />
+                                        {service.service_name}
+                                    </label>
+                                ))}
+                            </div>
                         )}
+                        <p className="text-xs text-white/40 mt-1">
+                            {newLayer.service_codes.length === 0
+                                ? '⚠️ Layer will be hidden (select at least one category)'
+                                : newLayer.service_codes.length === services.length
+                                    ? '✓ Layer visible for all categories'
+                                    : `Layer visible for ${newLayer.service_codes.length} ${newLayer.service_codes.length === 1 ? 'category' : 'categories'}`
+                            }
+                        </p>
                     </div>
 
                     <label className="flex items-center gap-2 text-white/70">

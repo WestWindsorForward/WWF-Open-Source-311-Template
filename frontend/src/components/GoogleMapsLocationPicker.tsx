@@ -427,56 +427,78 @@ export default function GoogleMapsLocationPicker({
                                         title: props.name || props.asset_id || layer.name,
                                     });
 
-                                    // Add click handler to show premium styled asset info
+                                    // Add click handler to show premium styled asset info with select button
                                     marker.addListener('click', () => {
                                         const assetName = props.name || layer.name;
-                                        const assetId = props.asset_id || '';
-                                        const assetType = props.asset_type ? props.asset_type.replace(/_/g, ' ') : '';
+                                        const assetType = props.asset_type ? props.asset_type.replace(/_/g, ' ') : layer.layer_type || 'asset';
+                                        const markerLat = coords[1];
+                                        const markerLng = coords[0];
+
+                                        // Build dynamic properties list
+                                        const propsHtml = Object.entries(props)
+                                            .filter(([key]) => key !== 'name') // Don't repeat name
+                                            .map(([key, value]) => `
+                                                <div style="display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid #e2e8f0;">
+                                                    <span style="color: #64748b; font-size: 12px; text-transform: capitalize;">${key.replace(/_/g, ' ')}</span>
+                                                    <span style="font-size: 12px; color: #334155; font-weight: 500; text-align: right;">${value}</span>
+                                                </div>
+                                            `).join('');
+
+                                        // Create unique callback ID
+                                        const callbackId = `selectAsset_${Date.now()}`;
+                                        (window as any)[callbackId] = () => {
+                                            // Set marker position as the location
+                                            if (markerRef.current) {
+                                                markerRef.current.setPosition({ lat: markerLat, lng: markerLng });
+                                            }
+                                            map.panTo({ lat: markerLat, lng: markerLng });
+
+                                            // Reverse geocode to get address
+                                            const geocoder = new window.google.maps.Geocoder();
+                                            geocoder.geocode({ location: { lat: markerLat, lng: markerLng } }, (results: any, status: any) => {
+                                                const address = status === 'OK' && results?.[0]?.formatted_address || `${markerLat.toFixed(6)}, ${markerLng.toFixed(6)}`;
+                                                onChange({ address, lat: markerLat, lng: markerLng });
+                                            });
+
+                                            // Close info window
+                                            infoWindow.close();
+                                        };
 
                                         const infoWindow = new window.google.maps.InfoWindow({
                                             content: `
                                                 <div style="
                                                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                                                    padding: 12px 16px;
-                                                    min-width: 180px;
+                                                    padding: 8px 12px;
+                                                    min-width: 200px;
+                                                    max-width: 280px;
                                                 ">
                                                     <div style="
-                                                        font-size: 16px;
+                                                        font-size: 15px;
                                                         font-weight: 600;
                                                         color: #1e293b;
-                                                        margin-bottom: 8px;
+                                                        margin-bottom: 6px;
                                                     ">${assetName}</div>
-                                                    ${assetId ? `
-                                                        <div style="
-                                                            display: flex;
-                                                            align-items: center;
-                                                            gap: 6px;
-                                                            margin-bottom: 4px;
-                                                        ">
-                                                            <span style="color: #64748b; font-size: 12px;">ID:</span>
-                                                            <span style="
-                                                                font-family: ui-monospace, monospace;
-                                                                font-size: 13px;
-                                                                color: #334155;
-                                                                background: #f1f5f9;
-                                                                padding: 2px 8px;
-                                                                border-radius: 4px;
-                                                            ">${assetId}</span>
-                                                        </div>
-                                                    ` : ''}
-                                                    ${assetType ? `
-                                                        <div style="
-                                                            display: inline-block;
-                                                            font-size: 11px;
-                                                            text-transform: uppercase;
-                                                            letter-spacing: 0.5px;
+                                                    
+                                                    ${propsHtml ? `<div style="margin-bottom: 8px;">${propsHtml}</div>` : ''}
+                                                    
+                                                    <button 
+                                                        onclick="${callbackId}()"
+                                                        style="
+                                                            width: 100%;
+                                                            padding: 8px 12px;
+                                                            background: linear-gradient(135deg, ${layer.fill_color}, ${layer.stroke_color});
                                                             color: white;
-                                                            background: ${layer.fill_color};
-                                                            padding: 3px 10px;
-                                                            border-radius: 12px;
-                                                            margin-top: 6px;
-                                                        ">${assetType}</div>
-                                                    ` : ''}
+                                                            border: none;
+                                                            border-radius: 8px;
+                                                            font-size: 13px;
+                                                            font-weight: 600;
+                                                            cursor: pointer;
+                                                            text-transform: capitalize;
+                                                            margin-top: 4px;
+                                                        "
+                                                    >
+                                                        📍 Select this ${assetType}
+                                                    </button>
                                                 </div>
                                             `,
                                         });

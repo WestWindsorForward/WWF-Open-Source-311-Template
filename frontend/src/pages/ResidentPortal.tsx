@@ -612,8 +612,9 @@ export default function ResidentPortal() {
                                                         apiKey={mapsApiKey}
                                                         townshipBoundary={townshipBoundary}
                                                         customLayers={mapLayers.filter(layer =>
-                                                            !layer.service_codes ||
-                                                            layer.service_codes.length === 0 ||
+                                                            // Layer must have at least one category AND include the selected category
+                                                            layer.service_codes &&
+                                                            layer.service_codes.length > 0 &&
                                                             layer.service_codes.includes(selectedService.service_code)
                                                         )}
                                                         value={location}
