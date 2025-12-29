@@ -468,57 +468,6 @@ export default function ResidentPortal() {
                                 </div>
                             </div>
 
-                            {/* Blocking Notice for Third Party / Road-Based */}
-                            {isBlocked && (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="p-6 rounded-2xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/30"
-                                >
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                                            <AlertCircle className="w-6 h-6 text-red-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h3 className="text-lg font-semibold text-red-300 mb-2">
-                                                Cannot Submit This Request
-                                            </h3>
-                                            <p className="text-white/70 mb-4">
-                                                {blockMessage}
-                                            </p>
-
-                                            {blockContacts.length > 0 && (
-                                                <div className="space-y-2">
-                                                    <p className="text-sm text-white/50 font-medium">Contact Information:</p>
-                                                    {blockContacts.map((contact, idx) => (
-                                                        <div key={idx} className="flex flex-wrap gap-3 text-sm">
-                                                            {contact.name && (
-                                                                <span className="text-white font-medium">{contact.name}</span>
-                                                            )}
-                                                            {contact.phone && (
-                                                                <a href={`tel:${contact.phone}`} className="text-primary-400 hover:text-primary-300">
-                                                                    📞 {contact.phone}
-                                                                </a>
-                                                            )}
-                                                            {contact.url && (
-                                                                <a
-                                                                    href={contact.url.startsWith('http') ? contact.url : `https://${contact.url}`}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-primary-400 hover:text-primary-300 underline"
-                                                                >
-                                                                    🔗 Visit Website
-                                                                </a>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-
                             {/* Form - only show if NOT blocked OR if road-based (need address first) */}
                             {(!isBlocked || selectedService.routing_mode === 'road_based') && (
                                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -587,6 +536,57 @@ export default function ResidentPortal() {
                                                         <p className="text-sm">Interactive map requires Google Maps API key</p>
                                                     </div>
                                                 </>
+                                            )}
+
+                                            {/* Blocking Notice for Road-Based Services - shown after map */}
+                                            {isBlocked && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, scale: 0.95 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="p-6 rounded-2xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/30"
+                                                >
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                                                            <AlertCircle className="w-6 h-6 text-red-400" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <h3 className="text-lg font-semibold text-red-300 mb-2">
+                                                                Cannot Submit This Request
+                                                            </h3>
+                                                            <p className="text-white/70 mb-4">
+                                                                {blockMessage}
+                                                            </p>
+
+                                                            {blockContacts.length > 0 && (
+                                                                <div className="space-y-2">
+                                                                    <p className="text-sm text-white/50 font-medium">Contact Information:</p>
+                                                                    {blockContacts.map((contact, idx) => (
+                                                                        <div key={idx} className="flex flex-wrap gap-3 text-sm">
+                                                                            {contact.name && (
+                                                                                <span className="text-white font-medium">{contact.name}</span>
+                                                                            )}
+                                                                            {contact.phone && (
+                                                                                <a href={`tel:${contact.phone}`} className="text-primary-400 hover:text-primary-300">
+                                                                                    📞 {contact.phone}
+                                                                                </a>
+                                                                            )}
+                                                                            {contact.url && (
+                                                                                <a
+                                                                                    href={contact.url.startsWith('http') ? contact.url : `https://${contact.url}`}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="text-primary-400 hover:text-primary-300 underline"
+                                                                                >
+                                                                                    🔗 Visit Website
+                                                                                </a>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
                                             )}
 
                                             {/* Photo Upload */}
