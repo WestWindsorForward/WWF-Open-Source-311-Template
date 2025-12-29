@@ -324,21 +324,19 @@ export default function GoogleMapsLocationPicker({
                         boundaryCoords = coords.map(([lng, lat]) => ({ lat, lng }));
 
                         if (boundaryCoords.length > 0) {
-                            // Reverse the boundary coords to create counter-clockwise winding for the hole
-                            // This makes the OUTSIDE dark and the INSIDE clear (spotlight effect)
-                            const reversedBoundaryCoords = [...boundaryCoords].reverse();
-
-                            // Create outer boundary (entire world) - clockwise
+                            // Create outer boundary (entire world)
+                            // The world bounds go counter-clockwise, township bounds go as-is
+                            // This creates a "donut" where the hole is the township (no fill inside)
                             const worldBounds: google.maps.LatLngLiteral[] = [
                                 { lat: -85, lng: -180 },
-                                { lat: -85, lng: 180 },
-                                { lat: 85, lng: 180 },
                                 { lat: 85, lng: -180 },
+                                { lat: 85, lng: 180 },
+                                { lat: -85, lng: 180 },
                             ];
 
                             // Create polygon with hole - dark overlay outside boundary
                             new window.google.maps.Polygon({
-                                paths: [worldBounds, reversedBoundaryCoords],
+                                paths: [worldBounds, boundaryCoords],
                                 fillColor: '#000000',
                                 fillOpacity: 0.4,
                                 strokeColor: '#6366f1',
