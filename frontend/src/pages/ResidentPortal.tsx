@@ -140,20 +140,31 @@ export default function ResidentPortal() {
 
     // Check if address matches road-based blocking rules
     const checkRoadBasedBlocking = (address: string, service: ServiceDefinition) => {
-        if (service.routing_mode !== 'road_based' || !address) return;
+        console.log('checkRoadBasedBlocking called:', { address, routing_mode: service.routing_mode, routing_config: service.routing_config });
+
+        if (service.routing_mode !== 'road_based' || !address) {
+            console.log('Skipping road-based check - not road_based mode or no address');
+            return;
+        }
 
         const config = service.routing_config;
-        if (!config) return;
+        if (!config) {
+            console.log('No routing_config found');
+            return;
+        }
 
         const addressLower = address.toLowerCase();
         const defaultHandler = config.default_handler || 'township';
+        console.log('Road-based check:', { addressLower, defaultHandler, exclusion_list: config.exclusion_list, inclusion_list: config.inclusion_list });
 
         if (defaultHandler === 'township') {
             // Check exclusion list - if address matches, block
             const exclusionList = config.exclusion_list || [];
+            console.log('Checking exclusion list:', exclusionList);
             const matchesExclusion = exclusionList.some(road =>
                 addressLower.includes(road.toLowerCase())
             );
+            console.log('Matches exclusion:', matchesExclusion);
             if (matchesExclusion) {
                 setIsBlocked(true);
                 setBlockMessage(config.third_party_message || 'This road is handled by a third party.');
@@ -166,9 +177,11 @@ export default function ResidentPortal() {
         } else {
             // Third party default - check inclusion list - if NOT in list, block
             const inclusionList = config.inclusion_list || [];
+            console.log('Checking inclusion list:', inclusionList);
             const matchesInclusion = inclusionList.some(road =>
                 addressLower.includes(road.toLowerCase())
             );
+            console.log('Matches inclusion:', matchesInclusion);
             if (!matchesInclusion) {
                 setIsBlocked(true);
                 setBlockMessage(config.third_party_message || 'This road is handled by a third party.');
@@ -180,6 +193,7 @@ export default function ResidentPortal() {
             }
         }
     };
+
 
     const validateForm = (): boolean => {
         const errors: Record<string, string> = {};
