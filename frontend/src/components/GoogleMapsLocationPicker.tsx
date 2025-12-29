@@ -324,18 +324,21 @@ export default function GoogleMapsLocationPicker({
                         boundaryCoords = coords.map(([lng, lat]) => ({ lat, lng }));
 
                         if (boundaryCoords.length > 0) {
-                            // Create outer boundary (entire world)
+                            // Create world bounds - clockwise (fills inside)
                             const worldBounds: google.maps.LatLngLiteral[] = [
-                                { lat: -85, lng: -180 },
                                 { lat: 85, lng: -180 },
                                 { lat: 85, lng: 180 },
                                 { lat: -85, lng: 180 },
+                                { lat: -85, lng: -180 },
+                                { lat: 85, lng: -180 }, // close the loop
                             ];
 
-                            // Create polygon - swap order to flip which part is dark
-                            // First path is filled, second path is the "hole"
+                            // Reverse boundary coords to make them counter-clockwise (creates hole)
+                            const reversedBoundary = [...boundaryCoords].reverse();
+
+                            // Create the dark overlay with world as outer ring and boundary as hole
                             new window.google.maps.Polygon({
-                                paths: [boundaryCoords, worldBounds],
+                                paths: [worldBounds, reversedBoundary],
                                 fillColor: '#000000',
                                 fillOpacity: 0.4,
                                 strokeColor: '#6366f1',
@@ -343,6 +346,7 @@ export default function GoogleMapsLocationPicker({
                                 strokeOpacity: 1,
                                 map: map,
                                 clickable: false,
+                                geodesic: false,
                             });
 
 
