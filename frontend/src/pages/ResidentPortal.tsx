@@ -161,10 +161,21 @@ export default function ResidentPortal() {
             // Check exclusion list - if address matches, block
             const exclusionList = config.exclusion_list || [];
             console.log('Checking exclusion list:', exclusionList);
-            const matchesExclusion = exclusionList.some(road =>
-                addressLower.includes(road.toLowerCase())
-            );
+
+            // Flexible matching: check if key words from the road name appear in address
+            const matchesExclusion = exclusionList.some(road => {
+                const roadLower = road.toLowerCase().trim();
+                // Simple substring check first
+                if (addressLower.includes(roadLower)) return true;
+                // Also try matching significant words (more than 3 chars) from the road name
+                const roadWords = roadLower.split(/[\s,]+/).filter(w => w.length > 3);
+                const matchCount = roadWords.filter(word => addressLower.includes(word)).length;
+                // Match if at least half the significant words are found
+                const threshold = Math.max(1, Math.floor(roadWords.length * 0.5));
+                return matchCount >= threshold;
+            });
             console.log('Matches exclusion:', matchesExclusion);
+
             if (matchesExclusion) {
                 setIsBlocked(true);
                 setBlockMessage(config.third_party_message || 'This road is handled by a third party.');
@@ -178,10 +189,21 @@ export default function ResidentPortal() {
             // Third party default - check inclusion list - if NOT in list, block
             const inclusionList = config.inclusion_list || [];
             console.log('Checking inclusion list:', inclusionList);
-            const matchesInclusion = inclusionList.some(road =>
-                addressLower.includes(road.toLowerCase())
-            );
+
+            // Flexible matching: check if key words from the road name appear in address
+            const matchesInclusion = inclusionList.some(road => {
+                const roadLower = road.toLowerCase().trim();
+                // Simple substring check first
+                if (addressLower.includes(roadLower)) return true;
+                // Also try matching significant words (more than 3 chars) from the road name
+                const roadWords = roadLower.split(/[\s,]+/).filter(w => w.length > 3);
+                const matchCount = roadWords.filter(word => addressLower.includes(word)).length;
+                // Match if at least half the significant words are found
+                const threshold = Math.max(1, Math.floor(roadWords.length * 0.5));
+                return matchCount >= threshold;
+            });
             console.log('Matches inclusion:', matchesInclusion);
+
             if (!matchesInclusion) {
                 setIsBlocked(true);
                 setBlockMessage(config.third_party_message || 'This road is handled by a third party.');
