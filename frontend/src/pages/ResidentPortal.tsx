@@ -78,6 +78,8 @@ export default function ResidentPortal() {
 
     // Custom map layers
     const [mapLayers, setMapLayers] = useState<MapLayer[]>([]);
+    // Selected asset from map layer (for report logging)
+    const [selectedAsset, setSelectedAsset] = useState<{ layerName: string; properties: Record<string, any>; lat: number; lng: number } | null>(null);
 
     // Location/GPS state  
     const [location, setLocation] = useState<{ address: string; lat: number | null; lng: number | null }>({
@@ -249,10 +251,22 @@ export default function ResidentPortal() {
 
         setIsSubmitting(true);
         try {
-            // Proximity detection: Check if report location is near any layer feature
+            // Matched asset: Use user-selected asset first, fallback to proximity detection
             let matchedAsset: typeof formData.matched_asset = undefined;
 
-            if (location.lat && location.lng) {
+            // User explicitly clicked "Select this..." on an asset marker
+            if (selectedAsset) {
+                matchedAsset = {
+                    layer_name: selectedAsset.layerName,
+                    layer_id: 0, // Will be filled in by backend
+                    asset_id: selectedAsset.properties.asset_id || selectedAsset.properties.id,
+                    asset_type: selectedAsset.properties.asset_type || selectedAsset.layerName,
+                    properties: selectedAsset.properties,
+                    distance_meters: 0, // Exact selection, no distance
+                };
+                console.log('User selected asset:', matchedAsset);
+            } else if (location.lat && location.lng) {
+                // Fallback to proximity detection if no explicit selection
                 const layerFeatures = (window as any).__mapLayerFeatures || [];
                 const PROXIMITY_THRESHOLD_METERS = 50; // 50 meters for point proximity
 
@@ -619,6 +633,10 @@ export default function ResidentPortal() {
                                                         )}
                                                         value={location}
                                                         onOutOfBounds={() => setIsLocationOutOfBounds(true)}
+                                                        onAssetSelect={(asset) => {
+                                                            setSelectedAsset(asset);
+                                                            console.log('Asset selected for report:', asset);
+                                                        }}
                                                         onChange={(newLocation) => {
                                                             setLocation(newLocation);
                                                             setIsLocationOutOfBounds(false); // Reset when location changes

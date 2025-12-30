@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { MapPin, Crosshair, Loader2 } from 'lucide-react';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { MapLayer } from '../services/api';
 
 declare global {
@@ -17,6 +18,7 @@ interface GoogleMapsLocationPickerProps {
     defaultZoom?: number;
     value?: { address: string; lat: number | null; lng: number | null };
     onChange: (location: { address: string; lat: number | null; lng: number | null }) => void;
+    onAssetSelect?: (asset: { layerName: string; properties: Record<string, any>; lat: number; lng: number }) => void;
     onOutOfBounds?: () => void; // Called when pin is placed outside boundary
     placeholder?: string;
     className?: string;
@@ -155,6 +157,7 @@ export default function GoogleMapsLocationPicker({
     defaultZoom = 17,
     value,
     onChange,
+    onAssetSelect,
     onOutOfBounds,
     placeholder = 'Search for an address...',
     className = '',
@@ -453,6 +456,16 @@ export default function GoogleMapsLocationPicker({
                                             }
                                             map.panTo({ lat: markerLat, lng: markerLng });
 
+                                            // Notify parent about selected asset for report logging
+                                            if (onAssetSelect) {
+                                                onAssetSelect({
+                                                    layerName: layer.name,
+                                                    properties: props,
+                                                    lat: markerLat,
+                                                    lng: markerLng,
+                                                });
+                                            }
+
                                             // Reverse geocode to get address
                                             const geocoder = new window.google.maps.Geocoder();
                                             geocoder.geocode({ location: { lat: markerLat, lng: markerLng } }, (results: any, status: any) => {
@@ -468,33 +481,33 @@ export default function GoogleMapsLocationPicker({
                                             content: `
                                                 <div style="
                                                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                                                    padding: 8px 12px;
-                                                    min-width: 200px;
-                                                    max-width: 280px;
+                                                    padding: 4px 8px 8px 8px;
+                                                    min-width: 180px;
+                                                    max-width: 260px;
                                                 ">
                                                     <div style="
-                                                        font-size: 15px;
-                                                        font-weight: 600;
-                                                        color: #1e293b;
-                                                        margin-bottom: 6px;
+                                                        font-size: 14px;
+                                                        font-weight: 700;
+                                                        color: #0f172a;
+                                                        margin-bottom: 4px;
+                                                        line-height: 1.2;
                                                     ">${assetName}</div>
                                                     
-                                                    ${propsHtml ? `<div style="margin-bottom: 8px;">${propsHtml}</div>` : ''}
+                                                    ${propsHtml ? `<div style="margin-bottom: 6px; border-top: 1px solid #e2e8f0; padding-top: 4px;">${propsHtml}</div>` : ''}
                                                     
                                                     <button 
                                                         onclick="${callbackId}()"
                                                         style="
                                                             width: 100%;
-                                                            padding: 8px 12px;
+                                                            padding: 6px 10px;
                                                             background: linear-gradient(135deg, ${layer.fill_color}, ${layer.stroke_color});
                                                             color: white;
                                                             border: none;
-                                                            border-radius: 8px;
-                                                            font-size: 13px;
+                                                            border-radius: 6px;
+                                                            font-size: 12px;
                                                             font-weight: 600;
                                                             cursor: pointer;
                                                             text-transform: capitalize;
-                                                            margin-top: 4px;
                                                         "
                                                     >
                                                         📍 Select this ${assetType}
@@ -550,6 +563,34 @@ export default function GoogleMapsLocationPicker({
 
                     // Store the features ref for proximity detection
                     (window as any).__mapLayerFeatures = layerFeaturesRef;
+
+                    // Create marker clusterer for dense point areas
+                    if (layerMarkersRef.length > 0) {
+                        new MarkerClusterer({
+                            map,
+                            markers: layerMarkersRef,
+                            renderer: {
+                                render: ({ count, position }) => {
+                                    // Styled cluster marker
+                                    const size = count > 50 ? 50 : count > 20 ? 44 : count > 10 ? 38 : 32;
+                                    return new window.google.maps.Marker({
+                                        position,
+                                        icon: {
+                                            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                                                    <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="#3b82f6" stroke="white" stroke-width="2"/>
+                                                    <text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-family="Arial" font-weight="bold" font-size="${size > 40 ? 14 : 12}">${count}</text>
+                                                </svg>
+                                            `)}`,
+                                            scaledSize: new window.google.maps.Size(size, size),
+                                        },
+                                        label: '',
+                                        zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
+                                    });
+                                },
+                            },
+                        });
+                    }
                 }
 
 
