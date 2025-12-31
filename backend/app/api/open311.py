@@ -23,12 +23,13 @@ def generate_request_id() -> str:
     return f"REQ-{timestamp}-{unique}"
 
 
-from app.core.config import settings
+from app.core.config import get_settings
 import redis.asyncio as redis
 import json
 
 # Redis cache for public requests (60s TTL)
-redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+_settings = get_settings()
+redis_client = redis.from_url(_settings.redis_url, decode_responses=True)
 CACHE_TTL = 60  # seconds
 
 
