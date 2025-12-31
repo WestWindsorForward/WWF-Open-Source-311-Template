@@ -247,35 +247,61 @@ export default function ResidentPortal() {
     // Check if location is inside any polygon layer and log/block accordingly
     const checkPolygonContainment = (lat: number, lng: number, serviceCode: string) => {
         console.log('checkPolygonContainment called:', { lat, lng, serviceCode });
+        console.log('mapLayers count:', mapLayers.length, 'layers:', mapLayers.map(l => ({ name: l.name, layer_type: (l as any).layer_type, routing_mode: (l as any).routing_mode })));
 
         // Reset matched polygon state
         setMatchedPolygon(null);
+        setIsBlocked(false); // Also reset blocking state
 
         for (const layer of mapLayers) {
+            console.log('Checking layer:', layer.name, 'layer_type:', (layer as any).layer_type, 'service_codes:', layer.service_codes);
+
             // Check if this layer applies to the current service category
             const layerServiceCodes = layer.service_codes || [];
             // Layer applies if: no service_codes specified (applies to all) OR includes this category
-            if (layerServiceCodes.length > 0 && !layerServiceCodes.includes(serviceCode)) continue;
+            if (layerServiceCodes.length > 0 && !layerServiceCodes.includes(serviceCode)) {
+                console.log('  Skipped: service_codes filter');
+                continue;
+            }
 
             const geojson = layer.geojson as any;
-            if (!geojson) continue;
+            if (!geojson) {
+                console.log('  Skipped: no geojson');
+                continue;
+            }
+
+            console.log('  GeoJSON type:', geojson.type);
 
             // Handle both FeatureCollection and single Feature
-            const features = geojson.type === 'FeatureCollection' ? geojson.features : [geojson];
+            const features = geojson.type === 'FeatureCollection' ? geojson.features :
+                geojson.type === 'Feature' ? [geojson] :
+                    geojson.type === 'Polygon' || geojson.type === 'MultiPolygon' ? [{ geometry: geojson }] : [];
+
+            console.log('  Features count:', features.length);
 
             for (const feature of features) {
                 const geometry = feature.geometry;
-                if (!geometry) continue;
+                if (!geometry) {
+                    console.log('    Feature has no geometry');
+                    continue;
+                }
+
+                console.log('    Geometry type:', geometry.type);
 
                 // Only check polygon geometries
-                if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') continue;
+                if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') {
+                    console.log('    Skipped: not polygon type');
+                    continue;
+                }
 
                 let isInside = false;
 
                 if (geometry.type === 'Polygon') {
                     // Check outer ring (first ring) - GeoJSON uses [lng, lat]
                     const coords = geometry.coordinates[0].map((c: number[]) => [c[1], c[0]]); // Convert to [lat, lng]
+                    console.log('    Checking Polygon with', coords.length, 'coords, first coord:', coords[0]);
                     isInside = isPointInPolygon(lat, lng, coords);
+                    console.log('    isPointInPolygon result:', isInside);
                 } else if (geometry.type === 'MultiPolygon') {
                     for (const polygon of geometry.coordinates) {
                         const coords = polygon[0].map((c: number[]) => [c[1], c[0]]);
@@ -284,6 +310,7 @@ export default function ResidentPortal() {
                             break;
                         }
                     }
+                    console.log('    MultiPolygon isInside:', isInside);
                 }
 
                 if (isInside) {
@@ -303,6 +330,7 @@ export default function ResidentPortal() {
                         setIsBlocked(true);
                         setBlockMessage(routingConfig.message || `This location is within ${layer.name} and is handled by a third party.`);
                         setBlockContacts(routingConfig.contacts || []);
+                        console.log('BLOCKING ENABLED for polygon:', layer.name);
                     }
 
                     return true; // Found a matching polygon
@@ -310,6 +338,7 @@ export default function ResidentPortal() {
             }
         }
 
+        console.log('No polygon containment found');
         return false; // Not inside any polygon
     };
 
