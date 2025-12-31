@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
     MapPin,
     Clock,
@@ -21,6 +22,10 @@ import { api } from '../services/api';
 import { PublicServiceRequest, RequestComment } from '../types';
 
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'closed';
+
+interface TrackRequestsProps {
+    initialRequestId?: string;
+}
 
 const statusColors: Record<string, { bg: string; text: string; border: string; label: string; icon: React.ReactNode }> = {
     open: {
@@ -46,7 +51,8 @@ const statusColors: Record<string, { bg: string; text: string; border: string; l
     },
 };
 
-export default function TrackRequests() {
+export default function TrackRequests({ initialRequestId }: TrackRequestsProps) {
+    const navigate = useNavigate();
     const [requests, setRequests] = useState<PublicServiceRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -61,6 +67,16 @@ export default function TrackRequests() {
     useEffect(() => {
         loadRequests();
     }, [statusFilter]);
+
+    // Auto-load request from URL
+    useEffect(() => {
+        if (initialRequestId && requests.length > 0) {
+            const request = requests.find(r => r.service_request_id === initialRequestId);
+            if (request) {
+                setSelectedRequest(request);
+            }
+        }
+    }, [initialRequestId, requests]);
 
     useEffect(() => {
         if (selectedRequest) {
@@ -112,11 +128,23 @@ export default function TrackRequests() {
 
     const copyLink = () => {
         if (!selectedRequest) return;
-        const url = `${window.location.origin}/?track=${selectedRequest.service_request_id}`;
+        const url = `${window.location.origin}/track/${selectedRequest.service_request_id}`;
         navigator.clipboard.writeText(url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const handleSelectRequest = (request: PublicServiceRequest) => {
+        setSelectedRequest(request);
+        // Update URL without full navigation
+        navigate(`/track/${request.service_request_id}`, { replace: true });
+    };
+
+    const handleBackToList = () => {
+        setSelectedRequest(null);
+        navigate('/track', { replace: true });
+    };
+
 
     const filteredRequests = requests.filter((r) => {
         if (!searchQuery) return true;
@@ -163,7 +191,7 @@ export default function TrackRequests() {
                 {/* Back Button & Actions Bar */}
                 <div className="flex items-center justify-between mb-8">
                     <button
-                        onClick={() => setSelectedRequest(null)}
+                        onClick={handleBackToList}
                         className="flex items-center gap-2 text-white/60 hover:text-white transition-colors group"
                     >
                         <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -173,8 +201,8 @@ export default function TrackRequests() {
                     <button
                         onClick={copyLink}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${copied
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                : 'bg-white/10 hover:bg-white/20 text-white border border-white/10 hover:border-white/20'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-white/10 hover:bg-white/20 text-white border border-white/10 hover:border-white/20'
                             }`}
                     >
                         {copied ? (
@@ -472,10 +500,10 @@ export default function TrackRequests() {
                                 key={filterStatus}
                                 onClick={() => setStatusFilter(filterStatus)}
                                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
-                                        ? filterStatus === 'all'
-                                            ? 'bg-primary-500 text-white'
-                                            : `${colors?.bg} ${colors?.text} ${colors?.border} border`
-                                        : 'bg-white/5 text-white/60 hover:bg-white/10 border border-transparent'
+                                    ? filterStatus === 'all'
+                                        ? 'bg-primary-500 text-white'
+                                        : `${colors?.bg} ${colors?.text} ${colors?.border} border`
+                                    : 'bg-white/5 text-white/60 hover:bg-white/10 border border-transparent'
                                     }`}
                             >
                                 {filterStatus === 'all' ? 'All Requests' : colors?.label || filterStatus}
@@ -528,7 +556,7 @@ export default function TrackRequests() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.03 }}
-                                onClick={() => setSelectedRequest(request)}
+                                onClick={() => handleSelectRequest(request)}
                                 className="cursor-pointer group"
                             >
                                 <Card className="p-5 hover:ring-2 hover:ring-primary-500/50 transition-all group-hover:bg-white/[0.03]">

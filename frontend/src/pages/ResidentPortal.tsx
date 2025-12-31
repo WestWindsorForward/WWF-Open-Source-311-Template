@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
     Search,
     ArrowLeft,
@@ -46,7 +46,10 @@ type PortalMode = 'report' | 'track';
 
 export default function ResidentPortal() {
     const { settings } = useSettings();
-    const [portalMode, setPortalMode] = useState<PortalMode>('report');
+    const { requestId: urlRequestId } = useParams<{ requestId?: string }>();
+    const pathname = window.location.pathname;
+    const isTrackRoute = pathname.startsWith('/track');
+    const [portalMode, setPortalMode] = useState<PortalMode>(urlRequestId || isTrackRoute ? 'track' : 'report');
     const [step, setStep] = useState<Step>('categories');
     const [services, setServices] = useState<ServiceDefinition[]>([]);
     const [selectedService, setSelectedService] = useState<ServiceDefinition | null>(null);
@@ -393,7 +396,7 @@ export default function ResidentPortal() {
             {/* Main Content */}
             <main className="flex-1 px-4 py-8 md:px-8 max-w-6xl mx-auto w-full">
                 {portalMode === 'track' ? (
-                    <TrackRequests />
+                    <TrackRequests initialRequestId={urlRequestId} />
                 ) : (
                     <AnimatePresence mode="wait">
                         {step === 'categories' && (
