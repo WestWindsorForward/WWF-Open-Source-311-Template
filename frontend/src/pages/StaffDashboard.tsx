@@ -485,24 +485,44 @@ export default function StaffDashboard() {
                             )}
                         </div>
 
-                        {/* Stats Cards */}
+                        {/* Stats Cards - Clickable */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            <Card className="text-center border-primary-500/30">
-                                <p className="text-3xl font-bold text-primary-400">{dashboardStats.myActive}</p>
-                                <p className="text-white/60 text-sm">Assigned to You</p>
-                            </Card>
-                            <Card className="text-center border-blue-500/30">
-                                <p className="text-3xl font-bold text-blue-400">{dashboardStats.deptActive}</p>
-                                <p className="text-white/60 text-sm">Your Department</p>
-                            </Card>
-                            <Card className="text-center border-red-500/30">
-                                <p className="text-3xl font-bold text-red-400">{dashboardStats.totalActive}</p>
-                                <p className="text-white/60 text-sm">All Open</p>
-                            </Card>
-                            <Card className="text-center border-amber-500/30">
-                                <p className="text-3xl font-bold text-amber-400">{dashboardStats.totalInProgress}</p>
-                                <p className="text-white/60 text-sm">In Progress</p>
-                            </Card>
+                            <button
+                                onClick={() => setCurrentView('active')}
+                                className="text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <Card className="text-center border-primary-500/30 hover:border-primary-500/60 cursor-pointer transition-colors">
+                                    <p className="text-3xl font-bold text-primary-400">{dashboardStats.myActive}</p>
+                                    <p className="text-white/60 text-sm">Assigned to You</p>
+                                </Card>
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('active')}
+                                className="text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <Card className="text-center border-blue-500/30 hover:border-blue-500/60 cursor-pointer transition-colors">
+                                    <p className="text-3xl font-bold text-blue-400">{dashboardStats.deptActive}</p>
+                                    <p className="text-white/60 text-sm">Your Department</p>
+                                </Card>
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('active')}
+                                className="text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <Card className="text-center border-red-500/30 hover:border-red-500/60 cursor-pointer transition-colors">
+                                    <p className="text-3xl font-bold text-red-400">{dashboardStats.totalActive}</p>
+                                    <p className="text-white/60 text-sm">All Open</p>
+                                </Card>
+                            </button>
+                            <button
+                                onClick={() => setCurrentView('in_progress')}
+                                className="text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <Card className="text-center border-amber-500/30 hover:border-amber-500/60 cursor-pointer transition-colors">
+                                    <p className="text-3xl font-bold text-amber-400">{dashboardStats.totalInProgress}</p>
+                                    <p className="text-white/60 text-sm">In Progress</p>
+                                </Card>
+                            </button>
                         </div>
                     </div>
                 )}

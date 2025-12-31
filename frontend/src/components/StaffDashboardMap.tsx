@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { MapPin, Layers, Filter, Search, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { MapPin, Layers, Search, X, ChevronDown, ChevronRight, Users } from 'lucide-react';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { ServiceRequest, ServiceDefinition, User, Department } from '../types';
 import { MapLayer } from '../services/api';
@@ -39,7 +39,7 @@ export default function StaffDashboardMap({
     mapLayers,
     townshipBoundary,
     defaultCenter = { lat: 40.3573, lng: -74.6672 },
-    defaultZoom = 13,
+    defaultZoom = 14,
     onRequestSelect,
 }: StaffDashboardMapProps) {
     const mapRef = useRef<HTMLDivElement>(null);
@@ -47,7 +47,8 @@ export default function StaffDashboardMap({
     const markersRef = useRef<google.maps.Marker[]>([]);
     const clustererRef = useRef<MarkerClusterer | null>(null);
     const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-    const layerPolygonsRef = useRef<google.maps.Polygon[]>([]);
+    const layerDataRef = useRef<google.maps.Data[]>([]);
+    const layerMarkersRef = useRef<google.maps.Marker[]>([]);
 
     // Filter state
     const [statusFilters, setStatusFilters] = useState({
@@ -57,7 +58,7 @@ export default function StaffDashboardMap({
     });
     const [categoryFilters, setCategoryFilters] = useState<Record<string, boolean>>({});
     const [layerFilters, setLayerFilters] = useState<Record<number, boolean>>({});
-    const [assignmentFilter, setAssignmentFilter] = useState<string>(''); // username or department name
+    const [assignmentFilter, setAssignmentFilter] = useState<string>('');
 
     // UI state
     const [isLoading, setIsLoading] = useState(true);
@@ -65,7 +66,7 @@ export default function StaffDashboardMap({
     const [expandedSections, setExpandedSections] = useState({
         status: true,
         categories: false,
-        layers: false,
+        layers: true,
         assignment: false,
     });
 
@@ -107,7 +108,6 @@ export default function StaffDashboardMap({
         document.head.appendChild(script);
 
         return () => {
-            // Cleanup markers
             markersRef.current.forEach(m => m.setMap(null));
             markersRef.current = [];
             if (clustererRef.current) {
@@ -122,43 +122,57 @@ export default function StaffDashboardMap({
         const map = new window.google.maps.Map(mapRef.current, {
             center: defaultCenter,
             zoom: defaultZoom,
-            styles: [
-                { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
-                { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
-                { elementType: 'labels.text.fill', stylers: [{ color: '#8b8b8b' }] },
-                { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2d2d44' }] },
-                { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1626' }] },
-                { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1a3320' }] },
-            ],
-            mapTypeControl: false,
+            mapTypeId: 'hybrid', // Satellite with labels
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+                style: window.google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: window.google.maps.ControlPosition.TOP_LEFT,
+                mapTypeIds: ['roadmap', 'satellite', 'hybrid'],
+            },
             streetViewControl: false,
             fullscreenControl: true,
+            zoomControl: true,
+            zoomControlOptions: {
+                position: window.google.maps.ControlPosition.LEFT_BOTTOM,
+            },
         });
 
         mapInstanceRef.current = map;
         infoWindowRef.current = new window.google.maps.InfoWindow();
 
-        // Render township boundary if exists
+        // Render township boundary and fit to it
         if (townshipBoundary) {
-            renderBoundary(map, townshipBoundary);
+            renderBoundaryAndFit(map, townshipBoundary);
         }
 
         setIsLoading(false);
     }, [defaultCenter, defaultZoom, townshipBoundary]);
 
-    // Render township boundary
-    const renderBoundary = (map: google.maps.Map, boundary: any) => {
+    // Render township boundary and fit map to it
+    const renderBoundaryAndFit = (map: google.maps.Map, boundary: any) => {
         try {
             const dataLayer = new window.google.maps.Data();
             dataLayer.addGeoJson(boundary);
             dataLayer.setStyle({
                 fillColor: '#6366f1',
-                fillOpacity: 0.05,
-                strokeColor: '#6366f1',
-                strokeWeight: 2,
-                strokeOpacity: 0.5,
+                fillOpacity: 0.08,
+                strokeColor: '#818cf8',
+                strokeWeight: 3,
+                strokeOpacity: 0.8,
             });
             dataLayer.setMap(map);
+
+            // Fit bounds to the boundary
+            const bounds = new window.google.maps.LatLngBounds();
+            dataLayer.forEach((feature) => {
+                const geometry = feature.getGeometry();
+                if (geometry) {
+                    geometry.forEachLatLng((latlng) => {
+                        bounds.extend(latlng);
+                    });
+                }
+            });
+            map.fitBounds(bounds);
         } catch (e) {
             console.error('Error rendering boundary:', e);
         }
@@ -193,13 +207,22 @@ export default function StaffDashboardMap({
             if (!statusFilters[r.status as keyof typeof statusFilters]) return false;
 
             // Category filter
-            if (!categoryFilters[r.service_code]) return false;
+            if (categoryFilters[r.service_code] === false) return false;
 
-            // Assignment filter (search in assigned_to field)
+            // Assignment filter - search in assigned_to, service_name, or description
             if (assignmentFilter) {
                 const searchLower = assignmentFilter.toLowerCase();
-                const assignedTo = (r as any).assigned_to?.toLowerCase() || '';
-                if (!assignedTo.includes(searchLower)) return false;
+                const assignedTo = ((r as any).assigned_to || '').toLowerCase();
+                const serviceName = r.service_name.toLowerCase();
+                const description = r.description.toLowerCase();
+                const address = (r.address || '').toLowerCase();
+
+                if (!assignedTo.includes(searchLower) &&
+                    !serviceName.includes(searchLower) &&
+                    !description.includes(searchLower) &&
+                    !address.includes(searchLower)) {
+                    return false;
+                }
             }
 
             // Must have coordinates
@@ -218,7 +241,7 @@ export default function StaffDashboardMap({
                     fillOpacity: 1,
                     strokeColor: '#ffffff',
                     strokeWeight: 2,
-                    scale: 8,
+                    scale: 10,
                 },
                 title: request.service_name,
             });
@@ -226,21 +249,23 @@ export default function StaffDashboardMap({
             marker.addListener('click', () => {
                 if (infoWindowRef.current) {
                     infoWindowRef.current.setContent(`
-                        <div style="padding: 12px; max-width: 280px; font-family: system-ui, sans-serif;">
-                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                                <span style="font-size: 11px; color: #666; font-family: monospace;">${request.service_request_id}</span>
-                                <span style="font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: ${STATUS_COLORS[request.status as keyof typeof STATUS_COLORS]}20; color: ${STATUS_COLORS[request.status as keyof typeof STATUS_COLORS]}; font-weight: 500;">
+                        <div style="padding: 16px; max-width: 300px; font-family: system-ui, -apple-system, sans-serif;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <span style="font-size: 12px; color: #6366f1; font-family: monospace; font-weight: 600;">${request.service_request_id}</span>
+                                <span style="font-size: 11px; padding: 4px 10px; border-radius: 9999px; background: ${STATUS_COLORS[request.status as keyof typeof STATUS_COLORS]}; color: white; font-weight: 600; text-transform: uppercase;">
                                     ${request.status.replace('_', ' ')}
                                 </span>
                             </div>
-                            <h3 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 600; color: #1a1a2e;">${request.service_name}</h3>
-                            <p style="margin: 0 0 8px 0; font-size: 12px; color: #666; line-height: 1.4;">${request.description.substring(0, 100)}${request.description.length > 100 ? '...' : ''}</p>
-                            ${request.address ? `<p style="margin: 0 0 12px 0; font-size: 11px; color: #888;">📍 ${request.address}</p>` : ''}
+                            <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 700; color: #1f2937;">${request.service_name}</h3>
+                            <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563; line-height: 1.5;">${request.description.substring(0, 120)}${request.description.length > 120 ? '...' : ''}</p>
+                            ${request.address ? `<p style="margin: 0 0 16px 0; font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 6px;">📍 ${request.address}</p>` : ''}
                             <button 
                                 onclick="window.staffDashboardSelectRequest('${request.service_request_id}')"
-                                style="width: 100%; padding: 8px 12px; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer;"
+                                style="width: 100%; padding: 10px 16px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: transform 0.1s;"
+                                onmouseover="this.style.transform='scale(1.02)'"
+                                onmouseout="this.style.transform='scale(1)'"
                             >
-                                View Details
+                                View Full Details →
                             </button>
                         </div>
                     `);
@@ -272,16 +297,16 @@ export default function StaffDashboardMap({
                         icon: {
                             path: window.google.maps.SymbolPath.CIRCLE,
                             fillColor: '#6366f1',
-                            fillOpacity: 0.9,
+                            fillOpacity: 0.95,
                             strokeColor: '#ffffff',
-                            strokeWeight: 2,
-                            scale: 16 + Math.min(count, 50) / 5,
+                            strokeWeight: 3,
+                            scale: 18 + Math.min(count, 50) / 4,
                         },
                         label: {
                             text: String(count),
                             color: '#ffffff',
-                            fontSize: '11px',
-                            fontWeight: '600',
+                            fontSize: '12px',
+                            fontWeight: '700',
                         },
                         zIndex: 1000 + count,
                     });
@@ -294,57 +319,104 @@ export default function StaffDashboardMap({
         const map = mapInstanceRef.current;
         if (!map) return;
 
-        // Clear existing layer polygons
-        layerPolygonsRef.current.forEach(p => p.setMap(null));
-        layerPolygonsRef.current = [];
+        // Clear existing layer data and markers
+        layerDataRef.current.forEach(d => d.setMap(null));
+        layerDataRef.current = [];
+        layerMarkersRef.current.forEach(m => m.setMap(null));
+        layerMarkersRef.current = [];
 
         // Render active layers
         mapLayers.forEach(layer => {
             if (!layerFilters[layer.id]) return;
-            if (!layer.visible_on_map) return;
+            if (layer.visible_on_map === false) return;
 
             try {
                 const geojson = layer.geojson as any;
                 if (!geojson) return;
 
-                const features = geojson.type === 'FeatureCollection'
-                    ? geojson.features
-                    : geojson.type === 'Feature'
-                        ? [geojson]
-                        : [];
+                // Use Google Maps Data layer for proper GeoJSON support
+                const dataLayer = new window.google.maps.Data();
 
-                features.forEach((feature: any) => {
-                    if (!feature.geometry) return;
+                // Handle different GeoJSON formats
+                if (geojson.type === 'FeatureCollection') {
+                    dataLayer.addGeoJson(geojson);
+                } else if (geojson.type === 'Feature') {
+                    dataLayer.addGeoJson({ type: 'FeatureCollection', features: [geojson] });
+                } else if (geojson.type === 'Point' || geojson.type === 'Polygon' || geojson.type === 'MultiPolygon' || geojson.type === 'LineString') {
+                    // Raw geometry - wrap in feature
+                    dataLayer.addGeoJson({
+                        type: 'FeatureCollection',
+                        features: [{ type: 'Feature', geometry: geojson, properties: {} }]
+                    });
+                }
 
-                    const coords = feature.geometry.coordinates;
-                    const type = feature.geometry.type;
+                // Style the layer
+                dataLayer.setStyle((feature) => {
+                    const geomType = feature.getGeometry()?.getType();
 
-                    if (type === 'Polygon') {
-                        const paths = coords[0].map((c: number[]) => ({ lat: c[1], lng: c[0] }));
-                        const polygon = new window.google.maps.Polygon({
-                            paths,
-                            fillColor: layer.fill_color,
-                            fillOpacity: layer.fill_opacity,
-                            strokeColor: layer.stroke_color,
-                            strokeWeight: layer.stroke_width,
+                    if (geomType === 'Point') {
+                        // For points, we'll create custom markers instead
+                        return { visible: false };
+                    }
+
+                    return {
+                        fillColor: layer.fill_color,
+                        fillOpacity: layer.fill_opacity,
+                        strokeColor: layer.stroke_color,
+                        strokeWeight: layer.stroke_width,
+                    };
+                });
+
+                // Handle point features with custom markers
+                dataLayer.forEach((feature) => {
+                    const geom = feature.getGeometry();
+                    if (geom && geom.getType() === 'Point') {
+                        const point = geom as google.maps.Data.Point;
+                        const latLng = point.get();
+                        const props = {};
+                        feature.forEachProperty((value, key) => {
+                            (props as any)[key] = value;
+                        });
+
+                        const marker = new window.google.maps.Marker({
+                            position: latLng,
                             map,
-                        });
-                        layerPolygonsRef.current.push(polygon);
-                    } else if (type === 'MultiPolygon') {
-                        coords.forEach((polygonCoords: number[][][]) => {
-                            const paths = polygonCoords[0].map((c: number[]) => ({ lat: c[1], lng: c[0] }));
-                            const polygon = new window.google.maps.Polygon({
-                                paths,
+                            icon: {
+                                path: window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
                                 fillColor: layer.fill_color,
-                                fillOpacity: layer.fill_opacity,
+                                fillOpacity: 1,
                                 strokeColor: layer.stroke_color,
-                                strokeWeight: layer.stroke_width,
-                                map,
-                            });
-                            layerPolygonsRef.current.push(polygon);
+                                strokeWeight: 2,
+                                scale: 6,
+                            },
+                            title: (props as any).name || layer.name,
                         });
+
+                        // Add click listener for point info
+                        marker.addListener('click', () => {
+                            if (infoWindowRef.current) {
+                                const propsHtml = Object.entries(props)
+                                    .filter(([k]) => k !== 'name')
+                                    .map(([k, v]) => `<p style="margin: 4px 0; font-size: 12px;"><strong>${k}:</strong> ${v}</p>`)
+                                    .join('');
+
+                                infoWindowRef.current.setContent(`
+                                    <div style="padding: 12px; font-family: system-ui;">
+                                        <h4 style="margin: 0 0 8px 0; color: ${layer.fill_color};">${(props as any).name || layer.name}</h4>
+                                        ${propsHtml || '<p style="color: #666; font-size: 12px;">No additional properties</p>'}
+                                    </div>
+                                `);
+                                infoWindowRef.current.open(map, marker);
+                            }
+                        });
+
+                        layerMarkersRef.current.push(marker);
                     }
                 });
+
+                dataLayer.setMap(map);
+                layerDataRef.current.push(dataLayer);
+
             } catch (e) {
                 console.error('Error rendering layer:', layer.name, e);
             }
@@ -384,64 +456,67 @@ export default function StaffDashboardMap({
     }
 
     return (
-        <div className="h-full flex relative">
+        <div className="h-full flex relative rounded-xl overflow-hidden border border-white/10">
             {/* Map Container */}
             <div className="flex-1 relative">
                 {isLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/5 z-10">
-                        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#1a1a2e] z-10">
+                        <div className="w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 )}
-                <div ref={mapRef} className="w-full h-full rounded-xl overflow-hidden" />
+                <div ref={mapRef} className="w-full h-full" />
             </div>
 
-            {/* Filter Panel Toggle */}
-            <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="absolute top-4 right-4 z-20 p-2 bg-white/10 backdrop-blur-md rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
-                title={showFilters ? 'Hide Filters' : 'Show Filters'}
+            {/* Filter Panel - Right Side */}
+            <div
+                className={`absolute top-0 right-0 bottom-0 w-72 bg-[#0f0f1a]/98 backdrop-blur-xl border-l border-white/10 transform transition-transform duration-300 z-20 ${showFilters ? 'translate-x-0' : 'translate-x-full'
+                    }`}
             >
-                {showFilters ? <X className="w-5 h-5 text-white" /> : <Filter className="w-5 h-5 text-white" />}
-            </button>
+                {/* Panel Header */}
+                <div className="p-4 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-primary-500/10 to-transparent">
+                    <h3 className="font-bold text-white flex items-center gap-2 text-lg">
+                        <Layers className="w-5 h-5 text-primary-400" />
+                        Filters
+                    </h3>
+                    <button
+                        onClick={() => setShowFilters(false)}
+                        className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                    >
+                        <X className="w-5 h-5 text-white/60" />
+                    </button>
+                </div>
 
-            {/* Filter Panel */}
-            {showFilters && (
-                <div className="absolute top-4 right-14 z-20 w-64 max-h-[calc(100%-2rem)] overflow-y-auto bg-[#1a1a2e]/95 backdrop-blur-md rounded-xl border border-white/10 shadow-xl">
-                    <div className="p-4 border-b border-white/10">
-                        <h3 className="font-semibold text-white flex items-center gap-2">
-                            <Layers className="w-4 h-4" />
-                            Map Layers
-                        </h3>
-                    </div>
-
+                <div className="overflow-y-auto h-[calc(100%-60px)]">
                     {/* Status Filters */}
-                    <div className="border-b border-white/10">
+                    <div className="border-b border-white/5">
                         <button
                             onClick={() => toggleSection('status')}
-                            className="w-full flex items-center justify-between p-3 hover:bg-white/5"
+                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <span className="text-sm font-medium text-white/80">Request Status</span>
+                            <span className="text-sm font-semibold text-white">Request Status</span>
                             {expandedSections.status ? (
-                                <ChevronDown className="w-4 h-4 text-white/40" />
+                                <ChevronDown className="w-4 h-4 text-white/50" />
                             ) : (
-                                <ChevronRight className="w-4 h-4 text-white/40" />
+                                <ChevronRight className="w-4 h-4 text-white/50" />
                             )}
                         </button>
                         {expandedSections.status && (
-                            <div className="px-3 pb-3 space-y-2">
+                            <div className="px-4 pb-4 space-y-3">
                                 {Object.entries(statusFilters).map(([status, enabled]) => (
-                                    <label key={status} className="flex items-center gap-3 cursor-pointer">
+                                    <label key={status} className="flex items-center gap-3 cursor-pointer group">
                                         <input
                                             type="checkbox"
                                             checked={enabled}
                                             onChange={(e) => setStatusFilters(prev => ({ ...prev, [status]: e.target.checked }))}
-                                            className="rounded border-white/20 bg-white/5 text-primary-500 focus:ring-primary-500"
+                                            className="w-5 h-5 rounded border-2 border-white/20 bg-transparent text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
                                         />
                                         <span
-                                            className="w-3 h-3 rounded-full"
+                                            className="w-4 h-4 rounded-full shadow-lg"
                                             style={{ backgroundColor: STATUS_COLORS[status as keyof typeof STATUS_COLORS] }}
                                         />
-                                        <span className="text-sm text-white/70 capitalize">{status.replace('_', ' ')}</span>
+                                        <span className="text-sm text-white/80 capitalize group-hover:text-white transition-colors">
+                                            {status.replace('_', ' ')}
+                                        </span>
                                     </label>
                                 ))}
                             </div>
@@ -449,44 +524,46 @@ export default function StaffDashboardMap({
                     </div>
 
                     {/* Category Filters */}
-                    <div className="border-b border-white/10">
+                    <div className="border-b border-white/5">
                         <button
                             onClick={() => toggleSection('categories')}
-                            className="w-full flex items-center justify-between p-3 hover:bg-white/5"
+                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <span className="text-sm font-medium text-white/80">Categories</span>
+                            <span className="text-sm font-semibold text-white">Categories</span>
                             {expandedSections.categories ? (
-                                <ChevronDown className="w-4 h-4 text-white/40" />
+                                <ChevronDown className="w-4 h-4 text-white/50" />
                             ) : (
-                                <ChevronRight className="w-4 h-4 text-white/40" />
+                                <ChevronRight className="w-4 h-4 text-white/50" />
                             )}
                         </button>
                         {expandedSections.categories && (
-                            <div className="px-3 pb-3 space-y-2">
-                                <div className="flex gap-2 mb-2">
+                            <div className="px-4 pb-4 space-y-2">
+                                <div className="flex gap-3 mb-3 pb-2 border-b border-white/5">
                                     <button
                                         onClick={() => toggleAllCategories(true)}
-                                        className="text-xs text-primary-400 hover:underline"
+                                        className="text-xs text-primary-400 hover:text-primary-300 font-medium"
                                     >
-                                        All
+                                        Select All
                                     </button>
-                                    <span className="text-white/30">|</span>
+                                    <span className="text-white/20">|</span>
                                     <button
                                         onClick={() => toggleAllCategories(false)}
-                                        className="text-xs text-primary-400 hover:underline"
+                                        className="text-xs text-primary-400 hover:text-primary-300 font-medium"
                                     >
-                                        None
+                                        Clear All
                                     </button>
                                 </div>
                                 {services.map(service => (
-                                    <label key={service.service_code} className="flex items-center gap-3 cursor-pointer">
+                                    <label key={service.service_code} className="flex items-center gap-3 cursor-pointer group">
                                         <input
                                             type="checkbox"
                                             checked={categoryFilters[service.service_code] ?? true}
                                             onChange={(e) => setCategoryFilters(prev => ({ ...prev, [service.service_code]: e.target.checked }))}
-                                            className="rounded border-white/20 bg-white/5 text-primary-500 focus:ring-primary-500"
+                                            className="w-5 h-5 rounded border-2 border-white/20 bg-transparent text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
                                         />
-                                        <span className="text-sm text-white/70 truncate">{service.service_name}</span>
+                                        <span className="text-sm text-white/70 truncate group-hover:text-white transition-colors">
+                                            {service.service_name}
+                                        </span>
                                     </label>
                                 ))}
                             </div>
@@ -495,48 +572,54 @@ export default function StaffDashboardMap({
 
                     {/* GeoJSON Layers */}
                     {mapLayers.length > 0 && (
-                        <div className="border-b border-white/10">
+                        <div className="border-b border-white/5">
                             <button
                                 onClick={() => toggleSection('layers')}
-                                className="w-full flex items-center justify-between p-3 hover:bg-white/5"
+                                className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                             >
-                                <span className="text-sm font-medium text-white/80">GeoJSON Layers</span>
+                                <span className="text-sm font-semibold text-white">Map Layers</span>
                                 {expandedSections.layers ? (
-                                    <ChevronDown className="w-4 h-4 text-white/40" />
+                                    <ChevronDown className="w-4 h-4 text-white/50" />
                                 ) : (
-                                    <ChevronRight className="w-4 h-4 text-white/40" />
+                                    <ChevronRight className="w-4 h-4 text-white/50" />
                                 )}
                             </button>
                             {expandedSections.layers && (
-                                <div className="px-3 pb-3 space-y-2">
-                                    <div className="flex gap-2 mb-2">
+                                <div className="px-4 pb-4 space-y-2">
+                                    <div className="flex gap-3 mb-3 pb-2 border-b border-white/5">
                                         <button
                                             onClick={() => toggleAllLayers(true)}
-                                            className="text-xs text-primary-400 hover:underline"
+                                            className="text-xs text-primary-400 hover:text-primary-300 font-medium"
                                         >
-                                            All
+                                            Show All
                                         </button>
-                                        <span className="text-white/30">|</span>
+                                        <span className="text-white/20">|</span>
                                         <button
                                             onClick={() => toggleAllLayers(false)}
-                                            className="text-xs text-primary-400 hover:underline"
+                                            className="text-xs text-primary-400 hover:text-primary-300 font-medium"
                                         >
-                                            None
+                                            Hide All
                                         </button>
                                     </div>
                                     {mapLayers.map(layer => (
-                                        <label key={layer.id} className="flex items-center gap-3 cursor-pointer">
+                                        <label key={layer.id} className="flex items-center gap-3 cursor-pointer group">
                                             <input
                                                 type="checkbox"
                                                 checked={layerFilters[layer.id] ?? true}
                                                 onChange={(e) => setLayerFilters(prev => ({ ...prev, [layer.id]: e.target.checked }))}
-                                                className="rounded border-white/20 bg-white/5 text-primary-500 focus:ring-primary-500"
+                                                className="w-5 h-5 rounded border-2 border-white/20 bg-transparent text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
                                             />
                                             <span
-                                                className="w-3 h-3 rounded"
-                                                style={{ backgroundColor: layer.fill_color, opacity: layer.fill_opacity }}
+                                                className="w-4 h-4 rounded border-2"
+                                                style={{
+                                                    backgroundColor: layer.fill_color,
+                                                    borderColor: layer.stroke_color,
+                                                    opacity: 0.9
+                                                }}
                                             />
-                                            <span className="text-sm text-white/70 truncate">{layer.name}</span>
+                                            <span className="text-sm text-white/70 truncate group-hover:text-white transition-colors">
+                                                {layer.name}
+                                            </span>
                                         </label>
                                     ))}
                                 </div>
@@ -548,48 +631,65 @@ export default function StaffDashboardMap({
                     <div>
                         <button
                             onClick={() => toggleSection('assignment')}
-                            className="w-full flex items-center justify-between p-3 hover:bg-white/5"
+                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <span className="text-sm font-medium text-white/80">Assignment</span>
+                            <span className="text-sm font-semibold text-white flex items-center gap-2">
+                                <Users className="w-4 h-4 text-white/50" />
+                                Search Requests
+                            </span>
                             {expandedSections.assignment ? (
-                                <ChevronDown className="w-4 h-4 text-white/40" />
+                                <ChevronDown className="w-4 h-4 text-white/50" />
                             ) : (
-                                <ChevronRight className="w-4 h-4 text-white/40" />
+                                <ChevronRight className="w-4 h-4 text-white/50" />
                             )}
                         </button>
                         {expandedSections.assignment && (
-                            <div className="px-3 pb-3">
+                            <div className="px-4 pb-4">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                                     <input
                                         type="text"
-                                        placeholder="Search staff/department..."
+                                        placeholder="Staff, address, description..."
                                         value={assignmentFilter}
                                         onChange={(e) => setAssignmentFilter(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/40 focus:outline-none focus:border-primary-500"
+                                        className="w-full pl-10 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/40 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/50 transition-all"
                                     />
                                     {assignmentFilter && (
                                         <button
                                             onClick={() => setAssignmentFilter('')}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
                                         >
-                                            <X className="w-3 h-3 text-white/40" />
+                                            <X className="w-4 h-4 text-white/50" />
                                         </button>
                                     )}
                                 </div>
+                                <p className="text-xs text-white/40 mt-2">
+                                    Filter by assigned staff, address, or description
+                                </p>
                             </div>
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Filter Toggle Button */}
+            {!showFilters && (
+                <button
+                    onClick={() => setShowFilters(true)}
+                    className="absolute top-4 right-4 z-20 p-3 bg-[#1a1a2e]/95 backdrop-blur-md rounded-xl border border-white/20 hover:bg-primary-500/20 transition-all shadow-xl"
+                    title="Show Filters"
+                >
+                    <Layers className="w-5 h-5 text-white" />
+                </button>
             )}
 
             {/* Legend */}
-            <div className="absolute bottom-4 left-4 z-10 bg-[#1a1a2e]/90 backdrop-blur-md rounded-lg border border-white/10 p-3">
-                <div className="flex items-center gap-4 text-xs">
+            <div className="absolute bottom-4 left-4 z-10 bg-[#0f0f1a]/95 backdrop-blur-md rounded-xl border border-white/10 px-4 py-3 shadow-xl">
+                <div className="flex items-center gap-5 text-xs">
                     {Object.entries(STATUS_COLORS).map(([status, color]) => (
-                        <div key={status} className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                            <span className="text-white/60 capitalize">{status.replace('_', ' ')}</span>
+                        <div key={status} className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: color }} />
+                            <span className="text-white/70 font-medium capitalize">{status.replace('_', ' ')}</span>
                         </div>
                     ))}
                 </div>
