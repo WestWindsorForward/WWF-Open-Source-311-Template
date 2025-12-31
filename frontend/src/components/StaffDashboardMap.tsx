@@ -472,7 +472,7 @@ export default function StaffDashboardMap({
 
             {/* Filter Panel - Right Side */}
             <div
-                className={`absolute top-0 right-0 bottom-0 w-72 bg-[#0f0f1a]/98 backdrop-blur-xl border-l border-white/10 transform transition-transform duration-300 z-20 ${showFilters ? 'translate-x-0' : 'translate-x-full'
+                className={`absolute top-0 right-0 bottom-0 w-72 bg-[#0f0f1a] border-l border-white/10 transform transition-transform duration-300 z-20 shadow-2xl ${showFilters ? 'translate-x-0' : 'translate-x-full'
                     }`}
             >
                 {/* Panel Header */}
