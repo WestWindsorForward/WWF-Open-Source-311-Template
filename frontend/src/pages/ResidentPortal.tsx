@@ -232,12 +232,19 @@ export default function ResidentPortal() {
     };
 
     // Ray-casting algorithm for point-in-polygon check
+    // Input polygon is in [lat, lng] format (already converted from GeoJSON [lng, lat])
     const isPointInPolygon = (lat: number, lng: number, polygon: number[][]): boolean => {
         let inside = false;
         for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-            const xi = polygon[i][0], yi = polygon[i][1];
-            const xj = polygon[j][0], yj = polygon[j][1];
-            if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+            // polygon coords: [latitude, longitude] - converted format
+            const lati = polygon[i][0];
+            const lngi = polygon[i][1];
+            const latj = polygon[j][0];
+            const lngj = polygon[j][1];
+
+            const intersect = ((lati > lat) !== (latj > lat)) &&
+                (lng < (lngj - lngi) * (lat - lati) / (latj - lati) + lngi);
+            if (intersect) {
                 inside = !inside;
             }
         }
