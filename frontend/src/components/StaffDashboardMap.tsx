@@ -63,6 +63,7 @@ export default function StaffDashboardMap({
     // UI state
     const [isLoading, setIsLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(true);
+    const [mapType, setMapType] = useState<string>('hybrid');
     const [expandedSections, setExpandedSections] = useState({
         status: true,
         categories: false,
@@ -139,6 +140,11 @@ export default function StaffDashboardMap({
 
         mapInstanceRef.current = map;
         infoWindowRef.current = new window.google.maps.InfoWindow();
+
+        // Track map type changes for panel styling
+        map.addListener('maptypeid_changed', () => {
+            setMapType(map.getMapTypeId() || 'hybrid');
+        });
 
         // Render township boundary and fit to it
         if (townshipBoundary) {
@@ -472,7 +478,10 @@ export default function StaffDashboardMap({
 
             {/* Filter Panel - Right Side */}
             <div
-                className={`absolute top-0 right-0 bottom-0 w-72 bg-[#0f0f1a] border-l border-white/10 transform transition-transform duration-300 z-20 shadow-2xl ${showFilters ? 'translate-x-0' : 'translate-x-full'
+                className={`absolute top-0 right-0 bottom-0 w-72 border-l border-white/10 transform transition-all duration-300 z-20 shadow-2xl ${showFilters ? 'translate-x-0' : 'translate-x-full'
+                    } ${mapType === 'roadmap'
+                        ? 'bg-[#0f0f1a]'
+                        : 'bg-[#0f0f1a]/95 backdrop-blur-xl'
                     }`}
             >
                 {/* Panel Header */}
