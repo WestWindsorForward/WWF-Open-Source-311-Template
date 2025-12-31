@@ -2594,8 +2594,117 @@ export default function AdminConsole() {
                                 </div>
                             </div>
 
+                            {/* Nominatim Boundary Search - Only for polygons */}
+                            {newLayer.layer_type === 'polygon' && (
+                                <div className="space-y-3 p-4 rounded-lg bg-white/5 border border-white/10">
+                                    <label className="block text-sm font-medium text-white/70">
+                                        Search for Boundary (from OpenStreetMap)
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., Princeton University, Central Park..."
+                                            value={nominatimSearch}
+                                            onChange={(e) => setNominatimSearch(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    // Trigger search
+                                                    if (nominatimSearch.trim()) {
+                                                        setIsSearchingNominatim(true);
+                                                        fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimSearch)}&format=json&polygon_geojson=0&limit=10`)
+                                                            .then(res => res.json())
+                                                            .then(results => {
+                                                                setNominatimResults(results.filter((r: any) => r.osm_type === 'way' || r.osm_type === 'relation'));
+                                                            })
+                                                            .catch(console.error)
+                                                            .finally(() => setIsSearchingNominatim(false));
+                                                    }
+                                                }
+                                            }}
+                                            className="flex-1 h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3 placeholder:text-white/40"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={() => {
+                                                if (nominatimSearch.trim()) {
+                                                    setIsSearchingNominatim(true);
+                                                    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimSearch)}&format=json&polygon_geojson=0&limit=10`)
+                                                        .then(res => res.json())
+                                                        .then(results => {
+                                                            setNominatimResults(results.filter((r: any) => r.osm_type === 'way' || r.osm_type === 'relation'));
+                                                        })
+                                                        .catch(console.error)
+                                                        .finally(() => setIsSearchingNominatim(false));
+                                                }
+                                            }}
+                                            disabled={isSearchingNominatim}
+                                        >
+                                            {isSearchingNominatim ? 'Searching...' : 'Search'}
+                                        </Button>
+                                    </div>
+
+                                    {nominatimResults.length > 0 && (
+                                        <div className="max-h-48 overflow-y-auto space-y-1">
+                                            {nominatimResults.map((result: any, idx: number) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    className="w-full text-left p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/80 text-sm transition-colors"
+                                                    onClick={async () => {
+                                                        // Fetch the actual boundary GeoJSON
+                                                        setIsSearchingNominatim(true);
+                                                        try {
+                                                            const osmType = result.osm_type === 'way' ? 'W' : 'R';
+                                                            const response = await fetch(
+                                                                `https://nominatim.openstreetmap.org/details?osmtype=${osmType}&osmid=${result.osm_id}&format=json&polygon_geojson=1`
+                                                            );
+                                                            const details = await response.json();
+                                                            if (details.geometry) {
+                                                                const geojson = {
+                                                                    type: 'Feature',
+                                                                    properties: {
+                                                                        name: result.display_name,
+                                                                        osm_id: result.osm_id,
+                                                                    },
+                                                                    geometry: details.geometry,
+                                                                };
+                                                                setNewLayer(p => ({
+                                                                    ...p,
+                                                                    geojson,
+                                                                    name: p.name || result.display_name.split(',')[0].trim()
+                                                                }));
+                                                                setNominatimResults([]);
+                                                                setNominatimSearch('');
+                                                            } else {
+                                                                alert('Could not fetch boundary for this location');
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('Failed to fetch boundary:', err);
+                                                            alert('Failed to fetch boundary');
+                                                        } finally {
+                                                            setIsSearchingNominatim(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="font-medium">{result.display_name.split(',')[0]}</div>
+                                                    <div className="text-xs text-white/50 truncate">{result.display_name}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <p className="text-xs text-white/40">
+                                        Press Enter or click Search to find boundaries. Select a result to load its boundary.
+                                    </p>
+                                </div>
+                            )}
+
                             <div>
-                                <label className="block text-sm font-medium text-white/70 mb-2">GeoJSON File</label>
+                                <label className="block text-sm font-medium text-white/70 mb-2">
+                                    {newLayer.layer_type === 'polygon' ? 'Or Upload GeoJSON File' : 'GeoJSON File'}
+                                </label>
                                 <input
                                     type="file"
                                     accept=".geojson,.json"
