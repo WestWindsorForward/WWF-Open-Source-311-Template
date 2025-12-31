@@ -33,7 +33,7 @@ redis_client = redis.from_url(_settings.redis_url, decode_responses=True)
 CACHE_TTL = 60  # seconds
 
 
-@router.get("/public/requests", response_model=List[PublicServiceRequestResponse])
+@router.get("/public/requests")
 async def list_public_requests(
     status: Optional[str] = Query(None, description="Filter by status"),
     service_code: Optional[str] = Query(None, description="Filter by service category"),
@@ -79,9 +79,9 @@ async def list_public_requests(
             "requested_datetime": r.requested_datetime.isoformat() if r.requested_datetime else None,
             "updated_datetime": r.updated_datetime.isoformat() if r.updated_datetime else None,
             "closed_substatus": r.closed_substatus,
-            "media_url": bool(r.media_url),  # Just indicate if media exists
+            "media_url": None,  # Exclude large base64 - fetch full data individually
             "completion_message": r.completion_message[:200] if r.completion_message else None,
-            "completion_photo_url": bool(r.completion_photo_url),  # Just indicate if photo exists
+            "completion_photo_url": None,  # Exclude large base64 - fetch full data individually
         }
         for r in requests
     ]
