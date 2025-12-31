@@ -16,6 +16,17 @@ class RequestStatus(str, Enum):
     closed = "closed"
 
 
+class ClosedSubstatus(str, Enum):
+    no_action = "no_action"  # No action needed
+    resolved = "resolved"    # Issue resolved
+    third_party = "third_party"  # Third party support contacted
+
+
+class CommentVisibility(str, Enum):
+    internal = "internal"  # Staff only
+    external = "external"  # Visible to resident
+
+
 class RequestSource(str, Enum):
     resident_portal = "resident_portal"
     phone = "phone"
@@ -156,6 +167,15 @@ class ServiceRequestUpdate(BaseModel):
     priority: Optional[int] = Field(None, ge=1, le=10)
     staff_notes: Optional[str] = None
     assigned_to: Optional[str] = None
+    # Closed sub-status fields (when status = closed)
+    closed_substatus: Optional[ClosedSubstatus] = None
+    completion_message: Optional[str] = None
+    completion_photo_url: Optional[str] = None
+
+
+class ServiceRequestDelete(BaseModel):
+    """Schema for soft-deleting a service request with justification"""
+    justification: str = Field(..., min_length=10, description="Reason for deleting this request")
 
 
 class ServiceRequestResponse(BaseModel):
@@ -174,6 +194,11 @@ class ServiceRequestResponse(BaseModel):
     source: str
     flagged: bool = False
     matched_asset: Optional[Dict[str, Any]] = None
+    # Closed sub-status
+    closed_substatus: Optional[str] = None
+    # Soft delete info
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -190,6 +215,16 @@ class ServiceRequestDetailResponse(ServiceRequestResponse):
     staff_notes: Optional[str] = None
     assigned_to: Optional[str] = None
     closed_datetime: Optional[datetime] = None
+    # Completion fields
+    completion_message: Optional[str] = None
+    completion_photo_url: Optional[str] = None
+    # Delete justification (for admin view)
+    delete_justification: Optional[str] = None
+    # Vertex AI Analysis placeholders
+    vertex_ai_summary: Optional[str] = None
+    vertex_ai_classification: Optional[str] = None
+    vertex_ai_priority_score: Optional[float] = None
+    vertex_ai_analyzed_at: Optional[datetime] = None
 
 
 # ============ Manual Intake ============
@@ -310,3 +345,21 @@ class MapLayerResponse(MapLayerBase):
         from_attributes = True
 
 
+# ============ Request Comments ============
+class RequestCommentCreate(BaseModel):
+    content: str = Field(..., min_length=1, description="Comment content")
+    visibility: CommentVisibility = CommentVisibility.internal
+
+
+class RequestCommentResponse(BaseModel):
+    id: int
+    service_request_id: int
+    user_id: Optional[int] = None
+    username: str
+    content: str
+    visibility: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

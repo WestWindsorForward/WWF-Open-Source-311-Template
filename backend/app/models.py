@@ -145,7 +145,47 @@ class ServiceRequest(Base):
     
     # Matched asset from map layers (detected on submit)
     matched_asset = Column(JSON)  # { layer_name, asset_id, asset_type, properties, distance_meters }
+    
+    # Closed sub-status (when status = 'closed')
+    closed_substatus = Column(String(30))  # no_action, resolved, third_party
+    completion_message = Column(Text)  # Staff message when closing
+    completion_photo_url = Column(String(500))  # Photo proof of resolution
+    
+    # Soft delete support
+    deleted_at = Column(DateTime(timezone=True))
+    deleted_by = Column(String(100))  # Username who deleted
+    delete_justification = Column(Text)
+    
+    # Vertex AI Analysis (placeholders for future integration)
+    vertex_ai_summary = Column(Text)  # AI-generated summary
+    vertex_ai_classification = Column(String(100))  # AI category classification
+    vertex_ai_priority_score = Column(Float)  # AI priority recommendation (1-10)
+    vertex_ai_analyzed_at = Column(DateTime(timezone=True))
 
+
+class RequestComment(Base):
+    """Two-way comments on service requests with visibility control"""
+    __tablename__ = "request_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    service_request_id = Column(Integer, ForeignKey("service_requests.id"), nullable=False, index=True)
+    
+    # Author info
+    user_id = Column(Integer, ForeignKey("users.id"))
+    username = Column(String(100), nullable=False)
+    
+    # Comment content
+    content = Column(Text, nullable=False)
+    
+    # Visibility: internal (staff only) or external (visible to resident)
+    visibility = Column(String(20), default="internal")  # internal, external
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    service_request = relationship("ServiceRequest", backref="comments")
 
 
 

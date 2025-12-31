@@ -13,19 +13,26 @@ import {
     Map,
     Sparkles,
     LogOut,
-    ChevronRight,
     MapPin,
     Mail,
     Phone,
     User,
     Calendar,
     BarChart3,
+    MessageSquare,
+    Trash2,
+    Eye,
+    EyeOff,
+    Send,
+    Camera,
+    Link,
+    Brain,
 } from 'lucide-react';
 import { Button, Card, Modal, Input, Textarea, Select, StatusBadge, Badge } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api } from '../services/api';
-import { ServiceRequest, ServiceRequestDetail, ServiceDefinition, Statistics } from '../types';
+import { ServiceRequest, ServiceRequestDetail, ServiceDefinition, Statistics, RequestComment, ClosedSubstatus } from '../types';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 type View = 'active' | 'resolved' | 'all' | 'statistics';
@@ -56,6 +63,23 @@ export default function StaffDashboard() {
         source: 'phone',
     });
 
+    // Comments state
+    const [comments, setComments] = useState<RequestComment[]>([]);
+    const [newComment, setNewComment] = useState('');
+    const [commentVisibility, setCommentVisibility] = useState<'internal' | 'external'>('internal');
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+    // Delete modal state
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteJustification, setDeleteJustification] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Closed substatus state
+    const [showClosedModal, setShowClosedModal] = useState(false);
+    const [closedSubstatus, setClosedSubstatus] = useState<ClosedSubstatus>('resolved');
+    const [completionMessage, setCompletionMessage] = useState('');
+    const [completionPhotoUrl, setCompletionPhotoUrl] = useState('');
+
     useEffect(() => {
         loadData();
     }, [currentView]);
@@ -85,6 +109,8 @@ export default function StaffDashboard() {
         try {
             const detail = await api.getRequestDetail(requestId);
             setSelectedRequest(detail);
+            // Load comments for this request
+            loadComments(detail.id);
         } catch (err) {
             console.error('Failed to load request detail:', err);
         }
@@ -92,12 +118,78 @@ export default function StaffDashboard() {
 
     const handleStatusChange = async (status: string) => {
         if (!selectedRequest) return;
+
+        // If closing, show modal to select substatus
+        if (status === 'closed') {
+            setShowClosedModal(true);
+            return;
+        }
+
         try {
-            const updated = await api.updateRequestStatus(selectedRequest.service_request_id, status);
+            const updated = await api.updateRequest(selectedRequest.service_request_id, { status });
             setSelectedRequest(updated);
             loadData();
         } catch (err) {
             console.error('Failed to update status:', err);
+        }
+    };
+
+    const handleCloseWithSubstatus = async () => {
+        if (!selectedRequest) return;
+        try {
+            const updated = await api.updateRequest(selectedRequest.service_request_id, {
+                status: 'closed',
+                closed_substatus: closedSubstatus,
+                completion_message: completionMessage || undefined,
+                completion_photo_url: closedSubstatus === 'resolved' ? completionPhotoUrl || undefined : undefined,
+            });
+            setSelectedRequest(updated);
+            setShowClosedModal(false);
+            setClosedSubstatus('resolved');
+            setCompletionMessage('');
+            setCompletionPhotoUrl('');
+            loadData();
+        } catch (err) {
+            console.error('Failed to close request:', err);
+        }
+    };
+
+    const loadComments = async (requestId: number) => {
+        try {
+            const commentsData = await api.getComments(requestId);
+            setComments(commentsData);
+        } catch (err) {
+            console.error('Failed to load comments:', err);
+        }
+    };
+
+    const handleAddComment = async () => {
+        if (!selectedRequest || !newComment.trim()) return;
+        setIsSubmittingComment(true);
+        try {
+            await api.createComment(selectedRequest.id, newComment.trim(), commentVisibility);
+            setNewComment('');
+            loadComments(selectedRequest.id);
+        } catch (err) {
+            console.error('Failed to add comment:', err);
+        } finally {
+            setIsSubmittingComment(false);
+        }
+    };
+
+    const handleDeleteRequest = async () => {
+        if (!selectedRequest || !deleteJustification.trim()) return;
+        setIsDeleting(true);
+        try {
+            await api.deleteRequest(selectedRequest.service_request_id, deleteJustification.trim());
+            setShowDeleteModal(false);
+            setDeleteJustification('');
+            setSelectedRequest(null);
+            loadData();
+        } catch (err) {
+            console.error('Failed to delete request:', err);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -476,6 +568,7 @@ export default function StaffDashboard() {
                                                     variant={selectedRequest.status === 'open' ? 'primary' : 'secondary'}
                                                     size="sm"
                                                     onClick={() => handleStatusChange('open')}
+                                                    className="min-h-[48px] px-4"
                                                 >
                                                     Open
                                                 </Button>
@@ -483,6 +576,7 @@ export default function StaffDashboard() {
                                                     variant={selectedRequest.status === 'in_progress' ? 'primary' : 'secondary'}
                                                     size="sm"
                                                     onClick={() => handleStatusChange('in_progress')}
+                                                    className="min-h-[48px] px-4"
                                                 >
                                                     In Progress
                                                 </Button>
@@ -490,11 +584,84 @@ export default function StaffDashboard() {
                                                     variant={selectedRequest.status === 'closed' ? 'primary' : 'secondary'}
                                                     size="sm"
                                                     onClick={() => handleStatusChange('closed')}
+                                                    className="min-h-[48px] px-4"
                                                 >
-                                                    Closed
+                                                    {selectedRequest.status === 'closed' && selectedRequest.closed_substatus
+                                                        ? `Closed - ${selectedRequest.closed_substatus === 'no_action' ? 'No Action' : selectedRequest.closed_substatus === 'resolved' ? 'Resolved' : 'Third Party'}`
+                                                        : 'Closed'}
+                                                </Button>
+                                            </div>
+
+                                            {/* Completion info if closed */}
+                                            {selectedRequest.status === 'closed' && selectedRequest.completion_message && (
+                                                <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                                                    <p className="text-sm text-white/70">{selectedRequest.completion_message}</p>
+                                                    {selectedRequest.completion_photo_url && (
+                                                        <img
+                                                            src={selectedRequest.completion_photo_url}
+                                                            alt="Completion"
+                                                            className="mt-2 rounded-lg max-h-48 object-cover"
+                                                        />
+                                                    )}
+                                                </div>
+                                            )}
+                                        </Card>
+
+                                        {/* Shareable Link */}
+                                        <Card>
+                                            <div className="flex items-center gap-3">
+                                                <Link className="w-5 h-5 text-primary-400" />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm text-white/50">Shareable Report Link</p>
+                                                    <code className="text-xs text-primary-400 truncate block">
+                                                        {window.location.origin}/staff/request/{selectedRequest.service_request_id}
+                                                    </code>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => navigator.clipboard.writeText(`${window.location.origin}/staff/request/${selectedRequest.service_request_id}`)}
+                                                >
+                                                    Copy
                                                 </Button>
                                             </div>
                                         </Card>
+
+                                        {/* Google Maps Embed */}
+                                        {selectedRequest.lat && selectedRequest.long && (
+                                            <Card>
+                                                <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                                                    <MapPin className="w-4 h-4 text-primary-400" />
+                                                    Location Map
+                                                </h3>
+                                                <div className="rounded-lg overflow-hidden h-48 md:h-64 bg-white/5">
+                                                    <iframe
+                                                        width="100%"
+                                                        height="100%"
+                                                        style={{ border: 0 }}
+                                                        loading="lazy"
+                                                        src={`https://www.google.com/maps/embed/v1/place?key=${(window as any).GOOGLE_MAPS_API_KEY || ''}&q=${selectedRequest.lat},${selectedRequest.long}&zoom=17`}
+                                                        allowFullScreen
+                                                    />
+                                                </div>
+                                            </Card>
+                                        )}
+
+                                        {/* Submitted Photo */}
+                                        {selectedRequest.media_url && (
+                                            <Card>
+                                                <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                                                    <Camera className="w-4 h-4 text-primary-400" />
+                                                    Submitted Photo
+                                                </h3>
+                                                <img
+                                                    src={selectedRequest.media_url}
+                                                    alt="Report"
+                                                    className="rounded-lg max-h-64 w-full object-cover cursor-pointer"
+                                                    onClick={() => window.open(selectedRequest.media_url!, '_blank')}
+                                                />
+                                            </Card>
+                                        )}
 
                                         {/* Description */}
                                         <Card>
@@ -502,6 +669,106 @@ export default function StaffDashboard() {
                                             <p className="text-white/70 whitespace-pre-wrap">
                                                 {selectedRequest.description}
                                             </p>
+                                        </Card>
+
+                                        {/* Vertex AI Analysis Placeholder */}
+                                        <Card>
+                                            <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
+                                                <Brain className="w-4 h-4 text-purple-400" />
+                                                AI Analysis
+                                            </h3>
+                                            {selectedRequest.vertex_ai_summary ? (
+                                                <div className="space-y-3">
+                                                    <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                                                        <p className="text-sm font-medium text-white/70 mb-1">Summary</p>
+                                                        <p className="text-white/90">{selectedRequest.vertex_ai_summary}</p>
+                                                    </div>
+                                                    {selectedRequest.vertex_ai_classification && (
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-white/50">Classification</span>
+                                                            <Badge variant="info">{selectedRequest.vertex_ai_classification}</Badge>
+                                                        </div>
+                                                    )}
+                                                    {selectedRequest.vertex_ai_priority_score && (
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-white/50">AI Priority Score</span>
+                                                            <span className="text-white font-medium">{selectedRequest.vertex_ai_priority_score.toFixed(1)}/10</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="p-4 rounded-lg bg-white/5 border border-white/10 text-center">
+                                                    <Sparkles className="w-6 h-6 mx-auto mb-2 text-white/30" />
+                                                    <p className="text-white/40 text-sm">AI analysis pending</p>
+                                                </div>
+                                            )}
+                                        </Card>
+
+                                        {/* Comments Section */}
+                                        <Card>
+                                            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                                                <MessageSquare className="w-4 h-4 text-blue-400" />
+                                                Comments ({comments.length})
+                                            </h3>
+
+                                            {/* Comments List */}
+                                            <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+                                                {comments.length === 0 ? (
+                                                    <p className="text-white/40 text-sm text-center py-4">No comments yet</p>
+                                                ) : comments.map((comment) => (
+                                                    <div key={comment.id} className="p-3 rounded-lg bg-white/5 border border-white/10">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-medium text-white text-sm">{comment.username}</span>
+                                                                <Badge variant={comment.visibility === 'internal' ? 'default' : 'success'}>
+                                                                    {comment.visibility === 'internal' ? <><EyeOff className="w-3 h-3 mr-1" />Internal</> : <><Eye className="w-3 h-3 mr-1" />External</>}
+                                                                </Badge>
+                                                            </div>
+                                                            <span className="text-xs text-white/40">
+                                                                {comment.created_at ? new Date(comment.created_at).toLocaleString() : ''}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-white/70 text-sm">{comment.content}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Add Comment */}
+                                            <div className="space-y-2">
+                                                <Textarea
+                                                    placeholder="Add a comment..."
+                                                    value={newComment}
+                                                    onChange={(e) => setNewComment(e.target.value)}
+                                                    className="min-h-[80px]"
+                                                />
+                                                <div className="flex justify-between items-center gap-3">
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setCommentVisibility('internal')}
+                                                            className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${commentVisibility === 'internal' ? 'bg-white/20 text-white' : 'bg-white/5 text-white/50'}`}
+                                                        >
+                                                            <EyeOff className="w-3 h-3 inline mr-1" />Internal
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setCommentVisibility('external')}
+                                                            className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${commentVisibility === 'external' ? 'bg-primary-500/20 text-primary-400' : 'bg-white/5 text-white/50'}`}
+                                                        >
+                                                            <Eye className="w-3 h-3 inline mr-1" />External
+                                                        </button>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={handleAddComment}
+                                                        disabled={!newComment.trim() || isSubmittingComment}
+                                                        className="min-h-[44px]"
+                                                    >
+                                                        <Send className="w-4 h-4 mr-1" />
+                                                        {isSubmittingComment ? 'Sending...' : 'Send'}
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         </Card>
 
                                         {/* Reporter Info */}
@@ -598,6 +865,18 @@ export default function StaffDashboard() {
                                                 )}
                                             </div>
                                         </Card>
+
+                                        {/* Delete Button */}
+                                        <Card>
+                                            <Button
+                                                variant="danger"
+                                                onClick={() => setShowDeleteModal(true)}
+                                                className="w-full min-h-[48px] flex items-center justify-center gap-2"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                                Delete Request
+                                            </Button>
+                                        </Card>
                                     </div>
                                 </div>
                             ) : (
@@ -656,6 +935,121 @@ export default function StaffDashboard() {
                         <Button type="submit">Create Intake</Button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Close Request Modal - Substatus Selection */}
+            <Modal isOpen={showClosedModal} onClose={() => setShowClosedModal(false)} title="Close Request">
+                <div className="space-y-6">
+                    <p className="text-white/70 text-sm">Select a resolution type for this request:</p>
+
+                    <div className="space-y-3">
+                        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${closedSubstatus === 'no_action' ? 'bg-orange-500/10 border-orange-500/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                            <input
+                                type="radio"
+                                name="closedSubstatus"
+                                value="no_action"
+                                checked={closedSubstatus === 'no_action'}
+                                onChange={() => setClosedSubstatus('no_action')}
+                                className="mt-1"
+                            />
+                            <div>
+                                <p className="font-medium text-white">No Action Needed</p>
+                                <p className="text-sm text-white/50">Issue doesn't require township intervention</p>
+                            </div>
+                        </label>
+
+                        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${closedSubstatus === 'resolved' ? 'bg-green-500/10 border-green-500/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                            <input
+                                type="radio"
+                                name="closedSubstatus"
+                                value="resolved"
+                                checked={closedSubstatus === 'resolved'}
+                                onChange={() => setClosedSubstatus('resolved')}
+                                className="mt-1"
+                            />
+                            <div>
+                                <p className="font-medium text-white">Resolved</p>
+                                <p className="text-sm text-white/50">Issue has been fixed by township staff</p>
+                            </div>
+                        </label>
+
+                        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${closedSubstatus === 'third_party' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                            <input
+                                type="radio"
+                                name="closedSubstatus"
+                                value="third_party"
+                                checked={closedSubstatus === 'third_party'}
+                                onChange={() => setClosedSubstatus('third_party')}
+                                className="mt-1"
+                            />
+                            <div>
+                                <p className="font-medium text-white">Third Party Contacted</p>
+                                <p className="text-sm text-white/50">Referred to utility company, state agency, etc.</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <Textarea
+                        label="Completion Message (optional)"
+                        placeholder="Add a message about the resolution..."
+                        value={completionMessage}
+                        onChange={(e) => setCompletionMessage(e.target.value)}
+                    />
+
+                    {closedSubstatus === 'resolved' && (
+                        <Input
+                            label="Completion Photo URL (optional)"
+                            placeholder="URL to photo showing completed work..."
+                            value={completionPhotoUrl}
+                            onChange={(e) => setCompletionPhotoUrl(e.target.value)}
+                        />
+                    )}
+
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="ghost" onClick={() => setShowClosedModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleCloseWithSubstatus}>
+                            Close Request
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Delete Request Modal */}
+            <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Request">
+                <div className="space-y-4">
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                        <p className="text-red-400 font-medium flex items-center gap-2">
+                            <Trash2 className="w-5 h-5" />
+                            This will soft-delete the request
+                        </p>
+                        <p className="text-white/60 text-sm mt-2">
+                            The request will be hidden from the normal view but will remain accessible to administrators.
+                        </p>
+                    </div>
+
+                    <Textarea
+                        label="Justification *"
+                        placeholder="Explain why this request should be deleted (minimum 10 characters)..."
+                        value={deleteJustification}
+                        onChange={(e) => setDeleteJustification(e.target.value)}
+                        required
+                    />
+
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="ghost" onClick={() => setShowDeleteModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="danger"
+                            onClick={handleDeleteRequest}
+                            disabled={deleteJustification.length < 10 || isDeleting}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete Request'}
+                        </Button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

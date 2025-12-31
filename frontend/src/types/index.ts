@@ -81,6 +81,8 @@ export interface ServiceCreate {
 
 // Service Request types
 export type RequestStatus = 'open' | 'in_progress' | 'closed';
+export type ClosedSubstatus = 'no_action' | 'resolved' | 'third_party';
+export type CommentVisibility = 'internal' | 'external';
 
 export interface ServiceRequest {
     id: number;
@@ -97,6 +99,11 @@ export interface ServiceRequest {
     updated_datetime: string | null;
     source: string;
     flagged: boolean;
+    // Closed sub-status
+    closed_substatus: ClosedSubstatus | null;
+    // Soft delete
+    deleted_at: string | null;
+    deleted_by: string | null;
 }
 
 export interface ServiceRequestDetail extends ServiceRequest {
@@ -110,6 +117,26 @@ export interface ServiceRequestDetail extends ServiceRequest {
     staff_notes: string | null;
     assigned_to: string | null;
     closed_datetime: string | null;
+    // Completion fields
+    completion_message: string | null;
+    completion_photo_url: string | null;
+    delete_justification: string | null;
+    // Vertex AI Analysis placeholders
+    vertex_ai_summary: string | null;
+    vertex_ai_classification: string | null;
+    vertex_ai_priority_score: number | null;
+    vertex_ai_analyzed_at: string | null;
+}
+
+export interface RequestComment {
+    id: number;
+    service_request_id: number;
+    user_id: number | null;
+    username: string;
+    content: string;
+    visibility: CommentVisibility;
+    created_at: string | null;
+    updated_at: string | null;
 }
 
 export interface ServiceRequestCreate {

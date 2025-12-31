@@ -12,6 +12,7 @@ import {
     UserCreate,
     ServiceCreate,
     Department,
+    RequestComment,
 } from '../types';
 
 const API_BASE = '/api';
@@ -147,14 +148,28 @@ class ApiClient {
         return this.request<ServiceRequestDetail>(`/open311/v2/requests/${requestId}.json`);
     }
 
-    async updateRequestStatus(
+    async updateRequest(
         requestId: string,
-        status: string,
-        notes?: string
+        data: {
+            status?: string;
+            staff_notes?: string;
+            priority?: number;
+            assigned_to?: string;
+            closed_substatus?: string;
+            completion_message?: string;
+            completion_photo_url?: string;
+        }
     ): Promise<ServiceRequestDetail> {
         return this.request<ServiceRequestDetail>(`/open311/v2/requests/${requestId}/status`, {
             method: 'PUT',
-            body: JSON.stringify({ status, staff_notes: notes }),
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteRequest(requestId: string, justification: string): Promise<void> {
+        return this.request<void>(`/open311/v2/requests/${requestId}`, {
+            method: 'DELETE',
+            body: JSON.stringify({ justification }),
         });
     }
 
@@ -162,6 +177,28 @@ class ApiClient {
         return this.request<ServiceRequest>('/open311/v2/requests/manual', {
             method: 'POST',
             body: JSON.stringify(data),
+        });
+    }
+
+    // Request Comments
+    async getComments(requestId: number): Promise<RequestComment[]> {
+        return this.request<RequestComment[]>(`/api/requests/${requestId}/comments`);
+    }
+
+    async createComment(
+        requestId: number,
+        content: string,
+        visibility: 'internal' | 'external' = 'internal'
+    ): Promise<RequestComment> {
+        return this.request<RequestComment>(`/api/requests/${requestId}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ content, visibility }),
+        });
+    }
+
+    async deleteComment(requestId: number, commentId: number): Promise<void> {
+        return this.request<void>(`/api/requests/${requestId}/comments/${commentId}`, {
+            method: 'DELETE',
         });
     }
 

@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.models import ServiceRequest, ServiceDefinition, User
 from app.schemas import (
     ServiceRequestCreate, ServiceRequestResponse, ServiceRequestDetailResponse,
-    ServiceRequestUpdate, ManualIntakeCreate
+    ServiceRequestUpdate, ServiceRequestDelete, ManualIntakeCreate
 )
 from app.core.auth import get_current_staff
 
@@ -98,11 +98,16 @@ async def list_requests(
     service_code: Optional[str] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    include_deleted: bool = False,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_staff)
+    current_user: User = Depends(get_current_staff)
 ):
     """Open311 v2 compatible - List service requests (staff only)"""
     query = select(ServiceRequest).order_by(ServiceRequest.requested_datetime.desc())
+    
+    # Filter out deleted unless admin requests them
+    if not include_deleted or current_user.role != "admin":
+        query = query.where(ServiceRequest.deleted_at.is_(None))
     
     if status_filter:
         query = query.where(ServiceRequest.status == status_filter)
@@ -159,6 +164,8 @@ async def update_request_status(
                 value = value.value
                 if value == "closed" and request.status != "closed":
                     request.closed_datetime = datetime.utcnow()
+            elif field == "closed_substatus":
+                value = value.value  # Convert enum to string
             setattr(request, field, value)
     
     request.updated_datetime = datetime.utcnow()
@@ -206,3 +213,33 @@ async def create_manual_intake(
     await db.commit()
     await db.refresh(service_request)
     return service_request
+
+
+@router.delete("/requests/{request_id}")
+async def delete_request(
+    request_id: str,
+    delete_data: ServiceRequestDelete,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_staff)
+):
+    """Soft delete a service request with justification (staff/admin)"""
+    result = await db.execute(
+        select(ServiceRequest).where(ServiceRequest.service_request_id == request_id)
+    )
+    request = result.scalar_one_or_none()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    if request.deleted_at:
+        raise HTTPException(status_code=400, detail="Request already deleted")
+    
+    # Soft delete
+    request.deleted_at = datetime.utcnow()
+    request.deleted_by = current_user.username
+    request.delete_justification = delete_data.justification
+    request.updated_datetime = datetime.utcnow()
+    
+    await db.commit()
+    await db.refresh(request)
+    
+    return {"message": "Request deleted", "request_id": request_id}
