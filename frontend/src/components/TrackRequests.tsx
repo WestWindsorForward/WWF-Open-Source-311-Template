@@ -136,10 +136,19 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleSelectRequest = (request: PublicServiceRequest) => {
+    const handleSelectRequest = async (request: PublicServiceRequest) => {
+        // Set initial data from list (without media)
         setSelectedRequest(request);
-        // Update URL without full navigation
         navigate(`/track/${request.service_request_id}`, { replace: true });
+
+        // Fetch full details with media in background
+        try {
+            const fullDetails = await api.getPublicRequestDetail(request.service_request_id);
+            setSelectedRequest(fullDetails);
+        } catch (err) {
+            console.error('Failed to load full request details:', err);
+            // Keep using list data if detail fetch fails
+        }
     };
 
     const handleBackToList = () => {

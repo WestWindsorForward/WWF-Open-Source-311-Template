@@ -147,6 +147,10 @@ class ApiClient {
         return this.request<PublicServiceRequest[]>(`/open311/v2/public/requests${queryString}`);
     }
 
+    async getPublicRequestDetail(requestId: string): Promise<PublicServiceRequest> {
+        return this.request<PublicServiceRequest>(`/open311/v2/public/requests/${requestId}`);
+    }
+
     async getPublicComments(requestId: string): Promise<RequestComment[]> {
         return this.request<RequestComment[]>(`/open311/v2/public/requests/${requestId}/comments`);
     }

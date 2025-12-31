@@ -79,9 +79,11 @@ async def list_public_requests(
             "requested_datetime": r.requested_datetime.isoformat() if r.requested_datetime else None,
             "updated_datetime": r.updated_datetime.isoformat() if r.updated_datetime else None,
             "closed_substatus": r.closed_substatus,
-            "media_url": None,  # Exclude large base64 - fetch full data individually
+            "media_url": None,  # Excluded from list - use has_media flag
+            "has_media": bool(r.media_url),  # Flag indicating photo exists
             "completion_message": r.completion_message[:200] if r.completion_message else None,
-            "completion_photo_url": None,  # Exclude large base64 - fetch full data individually
+            "completion_photo_url": None,  # Excluded from list - use has_completion_photo flag
+            "has_completion_photo": bool(r.completion_photo_url),  # Flag indicating completion photo exists
         }
         for r in requests
     ]
@@ -93,6 +95,38 @@ async def list_public_requests(
         pass  # Redis unavailable, continue without caching
     
     return response_data
+
+
+@router.get("/public/requests/{request_id}")
+async def get_public_request_detail(request_id: str, db: AsyncSession = Depends(get_db)):
+    """Get full public request details including media - for detail view"""
+    result = await db.execute(
+        select(ServiceRequest).where(
+            ServiceRequest.service_request_id == request_id,
+            ServiceRequest.deleted_at.is_(None)
+        )
+    )
+    request = result.scalar_one_or_none()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Return full details including media (but still excluding PII)
+    return {
+        "service_request_id": request.service_request_id,
+        "service_code": request.service_code,
+        "service_name": request.service_name,
+        "description": request.description,  # Full description
+        "status": request.status,
+        "address": request.address,
+        "lat": request.lat,
+        "long": request.long,
+        "requested_datetime": request.requested_datetime.isoformat() if request.requested_datetime else None,
+        "updated_datetime": request.updated_datetime.isoformat() if request.updated_datetime else None,
+        "closed_substatus": request.closed_substatus,
+        "media_url": request.media_url,  # Full media data for detail view
+        "completion_message": request.completion_message,
+        "completion_photo_url": request.completion_photo_url,  # Full completion photo
+    }
 
 
 from app.models import RequestComment
