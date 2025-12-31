@@ -548,29 +548,38 @@ export default function GoogleMapsLocationPicker({
                                         properties: props,
                                     });
                                 } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-                                    // Add invisibly for proximity detection (not displayed)
-                                    // We'll use Data layer but make it invisible
+                                    // Render polygon with layer styling
                                     const addedFeatures = map.data.addGeoJson({
                                         type: 'Feature',
                                         geometry: feature.geometry,
                                         properties: { ...props, _layerName: layer.name, _layerId: layer.id },
                                     });
 
-                                    // Make polygon invisible
+                                    // Style polygon based on layer settings
                                     addedFeatures.forEach(f => {
                                         map.data.overrideStyle(f, {
-                                            fillOpacity: 0,
-                                            strokeOpacity: 0,
-                                            clickable: false,
+                                            fillColor: layer.fill_color || '#3b82f6',
+                                            fillOpacity: layer.fill_opacity ?? 0.3,
+                                            strokeColor: layer.stroke_color || '#1d4ed8',
+                                            strokeWeight: layer.stroke_width ?? 2,
+                                            clickable: true,
                                         });
 
-                                        // Store for proximity detection
+                                        // Store for containment detection
                                         layerFeaturesRef.push({
                                             layer,
                                             feature: f,
                                             geometry: feature.geometry,
                                             properties: props,
                                         });
+                                    });
+
+                                    // Add click listener for polygon info
+                                    map.data.addListener('click', (event: any) => {
+                                        const polygonProps = event.feature.getProperty('_layerName');
+                                        if (polygonProps) {
+                                            console.log('Clicked polygon layer:', polygonProps);
+                                        }
                                     });
                                 }
                             });
