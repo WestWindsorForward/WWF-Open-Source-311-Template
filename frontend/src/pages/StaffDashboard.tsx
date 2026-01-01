@@ -95,7 +95,15 @@ export default function StaffDashboard() {
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
     useEffect(() => {
-        loadData();
+        // Initial load - only fetch once
+        loadInitialData();
+    }, []);
+
+    // Separate effect for statistics (only loads when needed)
+    useEffect(() => {
+        if (currentView === 'statistics' && !statistics) {
+            loadStatistics();
+        }
     }, [currentView]);
 
     // Auto-load request if URL contains requestId
@@ -105,47 +113,37 @@ export default function StaffDashboard() {
         }
     }, [urlRequestId]);
 
-    const loadData = async () => {
+    const loadInitialData = async () => {
         setIsLoading(true);
         try {
-            // Determine what status to filter by
-            let statusFilter: string | undefined;
-            if (currentView === 'active') statusFilter = 'open';
-            else if (currentView === 'in_progress') statusFilter = 'in_progress';
-            else if (currentView === 'resolved') statusFilter = 'closed';
-            // dashboard and statistics load all
-
-            const [requestsData, servicesData, allRequestsData] = await Promise.all([
-                api.getRequests(statusFilter),
+            const [allRequestsData, servicesData, depts, usersData, layers, config] = await Promise.all([
+                api.getRequests(), // Fetch ALL requests once
                 api.getServices(),
-                api.getRequests(), // All requests for dashboard map
+                api.getDepartments(),
+                api.getUsers().catch(() => []), // May fail for non-admin
+                api.getMapLayers(),
+                api.getMapsConfig(),
             ]);
-            setRequests(requestsData);
-            setServices(servicesData);
             setAllRequests(allRequestsData);
-
-            if (currentView === 'statistics') {
-                const statsData = await api.getStatistics();
-                setStatistics(statsData);
-            }
-
-            // Load dashboard-specific data
-            if (currentView === 'dashboard' && !mapsConfig) {
-                const [depts, usersData, layers, config] = await Promise.all([
-                    api.getDepartments(),
-                    api.getUsers().catch(() => []), // May fail for non-admin
-                    api.getMapLayers(),
-                    api.getMapsConfig(),
-                ]);
-                setDepartments(depts);
-                setUsers(usersData);
-                setMapLayers(layers);
-                setMapsConfig(config);
-            }
+            setRequests(allRequestsData); // Initial set
+            setServices(servicesData);
+            setDepartments(depts);
+            setUsers(usersData);
+            setMapLayers(layers);
+            setMapsConfig(config);
         } catch (err) {
             console.error('Failed to load data:', err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const loadStatistics = async () => {
+        try {
+            const statsData = await api.getStatistics();
+            setStatistics(statsData);
+        } catch (err) {
+            console.error('Failed to load statistics:', err);
         }
     };
 
@@ -172,7 +170,7 @@ export default function StaffDashboard() {
         try {
             const updated = await api.updateRequest(selectedRequest.service_request_id, { status });
             setSelectedRequest(updated);
-            loadData();
+            loadInitialData();
         } catch (err) {
             console.error('Failed to update status:', err);
         }
@@ -192,7 +190,7 @@ export default function StaffDashboard() {
             setClosedSubstatus('resolved');
             setCompletionMessage('');
             setCompletionPhotoUrl('');
-            loadData();
+            loadInitialData();
         } catch (err) {
             console.error('Failed to close request:', err);
         }
@@ -229,7 +227,7 @@ export default function StaffDashboard() {
             setShowDeleteModal(false);
             setDeleteJustification('');
             setSelectedRequest(null);
-            loadData();
+            loadInitialData();
         } catch (err) {
             console.error('Failed to delete request:', err);
         } finally {
@@ -254,7 +252,7 @@ export default function StaffDashboard() {
                 phone: '',
                 source: 'phone',
             });
-            loadData();
+            loadInitialData();
         } catch (err) {
             console.error('Failed to create intake:', err);
         }
@@ -715,70 +713,54 @@ export default function StaffDashboard() {
 
                                                 {/* Premium Inline Assignment */}
                                                 <div className="flex flex-wrap items-center gap-3 mt-4">
-                                                    {/* Department Badge with Dropdown */}
-                                                    <div className="relative group">
-                                                        <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-primary-500/20 to-purple-500/20 border border-primary-500/30 hover:border-primary-400/50 transition-all">
-                                                            <Users className="w-3.5 h-3.5 text-primary-400" />
-                                                            <span className="text-sm text-white/80">
-                                                                {selectedRequest.assigned_department?.name || 'No Department'}
-                                                            </span>
-                                                        </button>
-                                                        <div className="absolute top-full left-0 mt-1 z-20 hidden group-hover:block">
-                                                            <select
-                                                                value={selectedRequest.assigned_department_id || ''}
-                                                                onChange={async (e) => {
-                                                                    const departmentId = e.target.value ? Number(e.target.value) : null;
-                                                                    try {
-                                                                        const updated = await api.updateRequest(selectedRequest.service_request_id, {
-                                                                            assigned_department_id: departmentId ?? undefined
-                                                                        });
-                                                                        setSelectedRequest(updated);
-                                                                    } catch (err) {
-                                                                        console.error('Failed to update department:', err);
-                                                                    }
-                                                                }}
-                                                                className="min-w-[180px] px-3 py-2 rounded-lg bg-gray-900 border border-white/20 text-white text-sm shadow-xl"
-                                                            >
-                                                                <option value="">-- Not Assigned --</option>
-                                                                {departments.map(dept => (
-                                                                    <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
+                                                    {/* Department Select */}
+                                                    <div className="flex items-center gap-2 px-1 py-0.5 rounded-full bg-gradient-to-r from-primary-500/10 to-purple-500/10 border border-primary-500/20">
+                                                        <Users className="w-3.5 h-3.5 text-primary-400 ml-2" />
+                                                        <select
+                                                            value={selectedRequest.assigned_department_id || ''}
+                                                            onChange={async (e) => {
+                                                                const departmentId = e.target.value ? Number(e.target.value) : null;
+                                                                try {
+                                                                    const updated = await api.updateRequest(selectedRequest.service_request_id, {
+                                                                        assigned_department_id: departmentId ?? undefined
+                                                                    });
+                                                                    setSelectedRequest(updated);
+                                                                } catch (err) {
+                                                                    console.error('Failed to update department:', err);
+                                                                }
+                                                            }}
+                                                            className="bg-transparent border-none text-sm text-white/80 focus:outline-none cursor-pointer pr-2 py-1"
+                                                        >
+                                                            <option value="" className="bg-gray-900">No Department</option>
+                                                            {departments.map(dept => (
+                                                                <option key={dept.id} value={dept.id} className="bg-gray-900">{dept.name}</option>
+                                                            ))}
+                                                        </select>
                                                     </div>
 
-                                                    {/* Staff Badge with Dropdown */}
-                                                    <div className="relative group">
-                                                        <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 hover:border-blue-400/50 transition-all">
-                                                            <User className="w-3.5 h-3.5 text-blue-400" />
-                                                            <span className="text-sm text-white/80">
-                                                                {selectedRequest.assigned_to
-                                                                    ? users.find(u => u.username === selectedRequest.assigned_to)?.full_name || selectedRequest.assigned_to
-                                                                    : 'No Staff'}
-                                                            </span>
-                                                        </button>
-                                                        <div className="absolute top-full left-0 mt-1 z-20 hidden group-hover:block">
-                                                            <select
-                                                                value={selectedRequest.assigned_to || ''}
-                                                                onChange={async (e) => {
-                                                                    const assignedTo = e.target.value || null;
-                                                                    try {
-                                                                        const updated = await api.updateRequest(selectedRequest.service_request_id, {
-                                                                            assigned_to: assignedTo ?? undefined
-                                                                        });
-                                                                        setSelectedRequest(updated);
-                                                                    } catch (err) {
-                                                                        console.error('Failed to update staff:', err);
-                                                                    }
-                                                                }}
-                                                                className="min-w-[180px] px-3 py-2 rounded-lg bg-gray-900 border border-white/20 text-white text-sm shadow-xl"
-                                                            >
-                                                                <option value="">-- Not Assigned --</option>
-                                                                {users.map(u => (
-                                                                    <option key={u.id} value={u.username}>{u.full_name || u.username}</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
+                                                    {/* Staff Select */}
+                                                    <div className="flex items-center gap-2 px-1 py-0.5 rounded-full bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
+                                                        <User className="w-3.5 h-3.5 text-blue-400 ml-2" />
+                                                        <select
+                                                            value={selectedRequest.assigned_to || ''}
+                                                            onChange={async (e) => {
+                                                                const assignedTo = e.target.value || null;
+                                                                try {
+                                                                    const updated = await api.updateRequest(selectedRequest.service_request_id, {
+                                                                        assigned_to: assignedTo ?? undefined
+                                                                    });
+                                                                    setSelectedRequest(updated);
+                                                                } catch (err) {
+                                                                    console.error('Failed to update staff:', err);
+                                                                }
+                                                            }}
+                                                            className="bg-transparent border-none text-sm text-white/80 focus:outline-none cursor-pointer pr-2 py-1"
+                                                        >
+                                                            <option value="" className="bg-gray-900">No Staff</option>
+                                                            {users.map(u => (
+                                                                <option key={u.id} value={u.username} className="bg-gray-900">{u.full_name || u.username}</option>
+                                                            ))}
+                                                        </select>
                                                     </div>
                                                 </div>
                                             </div>
