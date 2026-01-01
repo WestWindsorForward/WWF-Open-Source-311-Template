@@ -910,210 +910,214 @@ export default function StaffDashboard() {
                                         </div>
                                     </div>
 
-                                    {/* Scrollable Content - Premium Design */}
-                                    <div className="flex-1 overflow-auto p-4 space-y-5">
+                                    {/* Scrollable Content - Professional Government Styling */}
+                                    <div className="flex-1 overflow-auto p-4 space-y-4">
 
-                                        {/* ═══ SECTION 1: Issue Details ═══ */}
-                                        <div className="relative p-5 rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/60 border border-white/10 shadow-xl overflow-hidden">
-                                            {/* Decorative glow */}
-                                            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary-500/20 rounded-full blur-3xl pointer-events-none" />
+                                        {/* ═══ SECTION 1: Request Details (Description + AI + Photos) ═══ */}
+                                        <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
+                                            {/* Description */}
+                                            <p className="text-white/90 leading-relaxed mb-4">{selectedRequest.description}</p>
 
-                                            <div className="relative space-y-4">
-                                                {/* Description with large text */}
-                                                <p className="text-white/90 text-base leading-relaxed">{selectedRequest.description}</p>
-
-                                                {/* Photos - Larger & more prominent */}
-                                                {selectedRequest.media_urls && selectedRequest.media_urls.length > 0 && (
-                                                    <div className="flex gap-3 overflow-x-auto pb-2">
-                                                        {selectedRequest.media_urls.map((url, i) => (
-                                                            <img
-                                                                key={i}
-                                                                src={url}
-                                                                alt={`Photo ${i + 1}`}
-                                                                className="w-32 h-24 flex-shrink-0 object-cover rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ring-1 ring-white/10"
-                                                                onClick={() => setLightboxUrl(url)}
-                                                            />
-                                                        ))}
+                                            {/* AI Analysis - Integrated */}
+                                            {selectedRequest.vertex_ai_summary && (
+                                                <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 mb-4">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Brain className="w-4 h-4 text-purple-400" />
+                                                        <span className="text-xs font-medium text-purple-400 uppercase">AI Analysis</span>
                                                     </div>
-                                                )}
-
-                                                {/* Completion info */}
-                                                {selectedRequest.status === 'closed' && selectedRequest.completion_message && (
-                                                    <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/10 border border-green-500/30">
-                                                        <p className="text-green-400 font-medium mb-1">✓ {selectedRequest.closed_substatus === 'resolved' ? 'Resolved' : selectedRequest.closed_substatus === 'no_action' ? 'No Action Needed' : 'Referred to Third Party'}</p>
-                                                        <p className="text-white/70 text-sm">{selectedRequest.completion_message}</p>
+                                                    <p className="text-white/80 text-sm mb-2">{selectedRequest.vertex_ai_summary}</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {selectedRequest.vertex_ai_classification && (
+                                                            <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-xs">{selectedRequest.vertex_ai_classification}</span>
+                                                        )}
+                                                        {selectedRequest.vertex_ai_priority_score && (
+                                                            <span className="text-xs text-white/50">Priority: {selectedRequest.vertex_ai_priority_score.toFixed(1)}/10</span>
+                                                        )}
                                                     </div>
-                                                )}
-
-                                                {/* Reporter & dates - sleek pills */}
-                                                <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-white/10">
-                                                    {(selectedRequest.first_name || selectedRequest.last_name) && (
-                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 text-white/70 text-xs"><User className="w-3 h-3" /> {selectedRequest.first_name} {selectedRequest.last_name}</span>
-                                                    )}
-                                                    <a href={`mailto:${selectedRequest.email}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 text-white/70 text-xs hover:bg-primary-500/20 hover:text-primary-400 transition-colors"><Mail className="w-3 h-3" /> {selectedRequest.email}</a>
-                                                    {selectedRequest.phone && (
-                                                        <a href={`tel:${selectedRequest.phone}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 text-white/70 text-xs hover:bg-primary-500/20 hover:text-primary-400 transition-colors"><Phone className="w-3 h-3" /> {selectedRequest.phone}</a>
-                                                    )}
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 text-white/50 text-xs ml-auto"><Calendar className="w-3 h-3" /> {new Date(selectedRequest.requested_datetime).toLocaleDateString()}</span>
                                                 </div>
+                                            )}
+
+                                            {/* Photos */}
+                                            {selectedRequest.media_urls && selectedRequest.media_urls.length > 0 && (
+                                                <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+                                                    {selectedRequest.media_urls.map((url, i) => (
+                                                        <img key={i} src={url} alt={`Photo ${i + 1}`} className="w-28 h-20 flex-shrink-0 object-cover rounded-lg cursor-pointer hover:opacity-80" onClick={() => setLightboxUrl(url)} />
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Completion info */}
+                                            {selectedRequest.status === 'closed' && selectedRequest.completion_message && (
+                                                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 mb-4">
+                                                    <p className="text-green-400 font-medium text-sm mb-1">✓ {selectedRequest.closed_substatus === 'resolved' ? 'Resolved' : selectedRequest.closed_substatus === 'no_action' ? 'No Action Needed' : 'Referred'}</p>
+                                                    <p className="text-white/70 text-sm">{selectedRequest.completion_message}</p>
+                                                </div>
+                                            )}
+
+                                            {/* Reporter Info - Simple inline */}
+                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/60 pt-3 border-t border-white/10">
+                                                {(selectedRequest.first_name || selectedRequest.last_name) && (
+                                                    <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" /> {selectedRequest.first_name} {selectedRequest.last_name}</span>
+                                                )}
+                                                <a href={`mailto:${selectedRequest.email}`} className="flex items-center gap-1 hover:text-primary-400"><Mail className="w-3.5 h-3.5" /> {selectedRequest.email}</a>
+                                                {selectedRequest.phone && (
+                                                    <a href={`tel:${selectedRequest.phone}`} className="flex items-center gap-1 hover:text-primary-400"><Phone className="w-3.5 h-3.5" /> {selectedRequest.phone}</a>
+                                                )}
                                             </div>
                                         </div>
 
-                                        {/* ═══ SECTION 2: Location & Assets ═══ */}
-                                        {(selectedRequest.address || selectedRequest.lat || (selectedRequest as any).matched_asset) && (
-                                            <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-900/30 to-slate-900/60 border border-blue-500/20 shadow-lg space-y-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                                                        <MapPin className="w-5 h-5 text-blue-400" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-xs text-blue-400/80 uppercase tracking-wide font-medium">Location</p>
-                                                        <p className="text-white/90">{selectedRequest.address || 'Coordinates provided'}</p>
-                                                    </div>
+                                        {/* ═══ SECTION 2: Location & Map ═══ */}
+                                        {(selectedRequest.address || selectedRequest.lat) && (
+                                            <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <MapPin className="w-4 h-4 text-blue-400" />
+                                                    <span className="font-medium text-white">Location</span>
                                                 </div>
-
-                                                {/* Map Embed - OpenStreetMap (no API key needed) */}
+                                                {selectedRequest.address && (
+                                                    <p className="text-white/80 mb-3">{selectedRequest.address}</p>
+                                                )}
+                                                {/* Google Maps with GeoJSON - use the existing map component or simple embed */}
                                                 {selectedRequest.lat && selectedRequest.long && (
-                                                    <div className="rounded-xl overflow-hidden h-40 ring-1 ring-white/10">
+                                                    <div className="rounded-lg overflow-hidden h-48 bg-slate-900">
                                                         <iframe
                                                             width="100%"
                                                             height="100%"
                                                             style={{ border: 0 }}
                                                             loading="lazy"
-                                                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedRequest.long - 0.005},${selectedRequest.lat - 0.003},${selectedRequest.long + 0.005},${selectedRequest.lat + 0.003}&layer=mapnik&marker=${selectedRequest.lat},${selectedRequest.long}`}
+                                                            src={`https://www.google.com/maps?q=${selectedRequest.lat},${selectedRequest.long}&z=17&output=embed`}
                                                         />
                                                     </div>
                                                 )}
-
                                                 {/* Matched Asset */}
                                                 {(selectedRequest as any).matched_asset && (
-                                                    <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
-                                                        <p className="text-xs text-green-400/80 uppercase tracking-wide font-medium mb-2">Matched Asset</p>
-                                                        <div className="flex flex-wrap gap-4 text-sm">
-                                                            <div><span className="text-white/50">Type:</span> <span className="text-white font-medium">{(selectedRequest as any).matched_asset.layer_name}</span></div>
-                                                            {(selectedRequest as any).matched_asset.asset_id && (
-                                                                <div><span className="text-white/50">ID:</span> <span className="text-white font-mono">{(selectedRequest as any).matched_asset.asset_id}</span></div>
-                                                            )}
-                                                            {(selectedRequest as any).matched_asset.distance_meters !== undefined && (
-                                                                <div><span className="text-white/50">Distance:</span> <span className="text-white">{(selectedRequest as any).matched_asset.distance_meters}m away</span></div>
-                                                            )}
+                                                    <div className="mt-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                                                        <p className="text-xs text-green-400 font-medium mb-1">Matched Asset</p>
+                                                        <div className="flex flex-wrap gap-4 text-sm text-white/70">
+                                                            <span>{(selectedRequest as any).matched_asset.layer_name}</span>
+                                                            {(selectedRequest as any).matched_asset.asset_id && <span className="font-mono">ID: {(selectedRequest as any).matched_asset.asset_id}</span>}
                                                         </div>
                                                     </div>
                                                 )}
                                             </div>
                                         )}
 
-                                        {/* ═══ SECTION 3: AI Analysis ═══ */}
-                                        <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-900/30 to-slate-900/60 border border-purple-500/20 shadow-lg">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                                                    {selectedRequest.vertex_ai_summary ? <Brain className="w-5 h-5 text-purple-400" /> : <Sparkles className="w-5 h-5 text-purple-400/50" />}
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-purple-400/80 uppercase tracking-wide font-medium">AI Analysis</p>
-                                                    {selectedRequest.vertex_ai_summary ? (
-                                                        <p className="text-white/60 text-xs">Powered by Vertex AI</p>
-                                                    ) : (
-                                                        <p className="text-white/40 text-xs">Processing...</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {selectedRequest.vertex_ai_summary ? (
-                                                <div className="space-y-3">
-                                                    <p className="text-white/80 text-sm leading-relaxed">{selectedRequest.vertex_ai_summary}</p>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {selectedRequest.vertex_ai_classification && (
-                                                            <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-medium">{selectedRequest.vertex_ai_classification}</span>
-                                                        )}
-                                                        {selectedRequest.vertex_ai_priority_score && (
-                                                            <span className="px-3 py-1 rounded-full bg-white/5 text-white/60 text-xs">Priority: <span className="text-white font-semibold">{selectedRequest.vertex_ai_priority_score.toFixed(1)}/10</span></span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="h-12 flex items-center justify-center">
-                                                    <div className="flex gap-1">
-                                                        <div className="w-2 h-2 bg-purple-400/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                                        <div className="w-2 h-2 bg-purple-400/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                                        <div className="w-2 h-2 bg-purple-400/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* ═══ SECTION 4: Assignment ═══ */}
-                                        <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-900/30 to-slate-900/60 border border-cyan-500/20 shadow-lg">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                                                        <Users className="w-5 h-5 text-cyan-400" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-xs text-cyan-400/80 uppercase tracking-wide font-medium">Assignment</p>
-                                                        <p className="text-white/60 text-xs">Route this request</p>
-                                                    </div>
+                                        {/* ═══ SECTION 3: Assignment ═══ */}
+                                        <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Users className="w-4 h-4 text-blue-400" />
+                                                    <span className="font-medium text-white">Assignment</span>
                                                 </div>
                                                 {editAssignment && (
-                                                    <button onClick={async () => { setIsSavingAssignment(true); try { const updated = await api.updateRequest(selectedRequest.service_request_id, { assigned_department_id: editAssignment.departmentId ?? undefined, assigned_to: editAssignment.assignedTo ?? undefined }); setSelectedRequest(updated); setEditAssignment(null); } catch (err) { console.error(err); } finally { setIsSavingAssignment(false); } }} disabled={isSavingAssignment} className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold shadow-lg shadow-cyan-500/30 disabled:opacity-50 hover:shadow-xl transition-shadow">{isSavingAssignment ? 'Saving...' : 'Save'}</button>
+                                                    <button onClick={async () => { setIsSavingAssignment(true); try { const updated = await api.updateRequest(selectedRequest.service_request_id, { assigned_department_id: editAssignment.departmentId ?? undefined, assigned_to: editAssignment.assignedTo ?? undefined }); setSelectedRequest(updated); setEditAssignment(null); } catch (err) { console.error(err); } finally { setIsSavingAssignment(false); } }} disabled={isSavingAssignment} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50">{isSavingAssignment ? 'Saving...' : 'Save'}</button>
                                                 )}
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
-                                                <select value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''} onChange={(e) => { const val = e.target.value ? Number(e.target.value) : null; setEditAssignment(prev => ({ departmentId: val, assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null })); }} className="w-full py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm appearance-none cursor-pointer hover:bg-white/10 transition-colors">
+                                                <select value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''} onChange={(e) => { const val = e.target.value ? Number(e.target.value) : null; setEditAssignment(prev => ({ departmentId: val, assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null })); }} className="w-full py-2 px-3 rounded-lg bg-slate-700 border border-white/10 text-white text-sm">
                                                     <option value="">Select Department</option>
                                                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                                 </select>
-                                                <select value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''} onChange={(e) => { const val = e.target.value || null; setEditAssignment(prev => ({ departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null, assignedTo: val })); }} className="w-full py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm appearance-none cursor-pointer hover:bg-white/10 transition-colors">
+                                                <select value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''} onChange={(e) => { const val = e.target.value || null; setEditAssignment(prev => ({ departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null, assignedTo: val })); }} className="w-full py-2 px-3 rounded-lg bg-slate-700 border border-white/10 text-white text-sm">
                                                     <option value="">All Staff</option>
                                                     {(() => { const deptId = editAssignment?.departmentId ?? selectedRequest.assigned_department_id; return (deptId ? users.filter(u => u.departments?.some(d => d.id === deptId)) : users).map(u => <option key={u.id} value={u.username}>{u.full_name || u.username}</option>); })()}
                                                 </select>
                                             </div>
                                         </div>
 
-                                        {/* ═══ SECTION 5: Activity ═══ */}
-                                        <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/60 border border-white/10 shadow-lg">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                                                    <MessageSquare className="w-5 h-5 text-white/70" />
+                                        {/* ═══ SECTION 4: Timeline ═══ */}
+                                        <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Clock className="w-4 h-4 text-blue-400" />
+                                                <span className="font-medium text-white">Timeline</span>
+                                            </div>
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex items-center gap-3 text-white/60">
+                                                    <div className="w-2 h-2 rounded-full bg-green-400" />
+                                                    <span className="flex-1">Request submitted</span>
+                                                    <span className="text-white/40">{new Date(selectedRequest.requested_datetime).toLocaleString()}</span>
                                                 </div>
-                                                <div>
-                                                    <p className="text-xs text-white/50 uppercase tracking-wide font-medium">Activity</p>
-                                                    <p className="text-white/80 text-sm font-medium">{comments.length} comment{comments.length !== 1 ? 's' : ''}</p>
-                                                </div>
+                                                {selectedRequest.assigned_department_id && (
+                                                    <div className="flex items-center gap-3 text-white/60">
+                                                        <div className="w-2 h-2 rounded-full bg-blue-400" />
+                                                        <span className="flex-1">Assigned to {departments.find(d => d.id === selectedRequest.assigned_department_id)?.name || 'department'}</span>
+                                                    </div>
+                                                )}
+                                                {selectedRequest.assigned_to && (
+                                                    <div className="flex items-center gap-3 text-white/60">
+                                                        <div className="w-2 h-2 rounded-full bg-blue-400" />
+                                                        <span className="flex-1">Assigned to {selectedRequest.assigned_to}</span>
+                                                    </div>
+                                                )}
+                                                {selectedRequest.status === 'in_progress' && (
+                                                    <div className="flex items-center gap-3 text-white/60">
+                                                        <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                                                        <span className="flex-1">Marked as In Progress</span>
+                                                    </div>
+                                                )}
+                                                {selectedRequest.status === 'closed' && (
+                                                    <div className="flex items-center gap-3 text-white/60">
+                                                        <div className="w-2 h-2 rounded-full bg-green-400" />
+                                                        <span className="flex-1">Closed - {selectedRequest.closed_substatus === 'resolved' ? 'Resolved' : selectedRequest.closed_substatus}</span>
+                                                    </div>
+                                                )}
+                                                {selectedRequest.updated_datetime && selectedRequest.updated_datetime !== selectedRequest.requested_datetime && (
+                                                    <div className="flex items-center gap-3 text-white/40 text-xs">
+                                                        <div className="w-2 h-2 rounded-full bg-white/20" />
+                                                        <span>Last updated: {new Date(selectedRequest.updated_datetime).toLocaleString()}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* ═══ SECTION 5: Comments ═══ */}
+                                        <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <MessageSquare className="w-4 h-4 text-blue-400" />
+                                                <span className="font-medium text-white">Comments ({comments.length})</span>
                                             </div>
 
                                             {comments.length > 0 && (
-                                                <div className="space-y-3 max-h-48 overflow-y-auto mb-4">
+                                                <div className="space-y-2 max-h-48 overflow-y-auto mb-4">
                                                     {comments.map(c => (
-                                                        <div key={c.id} className="p-3 rounded-xl bg-white/5 border border-white/5">
-                                                            <div className="flex items-center gap-2 mb-1.5">
-                                                                <span className="font-medium text-white/90 text-sm">{c.username}</span>
-                                                                <span className={`px-2 py-0.5 rounded-full text-xs ${c.visibility === 'internal' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`}>
-                                                                    {c.visibility === 'internal' ? 'Internal' : 'Public'}
+                                                        <div key={c.id} className={`p-3 rounded-lg text-sm ${c.visibility === 'internal' ? 'bg-orange-500/5 border border-orange-500/20' : 'bg-white/5 border border-white/10'}`}>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="font-medium text-white/90">{c.username}</span>
+                                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${c.visibility === 'internal' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`}>
+                                                                    {c.visibility === 'internal' ? 'INTERNAL - Staff Only' : 'PUBLIC - Visible to Reporter'}
                                                                 </span>
-                                                                <span className="text-xs text-white/30 ml-auto">{c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</span>
+                                                                <span className="text-xs text-white/30 ml-auto">{c.created_at ? new Date(c.created_at).toLocaleString() : ''}</span>
                                                             </div>
-                                                            <p className="text-white/70 text-sm">{c.content}</p>
+                                                            <p className="text-white/70">{c.content}</p>
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
 
-                                            {/* Add Comment - More prominent */}
-                                            <div className="flex gap-2">
-                                                <input type="text" placeholder="Write a comment..." value={newComment} onChange={(e) => setNewComment(e.target.value)} className="flex-1 py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all" />
-                                                <button onClick={() => setCommentVisibility(commentVisibility === 'internal' ? 'external' : 'internal')} className={`px-4 rounded-xl text-sm font-medium transition-colors ${commentVisibility === 'internal' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'}`} title={commentVisibility === 'internal' ? 'Internal only' : 'Visible to reporter'}>
-                                                    {commentVisibility === 'internal' ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                                </button>
-                                                <button onClick={handleAddComment} disabled={!newComment.trim() || isSubmittingComment} className="px-5 rounded-xl bg-gradient-to-r from-primary-500 to-purple-500 text-white text-sm font-semibold shadow-lg shadow-primary-500/30 disabled:opacity-50 hover:shadow-xl transition-shadow flex items-center gap-2">
-                                                    <Send className="w-4 h-4" /> Send
-                                                </button>
+                                            {/* Add Comment with CLEAR visibility indicator */}
+                                            <div className="space-y-2">
+                                                <div className={`p-3 rounded-lg ${commentVisibility === 'internal' ? 'bg-orange-500/10 border-2 border-orange-500/40' : 'bg-green-500/10 border-2 border-green-500/40'}`}>
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className={`text-sm font-semibold ${commentVisibility === 'internal' ? 'text-orange-400' : 'text-green-400'}`}>
+                                                            {commentVisibility === 'internal' ? '🔒 INTERNAL COMMENT - Only staff will see this' : '🌐 PUBLIC COMMENT - Reporter will be notified'}
+                                                        </span>
+                                                        <button onClick={() => setCommentVisibility(commentVisibility === 'internal' ? 'external' : 'internal')} className="ml-auto text-xs underline text-white/50 hover:text-white">
+                                                            Switch to {commentVisibility === 'internal' ? 'Public' : 'Internal'}
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <input type="text" placeholder="Write your comment..." value={newComment} onChange={(e) => setNewComment(e.target.value)} className="flex-1 py-2 px-3 rounded-lg bg-slate-700 border border-white/10 text-white text-sm placeholder:text-white/30" />
+                                                        <button onClick={handleAddComment} disabled={!newComment.trim() || isSubmittingComment} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2">
+                                                            <Send className="w-4 h-4" /> Send
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
                                         {/* ═══ Actions Footer ═══ */}
-                                        <div className="flex gap-3">
-                                            <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/staff/request/${selectedRequest.service_request_id}`)} className="flex-1 py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-medium hover:bg-white/10 transition-colors flex items-center justify-center gap-2"><Link className="w-4 h-4" /> Share Link</button>
-                                            <button onClick={() => setShowDeleteModal(true)} className="py-3 px-5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors flex items-center gap-2"><Trash2 className="w-4 h-4" /> Delete</button>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/staff/request/${selectedRequest.service_request_id}`)} className="flex-1 py-2.5 px-3 rounded-lg bg-slate-700 text-white/70 text-sm hover:bg-slate-600 flex items-center justify-center gap-2"><Link className="w-4 h-4" /> Copy Link</button>
+                                            <button onClick={() => setShowDeleteModal(true)} className="py-2.5 px-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm hover:bg-red-500/20 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Delete</button>
                                         </div>
                                     </div>
                                 </div>
