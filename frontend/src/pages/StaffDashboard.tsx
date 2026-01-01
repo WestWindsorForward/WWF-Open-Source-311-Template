@@ -959,18 +959,47 @@ export default function StaffDashboard() {
                                             </div>
                                         </div>
 
-                                        {/* ═══ SECTION 2: Location ═══ */}
-                                        {selectedRequest.address && (
-                                            <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-900/30 to-slate-900/60 border border-blue-500/20 shadow-lg">
+                                        {/* ═══ SECTION 2: Location & Assets ═══ */}
+                                        {(selectedRequest.address || selectedRequest.lat || (selectedRequest as any).matched_asset) && (
+                                            <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-900/30 to-slate-900/60 border border-blue-500/20 shadow-lg space-y-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
                                                         <MapPin className="w-5 h-5 text-blue-400" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-xs text-blue-400/80 uppercase tracking-wide font-medium">Location</p>
-                                                        <p className="text-white/90 truncate">{selectedRequest.address}</p>
+                                                        <p className="text-white/90">{selectedRequest.address || 'Coordinates provided'}</p>
                                                     </div>
                                                 </div>
+
+                                                {/* Map Embed - OpenStreetMap (no API key needed) */}
+                                                {selectedRequest.lat && selectedRequest.long && (
+                                                    <div className="rounded-xl overflow-hidden h-40 ring-1 ring-white/10">
+                                                        <iframe
+                                                            width="100%"
+                                                            height="100%"
+                                                            style={{ border: 0 }}
+                                                            loading="lazy"
+                                                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedRequest.long - 0.005},${selectedRequest.lat - 0.003},${selectedRequest.long + 0.005},${selectedRequest.lat + 0.003}&layer=mapnik&marker=${selectedRequest.lat},${selectedRequest.long}`}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {/* Matched Asset */}
+                                                {(selectedRequest as any).matched_asset && (
+                                                    <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
+                                                        <p className="text-xs text-green-400/80 uppercase tracking-wide font-medium mb-2">Matched Asset</p>
+                                                        <div className="flex flex-wrap gap-4 text-sm">
+                                                            <div><span className="text-white/50">Type:</span> <span className="text-white font-medium">{(selectedRequest as any).matched_asset.layer_name}</span></div>
+                                                            {(selectedRequest as any).matched_asset.asset_id && (
+                                                                <div><span className="text-white/50">ID:</span> <span className="text-white font-mono">{(selectedRequest as any).matched_asset.asset_id}</span></div>
+                                                            )}
+                                                            {(selectedRequest as any).matched_asset.distance_meters !== undefined && (
+                                                                <div><span className="text-white/50">Distance:</span> <span className="text-white">{(selectedRequest as any).matched_asset.distance_meters}m away</span></div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
 
