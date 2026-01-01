@@ -144,16 +144,22 @@ export default function StaffDashboard() {
         if (filterAssignment === 'me' && user) {
             filtered = filtered.filter(r => r.assigned_to === user.username);
         } else if (filterAssignment === 'department' && userDepartmentIds.length > 0) {
-            filtered = filtered.filter(r => r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id));
+            // Only show in "dept" if assigned to my department but NOT to a specific person
+            filtered = filtered.filter(r =>
+                r.assigned_department_id &&
+                userDepartmentIds.includes(r.assigned_department_id) &&
+                !r.assigned_to  // No specific staff assigned = All Department Staff
+            );
         }
 
         // Sort by priority: assigned to me -> my department -> others, then by date
         filtered.sort((a, b) => {
             // Priority score: lower is higher priority
             const getPriority = (r: ServiceRequest) => {
-                if (user && r.assigned_to === user.username) return 0; // Assigned to me
-                if (r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id)) return 1; // My department
-                return 2; // Others
+                if (user && r.assigned_to === user.username) return 0; // Assigned specifically to me
+                // My department, but no specific person assigned (All Department Staff)
+                if (r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id) && !r.assigned_to) return 1;
+                return 2; // Others (including requests assigned to specific people in my dept who are not me)
             };
 
             const priorityDiff = getPriority(a) - getPriority(b);
@@ -176,8 +182,9 @@ export default function StaffDashboard() {
         });
 
         const assignedToMe = viewRequests.filter(r => user && r.assigned_to === user.username).length;
+        // Only count as "dept" if no specific person assigned (All Department Staff)
         const inMyDepartment = viewRequests.filter(r =>
-            r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id) && r.assigned_to !== user?.username
+            r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id) && !r.assigned_to
         ).length;
         const total = viewRequests.length;
 
@@ -867,7 +874,7 @@ export default function StaffDashboard() {
                                                         <span className="text-xs px-2 py-0.5 rounded-full bg-primary-500/20 text-primary-400">
                                                             🎯 Mine
                                                         </span>
-                                                    ) : request.assigned_department_id && userDepartmentIds.includes(request.assigned_department_id) ? (
+                                                    ) : request.assigned_department_id && userDepartmentIds.includes(request.assigned_department_id) && !request.assigned_to ? (
                                                         <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
                                                             🏢 Dept
                                                         </span>
