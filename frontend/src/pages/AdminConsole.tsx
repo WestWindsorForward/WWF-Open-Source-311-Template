@@ -440,6 +440,11 @@ export default function AdminConsole() {
     };
 
     const handleEditService = (service: ServiceDefinition) => {
+        // Load users for staff selection
+        api.getUsers().then(setUsers).catch(console.error);
+        // Load departments for department selection
+        api.getDepartments().then(setDepartments).catch(console.error);
+
         setEditingService(service);
         const config = service.routing_config || {};
         setServiceRouting({
