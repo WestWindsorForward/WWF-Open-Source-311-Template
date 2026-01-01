@@ -195,6 +195,9 @@ class ServiceRequestResponse(BaseModel):
     source: str
     flagged: bool = False
     matched_asset: Optional[Dict[str, Any]] = None
+    # Assignment
+    assigned_department_id: Optional[int] = None
+    assigned_to: Optional[str] = None
     # Closed sub-status
     closed_substatus: Optional[str] = None
     # Soft delete info

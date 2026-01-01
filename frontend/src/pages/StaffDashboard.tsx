@@ -98,6 +98,102 @@ export default function StaffDashboard() {
     const [editAssignment, setEditAssignment] = useState<{ departmentId: number | null; assignedTo: string | null } | null>(null);
     const [isSavingAssignment, setIsSavingAssignment] = useState(false);
 
+    // Filter states
+    const [filterDepartment, setFilterDepartment] = useState<number | null>(null);
+    const [filterService, setFilterService] = useState<string | null>(null);
+    const [filterAssignment, setFilterAssignment] = useState<'all' | 'me' | 'department'>('all');
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Get current user's department IDs
+    const userDepartmentIds = useMemo(() => {
+        return user?.departments?.map(d => d.id) || [];
+    }, [user]);
+
+    // Filtered and sorted requests based on current view and filters
+    const filteredSortedRequests = useMemo(() => {
+        // First, filter by status based on current view
+        let filtered = allRequests.filter(r => {
+            if (currentView === 'active') return r.status === 'open';
+            if (currentView === 'in_progress') return r.status === 'in_progress';
+            if (currentView === 'resolved') return r.status === 'closed';
+            return true; // dashboard shows all
+        });
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(r =>
+                r.service_request_id.toLowerCase().includes(query) ||
+                r.description?.toLowerCase().includes(query) ||
+                r.address?.toLowerCase().includes(query) ||
+                r.service_name?.toLowerCase().includes(query)
+            );
+        }
+
+        // Apply department filter
+        if (filterDepartment !== null) {
+            filtered = filtered.filter(r => r.assigned_department_id === filterDepartment);
+        }
+
+        // Apply service filter
+        if (filterService !== null) {
+            filtered = filtered.filter(r => r.service_code === filterService);
+        }
+
+        // Apply assignment filter
+        if (filterAssignment === 'me' && user) {
+            filtered = filtered.filter(r => r.assigned_to === user.username);
+        } else if (filterAssignment === 'department' && userDepartmentIds.length > 0) {
+            filtered = filtered.filter(r => r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id));
+        }
+
+        // Sort by priority: assigned to me -> my department -> others, then by date
+        filtered.sort((a, b) => {
+            // Priority score: lower is higher priority
+            const getPriority = (r: ServiceRequest) => {
+                if (user && r.assigned_to === user.username) return 0; // Assigned to me
+                if (r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id)) return 1; // My department
+                return 2; // Others
+            };
+
+            const priorityDiff = getPriority(a) - getPriority(b);
+            if (priorityDiff !== 0) return priorityDiff;
+
+            // Secondary sort by requested_datetime (newest first)
+            return new Date(b.requested_datetime).getTime() - new Date(a.requested_datetime).getTime();
+        });
+
+        return filtered;
+    }, [allRequests, currentView, searchQuery, filterDepartment, filterService, filterAssignment, user, userDepartmentIds]);
+
+    // Quick stats for the current view
+    const quickStats = useMemo(() => {
+        const viewRequests = allRequests.filter(r => {
+            if (currentView === 'active') return r.status === 'open';
+            if (currentView === 'in_progress') return r.status === 'in_progress';
+            if (currentView === 'resolved') return r.status === 'closed';
+            return true;
+        });
+
+        const assignedToMe = viewRequests.filter(r => user && r.assigned_to === user.username).length;
+        const inMyDepartment = viewRequests.filter(r =>
+            r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id) && r.assigned_to !== user?.username
+        ).length;
+        const total = viewRequests.length;
+
+        return { assignedToMe, inMyDepartment, total };
+    }, [allRequests, currentView, user, userDepartmentIds]);
+
+    // Clear all filters
+    const clearFilters = () => {
+        setSearchQuery('');
+        setFilterDepartment(null);
+        setFilterService(null);
+        setFilterAssignment('all');
+    };
+
+    const hasActiveFilters = searchQuery.trim() || filterDepartment !== null || filterService !== null || filterAssignment !== 'all';
+
     useEffect(() => {
         // Initial load - only fetch once
         loadInitialData();
@@ -268,12 +364,7 @@ export default function StaffDashboard() {
         navigate('/login');
     };
 
-    const filteredRequests = requests.filter(
-        (r) =>
-            r.service_request_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            r.service_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            r.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Old simple search filter removed - now using filteredSortedRequests above
 
     const getCounts = () => {
         const open = requests.filter((r) => r.status === 'open').length;
@@ -292,23 +383,8 @@ export default function StaffDashboard() {
         { id: 'statistics', icon: BarChart3, label: 'Statistics', count: null },
     ];
 
-    const sortedRequests = useMemo(() => {
-        if (!user) return filteredRequests;
-
-        // Note: userDeptIds could be used for department-based sorting if requests had department_id
-
-        return [...filteredRequests].sort((a, b) => {
-            // Priority 1: Assigned to current user
-            const aAssignedToMe = (a as any).assigned_to === user.username;
-            const bAssignedToMe = (b as any).assigned_to === user.username;
-            if (aAssignedToMe && !bAssignedToMe) return -1;
-            if (!aAssignedToMe && bAssignedToMe) return 1;
-
-            // Priority 2: Could add department-based sorting here if requests had department_id
-            // For now, sort by date (newest first)
-            return new Date(b.requested_datetime).getTime() - new Date(a.requested_datetime).getTime();
-        });
-    }, [filteredRequests, user]);
+    // Use the comprehensive filteredSortedRequests (defined above) for the list
+    const sortedRequests = filteredSortedRequests;
 
     // Calculate dashboard stats
     const dashboardStats = useMemo(() => {
@@ -630,28 +706,125 @@ export default function StaffDashboard() {
                     <div className="flex-1 flex min-h-0">
                         {/* Request List Panel */}
                         <div className="w-full lg:w-96 flex flex-col border-r border-white/10">
-                            {/* List Header */}
-                            <div className="p-4 border-b border-white/10">
-                                <div className="flex items-center justify-between mb-4">
+                            {/* List Header with Quick Stats */}
+                            <div className="p-4 border-b border-white/10 space-y-3">
+                                <div className="flex items-center justify-between">
                                     <h2 className="text-lg font-semibold text-white">Incidents</h2>
-                                    <Button
-                                        size="sm"
-                                        leftIcon={<Plus className="w-4 h-4" />}
-                                        onClick={() => setShowIntakeModal(true)}
-                                    >
-                                        Add
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => setShowFilters(!showFilters)}
+                                            className={hasActiveFilters ? 'text-primary-400' : ''}
+                                        >
+                                            <Search className="w-4 h-4" />
+                                            {hasActiveFilters && <span className="ml-1 text-xs">•</span>}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            leftIcon={<Plus className="w-4 h-4" />}
+                                            onClick={() => setShowIntakeModal(true)}
+                                        >
+                                            Add
+                                        </Button>
+                                    </div>
                                 </div>
+
+                                {/* Quick Stats Bar */}
+                                <div className="flex gap-2 text-xs">
+                                    <button
+                                        onClick={() => setFilterAssignment('me')}
+                                        className={`px-3 py-1.5 rounded-full transition-all ${filterAssignment === 'me'
+                                            ? 'bg-primary-500 text-white'
+                                            : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        🎯 Mine ({quickStats.assignedToMe})
+                                    </button>
+                                    <button
+                                        onClick={() => setFilterAssignment('department')}
+                                        className={`px-3 py-1.5 rounded-full transition-all ${filterAssignment === 'department'
+                                            ? 'bg-purple-500 text-white'
+                                            : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        🏢 Dept ({quickStats.inMyDepartment})
+                                    </button>
+                                    <button
+                                        onClick={() => setFilterAssignment('all')}
+                                        className={`px-3 py-1.5 rounded-full transition-all ${filterAssignment === 'all'
+                                            ? 'bg-slate-600 text-white'
+                                            : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        📋 All ({quickStats.total})
+                                    </button>
+                                </div>
+
+                                {/* Search Input */}
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                                     <input
                                         type="text"
-                                        placeholder="Search incidents..."
+                                        placeholder="Search by ID, description, address..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="glass-input pl-10 py-2 text-sm"
                                     />
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    )}
                                 </div>
+
+                                {/* Advanced Filters Panel */}
+                                {showFilters && (
+                                    <div className="space-y-3 pt-2 border-t border-white/10">
+                                        {/* Department Filter */}
+                                        <div>
+                                            <label className="text-xs text-white/50 mb-1 block">Department</label>
+                                            <select
+                                                value={filterDepartment ?? ''}
+                                                onChange={(e) => setFilterDepartment(e.target.value ? Number(e.target.value) : null)}
+                                                className="glass-input text-sm py-2"
+                                            >
+                                                <option value="">All Departments</option>
+                                                {departments.map(d => (
+                                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Service Category Filter */}
+                                        <div>
+                                            <label className="text-xs text-white/50 mb-1 block">Category</label>
+                                            <select
+                                                value={filterService ?? ''}
+                                                onChange={(e) => setFilterService(e.target.value || null)}
+                                                className="glass-input text-sm py-2"
+                                            >
+                                                <option value="">All Categories</option>
+                                                {services.map(s => (
+                                                    <option key={s.service_code} value={s.service_code}>{s.service_name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Clear Filters */}
+                                        {hasActiveFilters && (
+                                            <button
+                                                onClick={clearFilters}
+                                                className="text-xs text-primary-400 hover:text-primary-300"
+                                            >
+                                                Clear all filters
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Request List */}
@@ -684,9 +857,21 @@ export default function StaffDashboard() {
                                                 </div>
                                                 <h3 className="font-medium text-white mb-1">{request.service_name}</h3>
                                                 <p className="text-sm text-white/50 line-clamp-2">{request.description}</p>
-                                                <div className="flex items-center gap-2 mt-2 text-xs text-white/40">
-                                                    <Clock className="w-3 h-3" />
-                                                    {new Date(request.requested_datetime).toLocaleDateString()}
+                                                <div className="flex items-center justify-between mt-2">
+                                                    <div className="flex items-center gap-2 text-xs text-white/40">
+                                                        <Clock className="w-3 h-3" />
+                                                        {new Date(request.requested_datetime).toLocaleDateString()}
+                                                    </div>
+                                                    {/* Priority indicator */}
+                                                    {request.assigned_to === user?.username ? (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary-500/20 text-primary-400">
+                                                            🎯 Mine
+                                                        </span>
+                                                    ) : request.assigned_department_id && userDepartmentIds.includes(request.assigned_department_id) ? (
+                                                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                                                            🏢 Dept
+                                                        </span>
+                                                    ) : null}
                                                 </div>
                                             </motion.button>
                                         ))}

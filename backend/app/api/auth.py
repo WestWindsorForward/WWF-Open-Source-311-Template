@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.models import User
@@ -48,12 +49,24 @@ async def login(
 
 
 @router.get("/me")
-async def get_me(current_user: User = Depends(get_current_user)):
-    """Get current authenticated user"""
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current authenticated user with departments"""
+    # Reload user with departments relationship
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.departments))
+        .where(User.id == current_user.id)
+    )
+    user = result.scalar_one()
+    
     return {
-        "id": current_user.id,
-        "username": current_user.username,
-        "email": current_user.email,
-        "full_name": current_user.full_name,
-        "role": current_user.role
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "departments": [{"id": d.id, "name": d.name} for d in user.departments] if user.departments else []
     }

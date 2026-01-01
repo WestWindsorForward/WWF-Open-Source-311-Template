@@ -99,6 +99,9 @@ export interface ServiceRequest {
     updated_datetime: string | null;
     source: string;
     flagged: boolean;
+    // Assignment
+    assigned_department_id: number | null;
+    assigned_to: string | null;
     // Closed sub-status
     closed_substatus: ClosedSubstatus | null;
     // Soft delete
