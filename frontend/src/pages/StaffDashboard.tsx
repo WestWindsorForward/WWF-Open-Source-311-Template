@@ -891,22 +891,47 @@ export default function StaffDashboard() {
                         <div className="hidden lg:flex flex-1 flex-col">
                             {selectedRequest ? (
                                 <div className="flex-1 flex flex-col">
-                                    {/* Sticky Header with Actions */}
-                                    <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-white/10 p-4">
-                                        <div className="flex items-center justify-between gap-4 mb-3">
+                                    {/* Sticky Header with Actions & Assignment */}
+                                    <div className="sticky top-0 z-10 bg-slate-800 border-b border-slate-700 p-4 space-y-3">
+                                        {/* Row 1: Title and ID */}
+                                        <div className="flex items-center justify-between gap-4">
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-mono text-xs text-white/50">{selectedRequest.service_request_id}</span>
+                                                    <span className="font-mono text-xs text-slate-400">{selectedRequest.service_request_id}</span>
                                                     <StatusBadge status={selectedRequest.status} />
                                                 </div>
                                                 <h1 className="text-lg font-semibold text-white truncate">{selectedRequest.service_name}</h1>
                                             </div>
                                         </div>
-                                        {/* Status Actions */}
+
+                                        {/* Row 2: Assignment Dropdowns */}
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''}
+                                                onChange={(e) => { const val = e.target.value ? Number(e.target.value) : null; setEditAssignment(prev => ({ departmentId: val, assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null })); }}
+                                                className="flex-1 py-2 px-3 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm [&>option]:bg-slate-700 [&>option]:text-white"
+                                            >
+                                                <option value="">Department</option>
+                                                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                            </select>
+                                            <select
+                                                value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''}
+                                                onChange={(e) => { const val = e.target.value || null; setEditAssignment(prev => ({ departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null, assignedTo: val })); }}
+                                                className="flex-1 py-2 px-3 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm [&>option]:bg-slate-700 [&>option]:text-white"
+                                            >
+                                                <option value="">Assignee</option>
+                                                {(() => { const deptId = editAssignment?.departmentId ?? selectedRequest.assigned_department_id; return (deptId ? users.filter(u => u.departments?.some(d => d.id === deptId)) : users).map(u => <option key={u.id} value={u.username}>{u.full_name || u.username}</option>); })()}
+                                            </select>
+                                            {editAssignment && (
+                                                <button onClick={async () => { setIsSavingAssignment(true); try { const updated = await api.updateRequest(selectedRequest.service_request_id, { assigned_department_id: editAssignment.departmentId ?? undefined, assigned_to: editAssignment.assignedTo ?? undefined }); setSelectedRequest(updated); setEditAssignment(null); } catch (err) { console.error(err); } finally { setIsSavingAssignment(false); } }} disabled={isSavingAssignment} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50">{isSavingAssignment ? 'Saving...' : 'Save'}</button>
+                                            )}
+                                        </div>
+
+                                        {/* Row 3: Status Actions */}
                                         <div className="flex gap-2">
-                                            <button onClick={() => handleStatusChange('open')} className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'open' ? 'bg-yellow-500 text-white' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}>Open</button>
-                                            <button onClick={() => handleStatusChange('in_progress')} className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'in_progress' ? 'bg-blue-500 text-white' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}>In Progress</button>
-                                            <button onClick={() => handleStatusChange('closed')} className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'closed' ? 'bg-green-500 text-white' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}>Closed</button>
+                                            <button onClick={() => handleStatusChange('open')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'open' ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/25' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Open</button>
+                                            <button onClick={() => handleStatusChange('in_progress')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'in_progress' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>In Progress</button>
+                                            <button onClick={() => handleStatusChange('closed')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'closed' ? 'bg-green-500 text-white shadow-lg shadow-green-500/25' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Closed</button>
                                         </div>
                                     </div>
 
@@ -1001,28 +1026,6 @@ export default function StaffDashboard() {
                                             </div>
                                         )}
 
-                                        {/* ═══ SECTION 3: Assignment ═══ */}
-                                        <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <Users className="w-4 h-4 text-blue-400" />
-                                                    <span className="font-medium text-white">Assignment</span>
-                                                </div>
-                                                {editAssignment && (
-                                                    <button onClick={async () => { setIsSavingAssignment(true); try { const updated = await api.updateRequest(selectedRequest.service_request_id, { assigned_department_id: editAssignment.departmentId ?? undefined, assigned_to: editAssignment.assignedTo ?? undefined }); setSelectedRequest(updated); setEditAssignment(null); } catch (err) { console.error(err); } finally { setIsSavingAssignment(false); } }} disabled={isSavingAssignment} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50">{isSavingAssignment ? 'Saving...' : 'Save'}</button>
-                                                )}
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <select value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''} onChange={(e) => { const val = e.target.value ? Number(e.target.value) : null; setEditAssignment(prev => ({ departmentId: val, assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null })); }} className="w-full py-2 px-3 rounded-lg bg-slate-700 border border-white/10 text-white text-sm">
-                                                    <option value="">Select Department</option>
-                                                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                                </select>
-                                                <select value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''} onChange={(e) => { const val = e.target.value || null; setEditAssignment(prev => ({ departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null, assignedTo: val })); }} className="w-full py-2 px-3 rounded-lg bg-slate-700 border border-white/10 text-white text-sm">
-                                                    <option value="">All Staff</option>
-                                                    {(() => { const deptId = editAssignment?.departmentId ?? selectedRequest.assigned_department_id; return (deptId ? users.filter(u => u.departments?.some(d => d.id === deptId)) : users).map(u => <option key={u.id} value={u.username}>{u.full_name || u.username}</option>); })()}
-                                                </select>
-                                            </div>
-                                        </div>
 
                                         {/* ═══ SECTION 4: Timeline ═══ */}
                                         <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
@@ -1095,18 +1098,18 @@ export default function StaffDashboard() {
 
                                             {/* Add Comment with CLEAR visibility indicator */}
                                             <div className="space-y-2">
-                                                <div className={`p-3 rounded-lg ${commentVisibility === 'internal' ? 'bg-orange-500/10 border-2 border-orange-500/40' : 'bg-green-500/10 border-2 border-green-500/40'}`}>
+                                                <div className={`p-3 rounded-lg ${commentVisibility === 'internal' ? 'bg-orange-950/30 border border-orange-500/30' : 'bg-green-950/30 border border-green-500/30'}`}>
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <span className={`text-sm font-semibold ${commentVisibility === 'internal' ? 'text-orange-400' : 'text-green-400'}`}>
-                                                            {commentVisibility === 'internal' ? '🔒 INTERNAL COMMENT - Only staff will see this' : '🌐 PUBLIC COMMENT - Reporter will be notified'}
+                                                            {commentVisibility === 'internal' ? '🔒 INTERNAL - Staff only' : '🌐 PUBLIC - Reporter will see'}
                                                         </span>
-                                                        <button onClick={() => setCommentVisibility(commentVisibility === 'internal' ? 'external' : 'internal')} className="ml-auto text-xs underline text-white/50 hover:text-white">
+                                                        <button onClick={() => setCommentVisibility(commentVisibility === 'internal' ? 'external' : 'internal')} className={`ml-auto px-2 py-1 rounded text-xs font-medium transition-colors ${commentVisibility === 'internal' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'}`}>
                                                             Switch to {commentVisibility === 'internal' ? 'Public' : 'Internal'}
                                                         </button>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <input type="text" placeholder="Write your comment..." value={newComment} onChange={(e) => setNewComment(e.target.value)} className="flex-1 py-2 px-3 rounded-lg bg-slate-700 border border-white/10 text-white text-sm placeholder:text-white/30" />
-                                                        <button onClick={handleAddComment} disabled={!newComment.trim() || isSubmittingComment} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2">
+                                                        <input type="text" placeholder="Write your comment..." value={newComment} onChange={(e) => setNewComment(e.target.value)} className="flex-1 py-2.5 px-3 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm placeholder:text-slate-500 focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+                                                        <button onClick={handleAddComment} disabled={!newComment.trim() || isSubmittingComment} className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 transition-colors">
                                                             <Send className="w-4 h-4" /> Send
                                                         </button>
                                                     </div>
@@ -1115,9 +1118,15 @@ export default function StaffDashboard() {
                                         </div>
 
                                         {/* ═══ Actions Footer ═══ */}
-                                        <div className="flex gap-2">
-                                            <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/staff/request/${selectedRequest.service_request_id}`)} className="flex-1 py-2.5 px-3 rounded-lg bg-slate-700 text-white/70 text-sm hover:bg-slate-600 flex items-center justify-center gap-2"><Link className="w-4 h-4" /> Copy Link</button>
-                                            <button onClick={() => setShowDeleteModal(true)} className="py-2.5 px-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm hover:bg-red-500/20 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Delete</button>
+                                        <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
+                                            <div className="flex gap-3">
+                                                <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/staff/request/${selectedRequest.service_request_id}`); }} className="flex-1 py-2.5 px-4 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                                                    <Link className="w-4 h-4" /> Copy Shareable Link
+                                                </button>
+                                                <button onClick={() => setShowDeleteModal(true)} className="py-2.5 px-4 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-medium flex items-center gap-2 transition-colors">
+                                                    <Trash2 className="w-4 h-4" /> Delete
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
