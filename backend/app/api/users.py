@@ -14,12 +14,21 @@ router = APIRouter()
 
 # Minimal response schema for staff assignment dropdown
 from pydantic import BaseModel
+from typing import Optional
+
+class DepartmentMinimal(BaseModel):
+    id: int
+    name: str
+    
+    class Config:
+        from_attributes = True
 
 class StaffMemberResponse(BaseModel):
     id: int
     username: str
     full_name: str | None
     role: str
+    departments: Optional[list[DepartmentMinimal]] = None
     
     class Config:
         from_attributes = True
@@ -33,6 +42,7 @@ async def list_staff_members(
     """List staff and admin users for assignment (accessible by any staff user)"""
     result = await db.execute(
         select(User)
+        .options(selectinload(User.departments))
         .where(User.role.in_(['staff', 'admin']), User.is_active == True)
         .order_by(User.full_name, User.username)
     )

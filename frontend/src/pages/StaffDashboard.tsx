@@ -816,14 +816,20 @@ export default function StaffDashboard() {
                                                                     }}
                                                                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer hover:bg-white/10"
                                                                 >
-                                                                    <option value="" className="bg-gray-900">No Staff Assigned</option>
-                                                                    {users.length > 0 ? users.map(u => (
-                                                                        <option key={u.id} value={u.username} className="bg-gray-900">
-                                                                            {u.full_name || u.username} (@{u.username})
-                                                                        </option>
-                                                                    )) : (
-                                                                        <option disabled className="bg-gray-900">Loading staff...</option>
-                                                                    )}
+                                                                    <option value="" className="bg-gray-900">All Department Staff</option>
+                                                                    {(() => {
+                                                                        const selectedDeptId = editAssignment?.departmentId ?? selectedRequest.assigned_department_id;
+                                                                        const filteredUsers = selectedDeptId
+                                                                            ? users.filter(u => u.departments?.some(d => d.id === selectedDeptId))
+                                                                            : users;
+                                                                        return filteredUsers.length > 0 ? filteredUsers.map(u => (
+                                                                            <option key={u.id} value={u.username} className="bg-gray-900">
+                                                                                {u.full_name || u.username} (@{u.username})
+                                                                            </option>
+                                                                        )) : (
+                                                                            <option disabled className="bg-gray-900">No staff in this department</option>
+                                                                        );
+                                                                    })()}
                                                                 </select>
                                                                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                                                                     <svg className="w-4 h-4 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
