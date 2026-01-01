@@ -757,9 +757,11 @@ export default function StaffDashboard() {
                                                             className="bg-transparent border-none text-sm text-white/80 focus:outline-none cursor-pointer pr-2 py-1"
                                                         >
                                                             <option value="" className="bg-gray-900">No Staff</option>
-                                                            {users.map(u => (
-                                                                <option key={u.id} value={u.username} className="bg-gray-900">{u.full_name || u.username}</option>
-                                                            ))}
+                                                            {users
+                                                                .filter(u => u.role === 'staff' || u.role === 'admin')
+                                                                .map(u => (
+                                                                    <option key={u.id} value={u.username} className="bg-gray-900">{u.full_name || u.username}</option>
+                                                                ))}
                                                         </select>
                                                     </div>
                                                 </div>
