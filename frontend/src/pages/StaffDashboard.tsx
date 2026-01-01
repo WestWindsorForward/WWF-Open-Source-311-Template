@@ -715,82 +715,125 @@ export default function StaffDashboard() {
                                                         <span>{selectedRequest.address}</span>
                                                     </div>
                                                 )}
-
-                                                {/* Premium Inline Assignment */}
-                                                <div className="flex flex-wrap items-center gap-3 mt-4">
-                                                    {/* Department Select */}
-                                                    <div className="flex items-center gap-2 px-1 py-0.5 rounded-full bg-gradient-to-r from-primary-500/10 to-purple-500/10 border border-primary-500/20">
-                                                        <Users className="w-3.5 h-3.5 text-primary-400 ml-2" />
-                                                        <select
-                                                            value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value ? Number(e.target.value) : null;
-                                                                setEditAssignment(prev => ({
-                                                                    departmentId: val,
-                                                                    assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null
-                                                                }));
-                                                            }}
-                                                            className="bg-transparent border-none text-sm text-white/80 focus:outline-none cursor-pointer pr-2 py-1"
-                                                        >
-                                                            <option value="" className="bg-gray-900">No Department</option>
-                                                            {departments.map(dept => (
-                                                                <option key={dept.id} value={dept.id} className="bg-gray-900">{dept.name}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-
-                                                    {/* Staff Select - Premium */}
-                                                    <div className="flex items-center gap-2 px-1 py-0.5 rounded-full bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
-                                                        <User className="w-3.5 h-3.5 text-blue-400 ml-2" />
-                                                        <select
-                                                            value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value || null;
-                                                                setEditAssignment(prev => ({
-                                                                    departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null,
-                                                                    assignedTo: val
-                                                                }));
-                                                            }}
-                                                            className="bg-transparent border-none text-sm text-white/80 focus:outline-none cursor-pointer pr-2 py-1"
-                                                        >
-                                                            <option value="" className="bg-gray-900">No Staff</option>
-                                                            {users.length > 0 ? users.map(u => (
-                                                                <option key={u.id} value={u.username} className="bg-gray-900">
-                                                                    {u.full_name || u.username} (@{u.username})
-                                                                </option>
-                                                            )) : (
-                                                                <option disabled className="bg-gray-900">Loading staff...</option>
-                                                            )}
-                                                        </select>
-                                                    </div>
-
-                                                    {/* Save Button - only show when changes made */}
-                                                    {editAssignment && (
-                                                        <button
-                                                            onClick={async () => {
-                                                                setIsSavingAssignment(true);
-                                                                try {
-                                                                    const updated = await api.updateRequest(selectedRequest.service_request_id, {
-                                                                        assigned_department_id: editAssignment.departmentId ?? undefined,
-                                                                        assigned_to: editAssignment.assignedTo ?? undefined
-                                                                    });
-                                                                    setSelectedRequest(updated);
-                                                                    setEditAssignment(null);
-                                                                } catch (err) {
-                                                                    console.error('Failed to save assignment:', err);
-                                                                } finally {
-                                                                    setIsSavingAssignment(false);
-                                                                }
-                                                            }}
-                                                            disabled={isSavingAssignment}
-                                                            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
-                                                        >
-                                                            {isSavingAssignment ? 'Saving...' : 'Save'}
-                                                        </button>
-                                                    )}
-                                                </div>
                                             </div>
                                         </div>
+
+                                        {/* Premium Assignment Card */}
+                                        <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-white/10 overflow-hidden">
+                                            <div className="relative">
+                                                {/* Subtle glow effect */}
+                                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary-500/10 rounded-full blur-3xl" />
+                                                <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl" />
+
+                                                <div className="relative">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                                            <Users className="w-5 h-5 text-primary-400" />
+                                                            Assignment
+                                                        </h3>
+                                                        {editAssignment && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    setIsSavingAssignment(true);
+                                                                    try {
+                                                                        const updated = await api.updateRequest(selectedRequest.service_request_id, {
+                                                                            assigned_department_id: editAssignment.departmentId ?? undefined,
+                                                                            assigned_to: editAssignment.assignedTo ?? undefined
+                                                                        });
+                                                                        setSelectedRequest(updated);
+                                                                        setEditAssignment(null);
+                                                                    } catch (err) {
+                                                                        console.error('Failed to save assignment:', err);
+                                                                    } finally {
+                                                                        setIsSavingAssignment(false);
+                                                                    }
+                                                                }}
+                                                                disabled={isSavingAssignment}
+                                                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-sm font-medium transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                                                            >
+                                                                {isSavingAssignment ? (
+                                                                    <>
+                                                                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                                        </svg>
+                                                                        Saving...
+                                                                    </>
+                                                                ) : 'Save Changes'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        {/* Department Select */}
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs font-medium text-white/50 uppercase tracking-wider">Department</label>
+                                                            <div className="relative">
+                                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                                    <Users className="w-4 h-4 text-primary-400" />
+                                                                </div>
+                                                                <select
+                                                                    value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value ? Number(e.target.value) : null;
+                                                                        setEditAssignment(prev => ({
+                                                                            departmentId: val,
+                                                                            assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null
+                                                                        }));
+                                                                    }}
+                                                                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all appearance-none cursor-pointer hover:bg-white/10"
+                                                                >
+                                                                    <option value="" className="bg-gray-900">No Department</option>
+                                                                    {departments.map(dept => (
+                                                                        <option key={dept.id} value={dept.id} className="bg-gray-900">{dept.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                                    <svg className="w-4 h-4 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                    </svg>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Staff Select */}
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs font-medium text-white/50 uppercase tracking-wider">Assigned Staff</label>
+                                                            <div className="relative">
+                                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                                    <User className="w-4 h-4 text-blue-400" />
+                                                                </div>
+                                                                <select
+                                                                    value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value || null;
+                                                                        setEditAssignment(prev => ({
+                                                                            departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null,
+                                                                            assignedTo: val
+                                                                        }));
+                                                                    }}
+                                                                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer hover:bg-white/10"
+                                                                >
+                                                                    <option value="" className="bg-gray-900">No Staff Assigned</option>
+                                                                    {users.length > 0 ? users.map(u => (
+                                                                        <option key={u.id} value={u.username} className="bg-gray-900">
+                                                                            {u.full_name || u.username} (@{u.username})
+                                                                        </option>
+                                                                    )) : (
+                                                                        <option disabled className="bg-gray-900">Loading staff...</option>
+                                                                    )}
+                                                                </select>
+                                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                                    <svg className="w-4 h-4 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                    </svg>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Card>
 
                                         {/* Status Actions */}
                                         <Card>
