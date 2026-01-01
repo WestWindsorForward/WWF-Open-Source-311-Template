@@ -90,6 +90,9 @@ export default function StaffDashboard() {
     const [completionMessage, setCompletionMessage] = useState('');
     const [completionPhotoUrl, setCompletionPhotoUrl] = useState('');
 
+    // Lightbox modal state
+    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
     useEffect(() => {
         loadData();
     }, [currentView]);
@@ -811,7 +814,7 @@ export default function StaffDashboard() {
                                                             src={url}
                                                             alt={`Photo ${index + 1}`}
                                                             className="rounded-lg max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                                            onClick={() => window.open(url, '_blank')}
+                                                            onClick={() => setLightboxUrl(url)}
                                                         />
                                                     ))}
                                                 </div>
@@ -1206,6 +1209,27 @@ export default function StaffDashboard() {
                     </div>
                 </div>
             </Modal>
+
+            {/* Photo Lightbox Modal */}
+            {lightboxUrl && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+                    onClick={() => setLightboxUrl(null)}
+                >
+                    <button
+                        onClick={() => setLightboxUrl(null)}
+                        className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+                    >
+                        <X className="w-8 h-8" />
+                    </button>
+                    <img
+                        src={lightboxUrl}
+                        alt="Full size preview"
+                        className="max-w-full max-h-full object-contain rounded-lg"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     );
 }
