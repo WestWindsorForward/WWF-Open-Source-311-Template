@@ -1129,14 +1129,30 @@ export default function StaffDashboard() {
                                             </div>
 
                                             {/* Premium Vertical Timeline */}
-                                            <div className="relative">
+                                            <div className="relative pl-4">
                                                 {/* Vertical connecting line - centered on circles */}
-                                                <div className="absolute left-[6px] top-2 bottom-2 w-[2px] bg-gradient-to-b from-purple-500/50 via-blue-500/30 to-emerald-500/50" />
+                                                <div className="absolute left-[5px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-emerald-500/50 via-blue-500/30 to-purple-500/50" />
 
                                                 <div className="space-y-3">
-                                                    {auditLog.length > 0 ? (
-                                                        // Render from audit log
-                                                        auditLog.map((entry, idx) => {
+                                                    {/* Always show submitted event first, even if not in audit log */}
+                                                    {(() => {
+                                                        const hasSubmittedEvent = auditLog.some(e => e.action === 'submitted');
+                                                        const timelineEntries = hasSubmittedEvent ? auditLog : [
+                                                            {
+                                                                id: -1,
+                                                                service_request_id: 0,
+                                                                action: 'submitted' as const,
+                                                                new_value: 'open',
+                                                                old_value: null,
+                                                                actor_type: 'resident' as const,
+                                                                actor_name: 'Resident',
+                                                                created_at: selectedRequest.requested_datetime,
+                                                                extra_data: null
+                                                            },
+                                                            ...auditLog
+                                                        ];
+
+                                                        return timelineEntries.map((entry, idx) => {
                                                             // Determine color and text based on action - simple circles, no emojis
                                                             let actionConfig: { color: string; text: string };
 
@@ -1194,75 +1210,8 @@ export default function StaffDashboard() {
                                                                     </div>
                                                                 </div>
                                                             );
-                                                        })
-                                                    ) : (
-                                                        // Fallback: Static display for older requests without audit log
-                                                        <>
-                                                            <div className="relative flex items-start gap-3 pl-0">
-                                                                <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-sm" />
-                                                                <div className="flex-1 min-w-0 -mt-0.5">
-                                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                                        <span className="text-white/90 text-sm font-medium">Request submitted</span>
-                                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">Resident</span>
-                                                                    </div>
-                                                                    <div className="text-white/40 text-xs mt-0.5">{new Date(selectedRequest.requested_datetime).toLocaleString()}</div>
-                                                                </div>
-                                                            </div>
-
-                                                            {selectedRequest.assigned_department_id && (
-                                                                <div className="relative flex items-start gap-3 pl-0">
-                                                                    <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-purple-500 shadow-sm" />
-                                                                    <div className="flex-1 min-w-0 -mt-0.5">
-                                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                                            <span className="text-white/90 text-sm font-medium">Assigned to {departments.find(d => d.id === selectedRequest.assigned_department_id)?.name || 'department'}</span>
-                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {selectedRequest.assigned_to && (
-                                                                <div className="relative flex items-start gap-3 pl-0">
-                                                                    <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-indigo-500 shadow-sm" />
-                                                                    <div className="flex-1 min-w-0 -mt-0.5">
-                                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                                            <span className="text-white/90 text-sm font-medium">Assigned to {selectedRequest.assigned_to}</span>
-                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {(selectedRequest.status === 'in_progress' || selectedRequest.status === 'closed') && (
-                                                                <div className="relative flex items-start gap-3 pl-0">
-                                                                    <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-blue-500 shadow-sm" />
-                                                                    <div className="flex-1 min-w-0 -mt-0.5">
-                                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                                            <span className="text-white/90 text-sm font-medium">Marked as In Progress</span>
-                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {selectedRequest.status === 'closed' && (
-                                                                <div className="relative flex items-start gap-3 pl-0">
-                                                                    <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-sm ring-2 ring-white/30" />
-                                                                    <div className="flex-1 min-w-0 -mt-0.5">
-                                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                                            <span className="text-white/90 text-sm font-medium">
-                                                                                Closed {selectedRequest.closed_substatus === 'resolved' ? '- Resolved' : selectedRequest.closed_substatus === 'no_action' ? '- No Action Needed' : selectedRequest.closed_substatus === 'third_party' ? '- Third Party Contacted' : ''}
-                                                                            </span>
-                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
-                                                                        </div>
-                                                                        <div className="text-white/40 text-xs mt-0.5">
-                                                                            {selectedRequest.closed_datetime ? new Date(selectedRequest.closed_datetime).toLocaleString() : ''}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    )}
+                                                        });
+                                                    })()}
                                                 </div>
                                             </div>
                                         </div>
