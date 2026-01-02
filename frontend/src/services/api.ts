@@ -226,6 +226,16 @@ class ApiClient {
         });
     }
 
+    // Audit Log (Staff)
+    async getAuditLog(requestId: string): Promise<import('../types').AuditLogEntry[]> {
+        return this.request<import('../types').AuditLogEntry[]>(`/open311/v2/requests/${requestId}/audit-log`);
+    }
+
+    // Audit Log (Public)
+    async getPublicAuditLog(requestId: string): Promise<import('../types').AuditLogEntry[]> {
+        return this.request<import('../types').AuditLogEntry[]>(`/open311/v2/public/requests/${requestId}/audit-log`);
+    }
+
     // Users (Admin)
     async getUsers(): Promise<User[]> {
         return this.request<User[]>('/users/');

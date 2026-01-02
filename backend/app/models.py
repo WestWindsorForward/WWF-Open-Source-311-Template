@@ -190,6 +190,34 @@ class RequestComment(Base):
     service_request = relationship("ServiceRequest", backref="comments")
 
 
+class RequestAuditLog(Base):
+    """Audit trail for all changes to service requests"""
+    __tablename__ = "request_audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    service_request_id = Column(Integer, ForeignKey("service_requests.id"), nullable=False, index=True)
+    
+    # Action type: submitted, status_change, department_assigned, staff_assigned, comment_added
+    action = Column(String(50), nullable=False)
+    
+    # What changed
+    old_value = Column(String(255))  # Previous value (e.g., "open", department name)
+    new_value = Column(String(255))  # New value (e.g., "in_progress", department name)
+    
+    # Who made the change
+    actor_type = Column(String(20), nullable=False)  # "resident" or "staff"
+    actor_name = Column(String(100))  # Username or "Resident"
+    
+    # When
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Additional context (JSON for flexibility)
+    metadata = Column(JSON)  # { substatus, completion_message, etc. }
+    
+    # Relationship
+    service_request = relationship("ServiceRequest", backref="audit_logs")
+
+
 
 class SystemSettings(Base):
     __tablename__ = "system_settings"

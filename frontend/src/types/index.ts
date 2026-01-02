@@ -165,6 +165,22 @@ export interface RequestComment {
     updated_at: string | null;
 }
 
+// Audit Log Entry for tracking all changes to requests
+export interface AuditLogEntry {
+    id: number;
+    service_request_id: number;
+    action: 'submitted' | 'status_change' | 'department_assigned' | 'staff_assigned' | 'comment_added';
+    old_value: string | null;
+    new_value: string | null;
+    actor_type: 'resident' | 'staff';
+    actor_name: string | null;
+    created_at: string | null;
+    metadata: {
+        substatus?: string;
+        completion_message?: string;
+    } | null;
+}
+
 export interface ServiceRequestCreate {
     service_code: string;
     description: string;

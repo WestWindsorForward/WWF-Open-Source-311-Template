@@ -390,3 +390,20 @@ class RequestCommentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============ Request Audit Log ============
+class RequestAuditLogResponse(BaseModel):
+    id: int
+    service_request_id: int
+    action: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    actor_type: str
+    actor_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
+

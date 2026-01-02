@@ -37,7 +37,7 @@ import { Button, Card, Modal, Input, Textarea, Select, StatusBadge, Badge } from
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api, MapLayer } from '../services/api';
-import { ServiceRequest, ServiceRequestDetail, ServiceDefinition, Statistics, RequestComment, ClosedSubstatus, User as UserType, Department } from '../types';
+import { ServiceRequest, ServiceRequestDetail, ServiceDefinition, Statistics, RequestComment, ClosedSubstatus, User as UserType, Department, AuditLogEntry } from '../types';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import StaffDashboardMap from '../components/StaffDashboardMap';
 import RequestDetailMap from '../components/RequestDetailMap';
@@ -80,6 +80,7 @@ export default function StaffDashboard() {
 
     // Comments state
     const [comments, setComments] = useState<RequestComment[]>([]);
+    const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
     const [newComment, setNewComment] = useState('');
     const [commentVisibility, setCommentVisibility] = useState<'internal' | 'external'>('internal');
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -267,8 +268,9 @@ export default function StaffDashboard() {
         try {
             const detail = await api.getRequestDetail(requestId);
             setSelectedRequest(detail);
-            // Load comments for this request
+            // Load comments and audit log for this request
             loadComments(detail.id);
+            loadAuditLog(requestId);
         } catch (err) {
             console.error('Failed to load request detail:', err);
         }
@@ -318,6 +320,17 @@ export default function StaffDashboard() {
             setComments(commentsData);
         } catch (err) {
             console.error('Failed to load comments:', err);
+        }
+    };
+
+    const loadAuditLog = async (requestId: string) => {
+        try {
+            const logData = await api.getAuditLog(requestId);
+            setAuditLog(logData);
+        } catch (err) {
+            // Fallback - audit log may not exist for older requests
+            console.log('Audit log not available (may be older request):', err);
+            setAuditLog([]);
         }
     };
 
@@ -899,13 +912,13 @@ export default function StaffDashboard() {
                         <div className="hidden lg:flex flex-1 flex-col">
                             {selectedRequest ? (
                                 <div className="flex-1 flex flex-col">
-                                    {/* Sticky Header with Actions & Assignment */}
-                                    <div className="sticky top-0 z-10 bg-slate-800 border-b border-slate-700 p-4 space-y-3">
+                                    {/* Sticky Header with Actions & Assignment - Premium Glass Style */}
+                                    <div className="sticky top-0 z-10 bg-gradient-to-b from-slate-900/95 via-slate-800/95 to-slate-800/90 backdrop-blur-md border-b border-white/10 p-4 space-y-3">
                                         {/* Row 1: Title and ID */}
                                         <div className="flex items-center justify-between gap-4">
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-mono text-xs text-slate-400">{selectedRequest.service_request_id}</span>
+                                                    <span className="font-mono text-xs text-white/50 bg-white/5 px-2 py-0.5 rounded">{selectedRequest.service_request_id}</span>
                                                     <StatusBadge status={selectedRequest.status} />
                                                 </div>
                                                 <h1 className="text-lg font-semibold text-white truncate">{selectedRequest.service_name}</h1>
@@ -917,7 +930,7 @@ export default function StaffDashboard() {
                                             <select
                                                 value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''}
                                                 onChange={(e) => { const val = e.target.value ? Number(e.target.value) : null; setEditAssignment(prev => ({ departmentId: val, assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null })); }}
-                                                className="flex-1 py-2 px-3 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm [&>option]:bg-slate-700 [&>option]:text-white"
+                                                className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
                                             >
                                                 <option value="">Department</option>
                                                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -925,21 +938,21 @@ export default function StaffDashboard() {
                                             <select
                                                 value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''}
                                                 onChange={(e) => { const val = e.target.value || null; setEditAssignment(prev => ({ departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null, assignedTo: val })); }}
-                                                className="flex-1 py-2 px-3 rounded-lg bg-slate-700 border border-slate-600 text-white text-sm [&>option]:bg-slate-700 [&>option]:text-white"
+                                                className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
                                             >
                                                 <option value="">Assignee</option>
                                                 {(() => { const deptId = editAssignment?.departmentId ?? selectedRequest.assigned_department_id; return (deptId ? users.filter(u => u.departments?.some(d => d.id === deptId)) : users).map(u => <option key={u.id} value={u.username}>{u.full_name || u.username}</option>); })()}
                                             </select>
                                             {editAssignment && (
-                                                <button onClick={async () => { setIsSavingAssignment(true); try { const updated = await api.updateRequest(selectedRequest.service_request_id, { assigned_department_id: editAssignment.departmentId ?? undefined, assigned_to: editAssignment.assignedTo ?? undefined }); setSelectedRequest(updated); setEditAssignment(null); } catch (err) { console.error(err); } finally { setIsSavingAssignment(false); } }} disabled={isSavingAssignment} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50">{isSavingAssignment ? 'Saving...' : 'Save'}</button>
+                                                <button onClick={async () => { setIsSavingAssignment(true); try { const updated = await api.updateRequest(selectedRequest.service_request_id, { assigned_department_id: editAssignment.departmentId ?? undefined, assigned_to: editAssignment.assignedTo ?? undefined }); setSelectedRequest(updated); setEditAssignment(null); loadAuditLog(selectedRequest.service_request_id); } catch (err) { console.error(err); } finally { setIsSavingAssignment(false); } }} disabled={isSavingAssignment} className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium disabled:opacity-50 transition-all shadow-lg shadow-primary-500/20">{isSavingAssignment ? 'Saving...' : 'Save'}</button>
                                             )}
                                         </div>
 
                                         {/* Row 3: Status Actions */}
                                         <div className="flex gap-2">
-                                            <button onClick={() => handleStatusChange('open')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'open' ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/25' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Open</button>
-                                            <button onClick={() => handleStatusChange('in_progress')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'in_progress' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>In Progress</button>
-                                            <button onClick={() => handleStatusChange('closed')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'closed' ? 'bg-green-500 text-white shadow-lg shadow-green-500/25' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>Closed</button>
+                                            <button onClick={() => handleStatusChange('open')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'open' ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-lg shadow-amber-500/30' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Open</button>
+                                            <button onClick={() => handleStatusChange('in_progress')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'in_progress' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/30' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>In Progress</button>
+                                            <button onClick={() => handleStatusChange('closed')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'closed' ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Closed</button>
                                         </div>
                                     </div>
 
@@ -1037,11 +1050,9 @@ export default function StaffDashboard() {
                                                 {/* Matched Asset Info - Below Map */}
                                                 {(selectedRequest as any).matched_asset && (
                                                     <div className="mt-3 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                                                        {/* Clear header label */}
                                                         <div className="flex items-center gap-2 mb-2">
-                                                            <div className="w-3 h-3 rounded bg-emerald-500" />
-                                                            <span className="text-sm font-medium text-emerald-400">
-                                                                {(selectedRequest as any).matched_asset.layer_name}
-                                                            </span>
+                                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500/70">🔗 Matched Asset</span>
                                                             {(selectedRequest as any).matched_asset.distance_meters && (
                                                                 <span className="text-xs text-white/40 ml-auto">
                                                                     {(selectedRequest as any).matched_asset.distance_meters < 1
@@ -1049,6 +1060,12 @@ export default function StaffDashboard() {
                                                                         : `${Math.round((selectedRequest as any).matched_asset.distance_meters)}m away`}
                                                                 </span>
                                                             )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <div className="w-3 h-3 rounded bg-emerald-500" />
+                                                            <span className="text-sm font-medium text-emerald-400">
+                                                                {(selectedRequest as any).matched_asset.layer_name}
+                                                            </span>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                                                             {(selectedRequest as any).matched_asset.asset_id && (
@@ -1065,7 +1082,15 @@ export default function StaffDashboard() {
                                                             )}
                                                             {(selectedRequest as any).matched_asset.properties &&
                                                                 Object.entries((selectedRequest as any).matched_asset.properties)
-                                                                    .filter(([key]) => !['id', 'asset_id', 'name', 'layer_name', 'objectid'].includes(key.toLowerCase()))
+                                                                    .filter(([key, value]) => {
+                                                                        // Exclude common ID fields
+                                                                        if (['id', 'asset_id', 'name', 'layer_name', 'objectid', 'fid', 'gid'].includes(key.toLowerCase())) return false;
+                                                                        // Exclude purely numeric values (likely IDs)
+                                                                        if (typeof value === 'number' && String(value).match(/^\d+$/)) return false;
+                                                                        // Exclude null/undefined/empty
+                                                                        if (value === null || value === undefined || value === '') return false;
+                                                                        return true;
+                                                                    })
                                                                     .slice(0, 6)
                                                                     .map(([key, value]) => (
                                                                         <React.Fragment key={key}>
@@ -1073,7 +1098,7 @@ export default function StaffDashboard() {
                                                                                 {key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}
                                                                             </span>
                                                                             <span className="text-white/80 truncate">
-                                                                                {value === null || value === undefined ? 'N/A' : String(value)}
+                                                                                {String(value)}
                                                                             </span>
                                                                         </React.Fragment>
                                                                     ))
@@ -1087,100 +1112,141 @@ export default function StaffDashboard() {
 
                                         {/* ═══ SECTION 4: Timeline ═══ */}
                                         <div className="p-4 rounded-lg bg-slate-800/50 border border-white/10">
-                                            <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex items-center gap-2 mb-4">
                                                 <Clock className="w-4 h-4 text-blue-400" />
                                                 <span className="font-medium text-white">Timeline</span>
+                                                {auditLog.length > 0 && (
+                                                    <span className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-white/60">{auditLog.length} events</span>
+                                                )}
                                             </div>
-                                            <div className="space-y-2.5 text-sm">
-                                                {/* Request Submitted - by Resident */}
-                                                <div className="flex items-start gap-3 text-white/70">
-                                                    <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0 mt-1.5" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-baseline gap-2 flex-wrap">
-                                                            <span>Request submitted</span>
-                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">Resident</span>
-                                                        </div>
-                                                    </div>
-                                                    <span className="text-white/40 text-xs flex-shrink-0">{new Date(selectedRequest.requested_datetime).toLocaleString()}</span>
+
+                                            {/* Premium Vertical Timeline */}
+                                            <div className="relative">
+                                                {/* Vertical connecting line */}
+                                                <div className="absolute left-[7px] top-2 bottom-2 w-[2px] bg-gradient-to-b from-primary-500/50 via-blue-500/30 to-emerald-500/50" />
+
+                                                <div className="space-y-4">
+                                                    {auditLog.length > 0 ? (
+                                                        // Render from audit log
+                                                        auditLog.map((entry, idx) => {
+                                                            // Determine icon color and text based on action
+                                                            const actionConfig = {
+                                                                submitted: { color: 'bg-emerald-500', text: 'Request submitted', icon: '📝' },
+                                                                status_change: {
+                                                                    color: entry.new_value === 'closed' ? 'bg-green-500' : entry.new_value === 'in_progress' ? 'bg-blue-500' : 'bg-amber-500',
+                                                                    text: entry.new_value === 'closed'
+                                                                        ? `Closed ${entry.metadata?.substatus === 'resolved' ? '- Resolved' : entry.metadata?.substatus === 'no_action' ? '- No Action Needed' : entry.metadata?.substatus === 'third_party' ? '- Third Party' : ''}`
+                                                                        : entry.new_value === 'in_progress' ? 'Marked as In Progress' : `Status changed to ${entry.new_value}`,
+                                                                    icon: entry.new_value === 'closed' ? '✅' : entry.new_value === 'in_progress' ? '🔄' : '📋'
+                                                                },
+                                                                department_assigned: { color: 'bg-purple-500', text: `Assigned to ${entry.new_value}`, icon: '🏢' },
+                                                                staff_assigned: { color: 'bg-indigo-500', text: `Assigned to ${entry.new_value}`, icon: '👤' },
+                                                                comment_added: { color: 'bg-teal-500', text: 'Comment added', icon: '💬' }
+                                                            }[entry.action] || { color: 'bg-gray-500', text: entry.action, icon: '📌' };
+
+                                                            const isLast = idx === auditLog.length - 1;
+
+                                                            return (
+                                                                <div key={entry.id} className="relative flex items-start gap-3 pl-1">
+                                                                    {/* Circle indicator */}
+                                                                    <div className={`relative z-10 w-4 h-4 rounded-full ${actionConfig.color} flex items-center justify-center text-[8px] shadow-lg ${isLast ? 'ring-2 ring-white/20' : ''}`}>
+                                                                        <span className="text-white">{actionConfig.icon}</span>
+                                                                    </div>
+
+                                                                    {/* Content */}
+                                                                    <div className="flex-1 min-w-0 pb-1">
+                                                                        <div className="flex items-baseline gap-2 flex-wrap">
+                                                                            <span className="text-white/90 text-sm font-medium">{actionConfig.text}</span>
+                                                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${entry.actor_type === 'staff' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}`}>
+                                                                                {entry.actor_type === 'staff' ? entry.actor_name || 'Staff' : 'Resident'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <span className="text-white/40 text-xs">
+                                                                            {entry.created_at ? new Date(entry.created_at).toLocaleString() : ''}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        // Fallback: Static display for older requests without audit log
+                                                        <>
+                                                            <div className="relative flex items-start gap-3 pl-1">
+                                                                <div className="relative z-10 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center text-[8px] shadow-lg">
+                                                                    <span className="text-white">📝</span>
+                                                                </div>
+                                                                <div className="flex-1 min-w-0 pb-1">
+                                                                    <div className="flex items-baseline gap-2 flex-wrap">
+                                                                        <span className="text-white/90 text-sm font-medium">Request submitted</span>
+                                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">Resident</span>
+                                                                    </div>
+                                                                    <span className="text-white/40 text-xs">{new Date(selectedRequest.requested_datetime).toLocaleString()}</span>
+                                                                </div>
+                                                            </div>
+
+                                                            {selectedRequest.assigned_department_id && (
+                                                                <div className="relative flex items-start gap-3 pl-1">
+                                                                    <div className="relative z-10 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-[8px] shadow-lg">
+                                                                        <span className="text-white">🏢</span>
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0 pb-1">
+                                                                        <div className="flex items-baseline gap-2 flex-wrap">
+                                                                            <span className="text-white/90 text-sm font-medium">Assigned to {departments.find(d => d.id === selectedRequest.assigned_department_id)?.name || 'department'}</span>
+                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {selectedRequest.assigned_to && (
+                                                                <div className="relative flex items-start gap-3 pl-1">
+                                                                    <div className="relative z-10 w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center text-[8px] shadow-lg">
+                                                                        <span className="text-white">👤</span>
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0 pb-1">
+                                                                        <div className="flex items-baseline gap-2 flex-wrap">
+                                                                            <span className="text-white/90 text-sm font-medium">Assigned to {selectedRequest.assigned_to}</span>
+                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {(selectedRequest.status === 'in_progress' || selectedRequest.status === 'closed') && (
+                                                                <div className="relative flex items-start gap-3 pl-1">
+                                                                    <div className="relative z-10 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-[8px] shadow-lg">
+                                                                        <span className="text-white">🔄</span>
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0 pb-1">
+                                                                        <div className="flex items-baseline gap-2 flex-wrap">
+                                                                            <span className="text-white/90 text-sm font-medium">Marked as In Progress</span>
+                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {selectedRequest.status === 'closed' && (
+                                                                <div className="relative flex items-start gap-3 pl-1">
+                                                                    <div className="relative z-10 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center text-[8px] shadow-lg ring-2 ring-white/20">
+                                                                        <span className="text-white">✅</span>
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0 pb-1">
+                                                                        <div className="flex items-baseline gap-2 flex-wrap">
+                                                                            <span className="text-white/90 text-sm font-medium">
+                                                                                Closed {selectedRequest.closed_substatus === 'resolved' ? '- Resolved' : selectedRequest.closed_substatus === 'no_action' ? '- No Action Needed' : selectedRequest.closed_substatus === 'third_party' ? '- Third Party Contacted' : ''}
+                                                                            </span>
+                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
+                                                                        </div>
+                                                                        <span className="text-white/40 text-xs">
+                                                                            {selectedRequest.closed_datetime ? new Date(selectedRequest.closed_datetime).toLocaleString() : ''}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
                                                 </div>
-
-                                                {/* Department Assignment */}
-                                                {selectedRequest.assigned_department_id && (
-                                                    <div className="flex items-start gap-3 text-white/70">
-                                                        <div className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0 mt-1.5" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-baseline gap-2 flex-wrap">
-                                                                <span>Assigned to {departments.find(d => d.id === selectedRequest.assigned_department_id)?.name || 'department'}</span>
-                                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-white/40 text-xs flex-shrink-0">
-                                                            {selectedRequest.updated_datetime ? new Date(selectedRequest.updated_datetime).toLocaleString() : ''}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* Staff Assignment */}
-                                                {selectedRequest.assigned_to && (
-                                                    <div className="flex items-start gap-3 text-white/70">
-                                                        <div className="w-2 h-2 rounded-full bg-purple-400 flex-shrink-0 mt-1.5" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-baseline gap-2 flex-wrap">
-                                                                <span>Assigned to {selectedRequest.assigned_to}</span>
-                                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-white/40 text-xs flex-shrink-0">
-                                                            {selectedRequest.updated_datetime ? new Date(selectedRequest.updated_datetime).toLocaleString() : ''}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* In Progress Status - shows for both in_progress AND closed (as historical event) */}
-                                                {(selectedRequest.status === 'in_progress' || selectedRequest.status === 'closed') && (
-                                                    <div className="flex items-start gap-3 text-white/70">
-                                                        <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 mt-1.5" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-baseline gap-2 flex-wrap">
-                                                                <span>Marked as In Progress</span>
-                                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-white/40 text-xs flex-shrink-0">
-                                                            {selectedRequest.status === 'closed' && selectedRequest.closed_datetime
-                                                                ? '' // We don't have exact in_progress timestamp, so leave blank
-                                                                : selectedRequest.updated_datetime ? new Date(selectedRequest.updated_datetime).toLocaleString() : ''}
-                                                        </span>
-                                                    </div>
-                                                )}
-
-                                                {/* Closed Status */}
-                                                {selectedRequest.status === 'closed' && (
-                                                    <div className="flex items-start gap-3 text-white/70">
-                                                        <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0 mt-1.5" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-baseline gap-2 flex-wrap">
-                                                                <span>
-                                                                    Closed - {selectedRequest.closed_substatus === 'resolved'
-                                                                        ? 'Resolved'
-                                                                        : selectedRequest.closed_substatus === 'no_action'
-                                                                            ? 'No Action Needed'
-                                                                            : selectedRequest.closed_substatus === 'third_party'
-                                                                                ? 'Third Party Contacted'
-                                                                                : selectedRequest.closed_substatus}
-                                                                </span>
-                                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-300">Staff</span>
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-white/40 text-xs flex-shrink-0">
-                                                            {selectedRequest.closed_datetime
-                                                                ? new Date(selectedRequest.closed_datetime).toLocaleString()
-                                                                : selectedRequest.updated_datetime
-                                                                    ? new Date(selectedRequest.updated_datetime).toLocaleString()
-                                                                    : ''}
-                                                        </span>
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
 

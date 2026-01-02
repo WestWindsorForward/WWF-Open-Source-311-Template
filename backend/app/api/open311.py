@@ -7,10 +7,11 @@ from datetime import datetime
 import uuid
 
 from app.db.session import get_db
-from app.models import ServiceRequest, ServiceDefinition, User
+from app.models import ServiceRequest, ServiceDefinition, User, RequestAuditLog, Department
 from app.schemas import (
     ServiceRequestCreate, ServiceRequestResponse, ServiceRequestDetailResponse,
-    ServiceRequestUpdate, ServiceRequestDelete, ManualIntakeCreate, PublicServiceRequestResponse
+    ServiceRequestUpdate, ServiceRequestDelete, ManualIntakeCreate, PublicServiceRequestResponse,
+    RequestAuditLogResponse
 )
 from app.core.auth import get_current_staff
 
@@ -187,6 +188,53 @@ async def add_public_comment(
     return comment
 
 
+# ============ Audit Log Endpoints ============
+
+@router.get("/requests/{request_id}/audit-log", response_model=List[RequestAuditLogResponse])
+async def get_audit_log(
+    request_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_staff)
+):
+    """Get audit log for a request (staff only - full history)"""
+    result = await db.execute(
+        select(ServiceRequest).where(ServiceRequest.service_request_id == request_id)
+    )
+    request = result.scalar_one_or_none()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    audit_result = await db.execute(
+        select(RequestAuditLog)
+        .where(RequestAuditLog.service_request_id == request.id)
+        .order_by(RequestAuditLog.created_at.asc())
+    )
+    return audit_result.scalars().all()
+
+
+@router.get("/public/requests/{request_id}/audit-log", response_model=List[RequestAuditLogResponse])
+async def get_public_audit_log(request_id: str, db: AsyncSession = Depends(get_db)):
+    """Get public audit log for a request - shows status changes only, no internal details"""
+    result = await db.execute(
+        select(ServiceRequest).where(
+            ServiceRequest.service_request_id == request_id,
+            ServiceRequest.deleted_at.is_(None)
+        )
+    )
+    request = result.scalar_one_or_none()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Only return submitted and status_change events (not assignments which may be internal)
+    audit_result = await db.execute(
+        select(RequestAuditLog)
+        .where(RequestAuditLog.service_request_id == request.id)
+        .where(RequestAuditLog.action.in_(["submitted", "status_change"]))
+        .order_by(RequestAuditLog.created_at.asc())
+    )
+    return audit_result.scalars().all()
+
+
 
 @router.get("/services.json")
 async def list_open311_services(db: AsyncSession = Depends(get_db)):
@@ -271,6 +319,17 @@ async def create_request(
     await db.commit()
     await db.refresh(service_request)
     
+    # Create audit log entry for submission
+    audit_entry = RequestAuditLog(
+        service_request_id=service_request.id,
+        action="submitted",
+        new_value="open",
+        actor_type="resident",
+        actor_name="Resident"
+    )
+    db.add(audit_entry)
+    await db.commit()
+    
     # TODO: Trigger Celery task for AI analysis
     # from app.tasks.service_requests import analyze_request
     # analyze_request.delay(service_request.id)
@@ -338,13 +397,19 @@ async def update_request_status(
 ):
     """Update service request status (staff only)"""
     result = await db.execute(
-        select(ServiceRequest).where(ServiceRequest.service_request_id == request_id)
+        select(ServiceRequest).options(selectinload(ServiceRequest.assigned_department)).where(ServiceRequest.service_request_id == request_id)
     )
     request = result.scalar_one_or_none()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     
     update_dict = update_data.model_dump(exclude_unset=True)
+    
+    # Track old values for audit log
+    old_status = request.status
+    old_department_id = request.assigned_department_id
+    old_assigned_to = request.assigned_to
+    old_department_name = request.assigned_department.name if request.assigned_department else None
     
     for field, value in update_dict.items():
         if value is not None:
@@ -359,6 +424,60 @@ async def update_request_status(
     request.updated_datetime = datetime.utcnow()
     
     await db.commit()
+    
+    # Create audit log entries for changes
+    # Status change
+    if "status" in update_dict and update_dict["status"] and update_dict["status"].value != old_status:
+        new_status = update_dict["status"].value
+        metadata = None
+        if new_status == "closed" and "closed_substatus" in update_dict:
+            metadata = {
+                "substatus": update_dict["closed_substatus"].value if update_dict["closed_substatus"] else None,
+                "completion_message": update_dict.get("completion_message")
+            }
+        audit_entry = RequestAuditLog(
+            service_request_id=request.id,
+            action="status_change",
+            old_value=old_status,
+            new_value=new_status,
+            actor_type="staff",
+            actor_name=current_user.username,
+            metadata=metadata
+        )
+        db.add(audit_entry)
+    
+    # Department assignment change
+    if "assigned_department_id" in update_dict and update_dict["assigned_department_id"] != old_department_id:
+        new_dept_id = update_dict["assigned_department_id"]
+        new_dept_name = None
+        if new_dept_id:
+            dept_result = await db.execute(select(Department).where(Department.id == new_dept_id))
+            new_dept = dept_result.scalar_one_or_none()
+            new_dept_name = new_dept.name if new_dept else str(new_dept_id)
+        audit_entry = RequestAuditLog(
+            service_request_id=request.id,
+            action="department_assigned",
+            old_value=old_department_name,
+            new_value=new_dept_name,
+            actor_type="staff",
+            actor_name=current_user.username
+        )
+        db.add(audit_entry)
+    
+    # Staff assignment change
+    if "assigned_to" in update_dict and update_dict["assigned_to"] != old_assigned_to:
+        audit_entry = RequestAuditLog(
+            service_request_id=request.id,
+            action="staff_assigned",
+            old_value=old_assigned_to,
+            new_value=update_dict["assigned_to"],
+            actor_type="staff",
+            actor_name=current_user.username
+        )
+        db.add(audit_entry)
+    
+    await db.commit()
+    
     # Reload with relationship for response
     await db.refresh(request)
     # Reload the relationship if department was set
