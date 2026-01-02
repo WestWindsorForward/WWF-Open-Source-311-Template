@@ -950,9 +950,9 @@ export default function StaffDashboard() {
 
                                         {/* Row 3: Status Actions */}
                                         <div className="flex gap-2">
-                                            <button onClick={() => handleStatusChange('open')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'open' ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-lg shadow-amber-500/30' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Open</button>
-                                            <button onClick={() => handleStatusChange('in_progress')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'in_progress' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/30' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>In Progress</button>
-                                            <button onClick={() => handleStatusChange('closed')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'closed' ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Closed</button>
+                                            <button onClick={() => handleStatusChange('open')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'open' ? 'bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-lg shadow-slate-500/30 ring-2 ring-white/20' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Open</button>
+                                            <button onClick={() => handleStatusChange('in_progress')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'in_progress' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-white/20' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>In Progress</button>
+                                            <button onClick={() => handleStatusChange('closed')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'closed' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-white/20' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Closed</button>
                                         </div>
                                     </div>
 
@@ -1125,45 +1125,67 @@ export default function StaffDashboard() {
                                                 {/* Vertical connecting line */}
                                                 <div className="absolute left-[7px] top-2 bottom-2 w-[2px] bg-gradient-to-b from-primary-500/50 via-blue-500/30 to-emerald-500/50" />
 
-                                                <div className="space-y-4">
+                                                <div className="space-y-3">
                                                     {auditLog.length > 0 ? (
                                                         // Render from audit log
                                                         auditLog.map((entry, idx) => {
                                                             // Determine icon color and text based on action
-                                                            const actionConfig = {
-                                                                submitted: { color: 'bg-emerald-500', text: 'Request submitted', icon: '📝' },
-                                                                status_change: {
-                                                                    color: entry.new_value === 'closed' ? 'bg-green-500' : entry.new_value === 'in_progress' ? 'bg-blue-500' : 'bg-amber-500',
-                                                                    text: entry.new_value === 'closed'
-                                                                        ? `Closed ${entry.extra_data?.substatus === 'resolved' ? '- Resolved' : entry.extra_data?.substatus === 'no_action' ? '- No Action Needed' : entry.extra_data?.substatus === 'third_party' ? '- Third Party' : ''}`
-                                                                        : entry.new_value === 'in_progress' ? 'Marked as In Progress' : `Status changed to ${entry.new_value}`,
-                                                                    icon: entry.new_value === 'closed' ? '✅' : entry.new_value === 'in_progress' ? '🔄' : '📋'
-                                                                },
-                                                                department_assigned: { color: 'bg-purple-500', text: `Assigned to ${entry.new_value}`, icon: '🏢' },
-                                                                staff_assigned: { color: 'bg-indigo-500', text: `Assigned to ${entry.new_value}`, icon: '👤' },
-                                                                comment_added: { color: 'bg-teal-500', text: 'Comment added', icon: '💬' }
-                                                            }[entry.action] || { color: 'bg-gray-500', text: entry.action, icon: '📌' };
+                                                            let actionConfig: { color: string; text: string; icon: string };
+
+                                                            if (entry.action === 'submitted') {
+                                                                actionConfig = { color: 'bg-emerald-500', text: 'Request submitted', icon: '📝' };
+                                                            } else if (entry.action === 'status_change') {
+                                                                // Show both old and new status for clarity
+                                                                const oldStatus = entry.old_value || 'unknown';
+                                                                const newStatus = entry.new_value || 'unknown';
+                                                                let statusText = '';
+
+                                                                if (newStatus === 'closed') {
+                                                                    const substatus = entry.extra_data?.substatus;
+                                                                    statusText = `Closed ${substatus === 'resolved' ? '- Resolved' : substatus === 'no_action' ? '- No Action Needed' : substatus === 'third_party' ? '- Third Party' : ''}`;
+                                                                } else if (newStatus === 'in_progress') {
+                                                                    statusText = oldStatus === 'closed' ? 'Reopened as In Progress' : 'Marked as In Progress';
+                                                                } else if (newStatus === 'open') {
+                                                                    statusText = oldStatus === 'closed' ? 'Reopened' : oldStatus === 'in_progress' ? 'Reverted to Open' : 'Status set to Open';
+                                                                } else {
+                                                                    statusText = `Status: ${oldStatus} → ${newStatus}`;
+                                                                }
+
+                                                                actionConfig = {
+                                                                    color: newStatus === 'closed' ? 'bg-emerald-500' : newStatus === 'in_progress' ? 'bg-blue-500' : 'bg-slate-500',
+                                                                    text: statusText,
+                                                                    icon: newStatus === 'closed' ? '✅' : newStatus === 'in_progress' ? '🔄' : '📋'
+                                                                };
+                                                            } else if (entry.action === 'department_assigned') {
+                                                                actionConfig = { color: 'bg-purple-500', text: `Assigned to ${entry.new_value}`, icon: '🏢' };
+                                                            } else if (entry.action === 'staff_assigned') {
+                                                                actionConfig = { color: 'bg-indigo-500', text: `Assigned to ${entry.new_value}`, icon: '👤' };
+                                                            } else if (entry.action === 'comment_added') {
+                                                                actionConfig = { color: 'bg-teal-500', text: 'Comment added', icon: '💬' };
+                                                            } else {
+                                                                actionConfig = { color: 'bg-gray-500', text: entry.action, icon: '📌' };
+                                                            }
 
                                                             const isLast = idx === auditLog.length - 1;
 
                                                             return (
                                                                 <div key={entry.id} className="relative flex items-start gap-3 pl-1">
                                                                     {/* Circle indicator */}
-                                                                    <div className={`relative z-10 w-4 h-4 rounded-full ${actionConfig.color} flex items-center justify-center text-[8px] shadow-lg ${isLast ? 'ring-2 ring-white/20' : ''}`}>
+                                                                    <div className={`relative z-10 w-4 h-4 rounded-full ${actionConfig.color} flex items-center justify-center text-[8px] shadow-lg ${isLast ? 'ring-2 ring-white/30' : ''}`}>
                                                                         <span className="text-white">{actionConfig.icon}</span>
                                                                     </div>
 
                                                                     {/* Content */}
-                                                                    <div className="flex-1 min-w-0 pb-1">
-                                                                        <div className="flex items-baseline gap-2 flex-wrap">
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
                                                                             <span className="text-white/90 text-sm font-medium">{actionConfig.text}</span>
                                                                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${entry.actor_type === 'staff' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}`}>
                                                                                 {entry.actor_type === 'staff' ? entry.actor_name || 'Staff' : 'Resident'}
                                                                             </span>
                                                                         </div>
-                                                                        <span className="text-white/40 text-xs">
-                                                                            {entry.created_at ? new Date(entry.created_at).toLocaleString() : ''}
-                                                                        </span>
+                                                                        <div className="text-white/40 text-xs mt-0.5">
+                                                                            {entry.created_at ? new Date(entry.created_at).toLocaleString() : 'No timestamp'}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             );
