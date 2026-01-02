@@ -402,7 +402,7 @@ class RequestAuditLogResponse(BaseModel):
     actor_type: str
     actor_name: Optional[str] = None
     created_at: Optional[datetime] = None
-    metadata: Optional[Dict[str, Any]] = None
+    extra_data: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True

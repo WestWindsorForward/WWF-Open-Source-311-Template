@@ -175,7 +175,7 @@ export interface AuditLogEntry {
     actor_type: 'resident' | 'staff';
     actor_name: string | null;
     created_at: string | null;
-    metadata: {
+    extra_data: {
         substatus?: string;
         completion_message?: string;
     } | null;

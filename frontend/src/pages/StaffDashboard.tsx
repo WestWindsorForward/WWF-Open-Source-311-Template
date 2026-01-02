@@ -1135,7 +1135,7 @@ export default function StaffDashboard() {
                                                                 status_change: {
                                                                     color: entry.new_value === 'closed' ? 'bg-green-500' : entry.new_value === 'in_progress' ? 'bg-blue-500' : 'bg-amber-500',
                                                                     text: entry.new_value === 'closed'
-                                                                        ? `Closed ${entry.metadata?.substatus === 'resolved' ? '- Resolved' : entry.metadata?.substatus === 'no_action' ? '- No Action Needed' : entry.metadata?.substatus === 'third_party' ? '- Third Party' : ''}`
+                                                                        ? `Closed ${entry.extra_data?.substatus === 'resolved' ? '- Resolved' : entry.extra_data?.substatus === 'no_action' ? '- No Action Needed' : entry.extra_data?.substatus === 'third_party' ? '- Third Party' : ''}`
                                                                         : entry.new_value === 'in_progress' ? 'Marked as In Progress' : `Status changed to ${entry.new_value}`,
                                                                     icon: entry.new_value === 'closed' ? '✅' : entry.new_value === 'in_progress' ? '🔄' : '📋'
                                                                 },

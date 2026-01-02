@@ -212,7 +212,7 @@ class RequestAuditLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Additional context (JSON for flexibility)
-    metadata = Column(JSON)  # { substatus, completion_message, etc. }
+    extra_data = Column(JSON)  # { substatus, completion_message, etc. }
     
     # Relationship
     service_request = relationship("ServiceRequest", backref="audit_logs")

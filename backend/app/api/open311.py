@@ -429,9 +429,9 @@ async def update_request_status(
     # Status change
     if "status" in update_dict and update_dict["status"] and update_dict["status"].value != old_status:
         new_status = update_dict["status"].value
-        metadata = None
+        extra_data = None
         if new_status == "closed" and "closed_substatus" in update_dict:
-            metadata = {
+            extra_data = {
                 "substatus": update_dict["closed_substatus"].value if update_dict["closed_substatus"] else None,
                 "completion_message": update_dict.get("completion_message")
             }
@@ -442,7 +442,7 @@ async def update_request_status(
             new_value=new_status,
             actor_type="staff",
             actor_name=current_user.username,
-            metadata=metadata
+            extra_data=extra_data
         )
         db.add(audit_entry)
     
