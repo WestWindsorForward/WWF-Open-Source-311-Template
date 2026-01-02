@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Card, Input, Button, Textarea } from './ui';
 import { api } from '../services/api';
-import { PublicServiceRequest, RequestComment } from '../types';
+import { PublicServiceRequest, RequestComment, AuditLogEntry } from '../types';
 
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'closed';
 
@@ -67,6 +67,7 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
     const [isLoadingComments, setIsLoadingComments] = useState(false);
     const [copied, setCopied] = useState(false);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+    const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
 
     useEffect(() => {
         loadRequests();
@@ -85,6 +86,7 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
     useEffect(() => {
         if (selectedRequest) {
             loadComments(selectedRequest.service_request_id);
+            loadAuditLog(selectedRequest.service_request_id);
         }
     }, [selectedRequest]);
 
@@ -112,6 +114,16 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
             setComments([]);
         } finally {
             setIsLoadingComments(false);
+        }
+    };
+
+    const loadAuditLog = async (requestId: string) => {
+        try {
+            const log = await api.getAuditLog(requestId);
+            setAuditLog(log);
+        } catch (err) {
+            console.error('Failed to load audit log:', err);
+            setAuditLog([]);
         }
     };
 
@@ -421,6 +433,94 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
                     <p className="text-white/80 text-lg leading-relaxed whitespace-pre-wrap">
                         {selectedRequest.description}
                     </p>
+                </Card>
+
+                {/* Timeline Section */}
+                <Card className="p-6 mt-6">
+                    <h3 className="font-semibold text-white mb-6 flex items-center gap-2">
+                        <div className="p-2 rounded-lg bg-blue-500/20">
+                            <Clock className="w-5 h-5 text-blue-400" />
+                        </div>
+                        Request Timeline
+                        {auditLog.length > 0 && (
+                            <span className="ml-auto px-2 py-0.5 rounded-full text-xs bg-white/10 text-white/60">{auditLog.length} events</span>
+                        )}
+                    </h3>
+
+                    <div className="relative pl-4">
+                        {/* Vertical connecting line */}
+                        <div className="absolute left-[6px] top-2 bottom-2 w-[2px] bg-gradient-to-b from-purple-500/50 via-blue-500/30 to-emerald-500/50" />
+
+                        <div className="space-y-4">
+                            {auditLog.length > 0 ? (
+                                auditLog.map((entry, idx) => {
+                                    let actionConfig: { color: string; text: string };
+
+                                    if (entry.action === 'submitted') {
+                                        actionConfig = { color: 'bg-emerald-500', text: 'Request submitted' };
+                                    } else if (entry.action === 'status_change') {
+                                        const newStatus = entry.new_value || 'unknown';
+                                        const oldStatus = entry.old_value || 'unknown';
+                                        let statusText = '';
+
+                                        if (newStatus === 'closed') {
+                                            const substatus = entry.extra_data?.substatus;
+                                            statusText = `Closed ${substatus === 'resolved' ? '- Resolved' : substatus === 'no_action' ? '- No Action Needed' : substatus === 'third_party' ? '- Third Party' : ''}`;
+                                        } else if (newStatus === 'in_progress') {
+                                            statusText = oldStatus === 'closed' ? 'Reopened as In Progress' : 'Marked as In Progress';
+                                        } else if (newStatus === 'open') {
+                                            statusText = oldStatus === 'closed' ? 'Reopened' : 'Status set to Open';
+                                        } else {
+                                            statusText = `Status: ${oldStatus} → ${newStatus}`;
+                                        }
+
+                                        actionConfig = {
+                                            color: newStatus === 'closed' ? 'bg-emerald-500' : newStatus === 'in_progress' ? 'bg-blue-500' : 'bg-purple-500',
+                                            text: statusText
+                                        };
+                                    } else if (entry.action === 'department_assigned') {
+                                        actionConfig = { color: 'bg-purple-500', text: `Assigned to ${entry.new_value}` };
+                                    } else if (entry.action === 'staff_assigned') {
+                                        actionConfig = { color: 'bg-indigo-500', text: `Assigned to staff` };
+                                    } else if (entry.action === 'comment_added') {
+                                        actionConfig = { color: 'bg-teal-500', text: 'Comment added' };
+                                    } else {
+                                        actionConfig = { color: 'bg-gray-500', text: entry.action };
+                                    }
+
+                                    const isLast = idx === auditLog.length - 1;
+
+                                    return (
+                                        <div key={entry.id} className="relative flex items-start gap-3">
+                                            <div className={`relative z-10 w-3.5 h-3.5 rounded-full ${actionConfig.color} shadow-sm ${isLast ? 'ring-2 ring-white/30' : ''}`} />
+                                            <div className="flex-1 min-w-0 -mt-0.5">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-white/90 text-sm font-medium">{actionConfig.text}</span>
+                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${entry.actor_type === 'staff' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}`}>
+                                                        {entry.actor_type === 'staff' ? 'Staff' : 'Resident'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-white/40 text-xs mt-0.5">
+                                                    {entry.created_at ? new Date(entry.created_at).toLocaleString() : 'No timestamp'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="relative flex items-start gap-3">
+                                    <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-sm ring-2 ring-white/30" />
+                                    <div className="flex-1 min-w-0 -mt-0.5">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-white/90 text-sm font-medium">Request submitted</span>
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300">Resident</span>
+                                        </div>
+                                        <div className="text-white/40 text-xs mt-0.5">{new Date(selectedRequest.requested_datetime).toLocaleString()}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </Card>
 
                 {/* Comments Section - Full Width */}
