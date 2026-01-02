@@ -758,34 +758,34 @@ export default function StaffDashboard() {
                                     </div>
                                 </div>
 
-                                {/* Quick Stats Bar */}
-                                <div className="flex gap-2 text-xs">
+                                {/* Assignment Filter Buttons - Large and Clear */}
+                                <div className="flex gap-2">
                                     <button
                                         onClick={() => setFilterAssignment('me')}
-                                        className={`px-3 py-1.5 rounded-full transition-all ${filterAssignment === 'me'
-                                            ? 'bg-primary-500 text-white'
-                                            : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                        className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${filterAssignment === 'me'
+                                            ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30 ring-2 ring-primary-400/50'
+                                            : 'bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 hover:text-white'
                                             }`}
                                     >
-                                        🎯 Mine ({quickStats.assignedToMe})
+                                        My Requests ({quickStats.assignedToMe})
                                     </button>
                                     <button
                                         onClick={() => setFilterAssignment('department')}
-                                        className={`px-3 py-1.5 rounded-full transition-all ${filterAssignment === 'department'
-                                            ? 'bg-purple-500 text-white'
-                                            : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                        className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${filterAssignment === 'department'
+                                            ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30 ring-2 ring-purple-400/50'
+                                            : 'bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 hover:text-white'
                                             }`}
                                     >
-                                        🏢 Dept ({quickStats.inMyDepartment})
+                                        Department ({quickStats.inMyDepartment})
                                     </button>
                                     <button
                                         onClick={() => setFilterAssignment('all')}
-                                        className={`px-3 py-1.5 rounded-full transition-all ${filterAssignment === 'all'
-                                            ? 'bg-slate-600 text-white'
-                                            : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                        className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${filterAssignment === 'all'
+                                            ? 'bg-slate-600 text-white shadow-lg shadow-slate-500/30 ring-2 ring-slate-400/50'
+                                            : 'bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 hover:text-white'
                                             }`}
                                     >
-                                        📋 All ({quickStats.total})
+                                        All Requests ({quickStats.total})
                                     </button>
                                 </div>
 
@@ -932,7 +932,7 @@ export default function StaffDashboard() {
                                                 onChange={(e) => { const val = e.target.value ? Number(e.target.value) : null; setEditAssignment(prev => ({ departmentId: val, assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null })); }}
                                                 className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
                                             >
-                                                <option value="">Department</option>
+                                                <option value="" className="text-white/50">Select a department...</option>
                                                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                             </select>
                                             <select
@@ -940,8 +940,16 @@ export default function StaffDashboard() {
                                                 onChange={(e) => { const val = e.target.value || null; setEditAssignment(prev => ({ departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null, assignedTo: val })); }}
                                                 className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
                                             >
-                                                <option value="">Assignee</option>
-                                                {(() => { const deptId = editAssignment?.departmentId ?? selectedRequest.assigned_department_id; return (deptId ? users.filter(u => u.departments?.some(d => d.id === deptId)) : users).map(u => <option key={u.id} value={u.username}>{u.full_name || u.username}</option>); })()}
+                                                <option value="" className="text-white/50">Select staff member...</option>
+                                                {(() => {
+                                                    const deptId = editAssignment?.departmentId ?? selectedRequest.assigned_department_id;
+                                                    const filteredUsers = deptId ? users.filter(u => u.departments?.some(d => d.id === deptId)) : users;
+                                                    return filteredUsers.map(u => (
+                                                        <option key={u.id} value={u.username}>
+                                                            {u.full_name || u.username} (@{u.username})
+                                                        </option>
+                                                    ));
+                                                })()}
                                             </select>
                                             {editAssignment && (
                                                 <button onClick={async () => { setIsSavingAssignment(true); try { const updated = await api.updateRequest(selectedRequest.service_request_id, { assigned_department_id: editAssignment.departmentId ?? undefined, assigned_to: editAssignment.assignedTo ?? undefined }); setSelectedRequest(updated); setEditAssignment(null); loadAuditLog(selectedRequest.service_request_id); } catch (err) { console.error(err); } finally { setIsSavingAssignment(false); } }} disabled={isSavingAssignment} className="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium disabled:opacity-50 transition-all shadow-lg shadow-primary-500/20">{isSavingAssignment ? 'Saving...' : 'Save'}</button>
@@ -950,7 +958,7 @@ export default function StaffDashboard() {
 
                                         {/* Row 3: Status Actions */}
                                         <div className="flex gap-2">
-                                            <button onClick={() => handleStatusChange('open')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'open' ? 'bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-lg shadow-slate-500/30 ring-2 ring-white/20' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Open</button>
+                                            <button onClick={() => handleStatusChange('open')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'open' ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/30 ring-2 ring-white/20' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Open</button>
                                             <button onClick={() => handleStatusChange('in_progress')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'in_progress' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-white/20' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>In Progress</button>
                                             <button onClick={() => handleStatusChange('closed')} className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${selectedRequest.status === 'closed' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-white/20' : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}`}>Closed</button>
                                         </div>
@@ -1122,18 +1130,18 @@ export default function StaffDashboard() {
 
                                             {/* Premium Vertical Timeline */}
                                             <div className="relative">
-                                                {/* Vertical connecting line */}
-                                                <div className="absolute left-[7px] top-2 bottom-2 w-[2px] bg-gradient-to-b from-primary-500/50 via-blue-500/30 to-emerald-500/50" />
+                                                {/* Vertical connecting line - centered on circles */}
+                                                <div className="absolute left-[6px] top-2 bottom-2 w-[2px] bg-gradient-to-b from-purple-500/50 via-blue-500/30 to-emerald-500/50" />
 
                                                 <div className="space-y-3">
                                                     {auditLog.length > 0 ? (
                                                         // Render from audit log
                                                         auditLog.map((entry, idx) => {
-                                                            // Determine icon color and text based on action
-                                                            let actionConfig: { color: string; text: string; icon: string };
+                                                            // Determine color and text based on action - simple circles, no emojis
+                                                            let actionConfig: { color: string; text: string };
 
                                                             if (entry.action === 'submitted') {
-                                                                actionConfig = { color: 'bg-emerald-500', text: 'Request submitted', icon: '📝' };
+                                                                actionConfig = { color: 'bg-emerald-500', text: 'Request submitted' };
                                                             } else if (entry.action === 'status_change') {
                                                                 // Show both old and new status for clarity
                                                                 const oldStatus = entry.old_value || 'unknown';
@@ -1152,31 +1160,28 @@ export default function StaffDashboard() {
                                                                 }
 
                                                                 actionConfig = {
-                                                                    color: newStatus === 'closed' ? 'bg-emerald-500' : newStatus === 'in_progress' ? 'bg-blue-500' : 'bg-slate-500',
-                                                                    text: statusText,
-                                                                    icon: newStatus === 'closed' ? '✅' : newStatus === 'in_progress' ? '🔄' : '📋'
+                                                                    color: newStatus === 'closed' ? 'bg-emerald-500' : newStatus === 'in_progress' ? 'bg-blue-500' : 'bg-purple-500',
+                                                                    text: statusText
                                                                 };
                                                             } else if (entry.action === 'department_assigned') {
-                                                                actionConfig = { color: 'bg-purple-500', text: `Assigned to ${entry.new_value}`, icon: '🏢' };
+                                                                actionConfig = { color: 'bg-purple-500', text: `Assigned to ${entry.new_value}` };
                                                             } else if (entry.action === 'staff_assigned') {
-                                                                actionConfig = { color: 'bg-indigo-500', text: `Assigned to ${entry.new_value}`, icon: '👤' };
+                                                                actionConfig = { color: 'bg-indigo-500', text: `Assigned to ${entry.new_value}` };
                                                             } else if (entry.action === 'comment_added') {
-                                                                actionConfig = { color: 'bg-teal-500', text: 'Comment added', icon: '💬' };
+                                                                actionConfig = { color: 'bg-teal-500', text: 'Comment added' };
                                                             } else {
-                                                                actionConfig = { color: 'bg-gray-500', text: entry.action, icon: '📌' };
+                                                                actionConfig = { color: 'bg-gray-500', text: entry.action };
                                                             }
 
                                                             const isLast = idx === auditLog.length - 1;
 
                                                             return (
-                                                                <div key={entry.id} className="relative flex items-start gap-3 pl-1">
-                                                                    {/* Circle indicator */}
-                                                                    <div className={`relative z-10 w-4 h-4 rounded-full ${actionConfig.color} flex items-center justify-center text-[8px] shadow-lg ${isLast ? 'ring-2 ring-white/30' : ''}`}>
-                                                                        <span className="text-white">{actionConfig.icon}</span>
-                                                                    </div>
+                                                                <div key={entry.id} className="relative flex items-start gap-3 pl-0">
+                                                                    {/* Simple circle indicator - centered on line */}
+                                                                    <div className={`relative z-10 w-3.5 h-3.5 rounded-full ${actionConfig.color} shadow-sm ${isLast ? 'ring-2 ring-white/30' : ''}`} />
 
                                                                     {/* Content */}
-                                                                    <div className="flex-1 min-w-0">
+                                                                    <div className="flex-1 min-w-0 -mt-0.5">
                                                                         <div className="flex items-center gap-2 flex-wrap">
                                                                             <span className="text-white/90 text-sm font-medium">{actionConfig.text}</span>
                                                                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${entry.actor_type === 'staff' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}`}>
