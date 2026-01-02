@@ -399,7 +399,7 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
 
                                             return (
                                                 <div key={entry.id} className="relative flex items-start gap-3">
-                                                    <div className={`relative z-10 w-3 h-3 rounded-full ${actionConfig.color} shadow-sm ${isLast ? 'ring-2 ring-white/30' : ''}`} />
+                                                    <div className={`w-3 h-3 rounded-full ${actionConfig.color} shadow-sm ${isLast ? 'ring-2 ring-white/30' : ''}`} />
                                                     <div className="flex-1 min-w-0 -mt-0.5">
                                                         <div className="flex items-center gap-2 flex-wrap">
                                                             <span className="text-white/90 text-sm font-medium">{actionConfig.text}</span>
@@ -416,7 +416,7 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
                                         })
                                     ) : (
                                         <div className="relative flex items-start gap-3">
-                                            <div className="relative z-10 w-3 h-3 rounded-full bg-emerald-500 shadow-sm ring-2 ring-white/30" />
+                                            <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm ring-2 ring-white/30" />
                                             <div className="flex-1 min-w-0 -mt-0.5">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="text-white/90 text-sm font-medium">Request submitted</span>

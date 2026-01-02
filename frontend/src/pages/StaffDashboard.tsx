@@ -1194,7 +1194,7 @@ export default function StaffDashboard() {
                                                             return (
                                                                 <div key={entry.id} className="relative flex items-start gap-3 pl-0">
                                                                     {/* Simple circle indicator - centered on line */}
-                                                                    <div className={`relative z-10 w-3.5 h-3.5 rounded-full ${actionConfig.color} shadow-sm ${isLast ? 'ring-2 ring-white/30' : ''}`} />
+                                                                    <div className={`w-3.5 h-3.5 rounded-full ${actionConfig.color} shadow-sm ${isLast ? 'ring-2 ring-white/30' : ''}`} />
 
                                                                     {/* Content */}
                                                                     <div className="flex-1 min-w-0 -mt-0.5">
