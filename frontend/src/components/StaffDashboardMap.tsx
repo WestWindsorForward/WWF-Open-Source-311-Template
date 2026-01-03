@@ -214,7 +214,7 @@ export default function StaffDashboardMap({
     useEffect(() => {
         if (!mapInstanceRef.current || !window.google) return;
         updateMarkers();
-    }, [requests, statusFilters, categoryFilters, assignmentFilter]);
+    }, [requests, statusFilters, categoryFilters, departmentFilters, staffFilters, assignmentFilter]);
 
     // Update GeoJSON layers when layer filters change
     useEffect(() => {
