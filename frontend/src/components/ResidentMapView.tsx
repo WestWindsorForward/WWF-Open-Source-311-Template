@@ -51,11 +51,40 @@ export default function ResidentMapView({
         in_progress: true,
         closed: true,
     });
+    const [categoryFilters, setCategoryFilters] = useState<Record<string, boolean>>({});
+    const [departmentFilters, setDepartmentFilters] = useState<Record<string, boolean>>({});
 
     // UI state
     const [isLoading, setIsLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false);
     const [expandedStatus, setExpandedStatus] = useState(true);
+    const [expandedCategories, setExpandedCategories] = useState(false);
+    const [expandedDepartments, setExpandedDepartments] = useState(false);
+
+    // Extract unique categories and departments from requests
+    const uniqueCategories = Array.from(new Set(requests.map(r => r.service_code))).map(code => {
+        const req = requests.find(r => r.service_code === code);
+        return { code, name: req?.service_name || code };
+    });
+    const uniqueDepartments = Array.from(new Set(requests.map(r => r.assigned_department_name || 'Unassigned'))).sort();
+
+    // Initialize category filters when requests change
+    useEffect(() => {
+        const newFilters: Record<string, boolean> = {};
+        uniqueCategories.forEach(cat => {
+            newFilters[cat.code] = categoryFilters[cat.code] ?? true;
+        });
+        setCategoryFilters(newFilters);
+    }, [requests.map(r => r.service_code).join(',')]);
+
+    // Initialize department filters when requests change
+    useEffect(() => {
+        const newFilters: Record<string, boolean> = {};
+        uniqueDepartments.forEach(dept => {
+            newFilters[dept] = departmentFilters[dept] ?? true;
+        });
+        setDepartmentFilters(newFilters);
+    }, [requests.map(r => r.assigned_department_name).join(',')]);
 
     // Load Google Maps script
     useEffect(() => {
@@ -152,7 +181,7 @@ export default function ResidentMapView({
     useEffect(() => {
         if (!mapInstanceRef.current || !window.google) return;
         updateMarkers();
-    }, [requests, statusFilters]);
+    }, [requests, statusFilters, categoryFilters, departmentFilters]);
 
     const updateMarkers = () => {
         const map = mapInstanceRef.current;
@@ -168,6 +197,9 @@ export default function ResidentMapView({
         // Filter requests
         const filteredRequests = requests.filter(r => {
             if (!statusFilters[r.status as keyof typeof statusFilters]) return false;
+            if (categoryFilters[r.service_code] === false) return false;
+            const deptName = r.assigned_department_name || 'Unassigned';
+            if (departmentFilters[deptName] === false) return false;
             if (!r.lat || !r.long) return false;
             return true;
         });
@@ -352,6 +384,72 @@ export default function ResidentMapView({
                                 ))}
                             </div>
                         )}
+
+                        {/* Category Filter */}
+                        <div className="border-t border-gray-100 pt-3 mt-3">
+                            <button
+                                onClick={() => setExpandedCategories(!expandedCategories)}
+                                className="w-full flex items-center justify-between py-2"
+                            >
+                                <span className="text-sm font-medium text-gray-700">Categories</span>
+                                {expandedCategories ? (
+                                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                                ) : (
+                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                )}
+                            </button>
+
+                            {expandedCategories && (
+                                <div className="space-y-2 pt-2 max-h-40 overflow-y-auto">
+                                    {uniqueCategories.map(cat => (
+                                        <label key={cat.code} className="flex items-center gap-3 cursor-pointer group">
+                                            <input
+                                                type="checkbox"
+                                                checked={categoryFilters[cat.code] ?? true}
+                                                onChange={(e) => setCategoryFilters(prev => ({ ...prev, [cat.code]: e.target.checked }))}
+                                                className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                                            />
+                                            <span className="text-sm text-gray-600 truncate flex-1">
+                                                {cat.name}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Department Filter */}
+                        <div className="border-t border-gray-100 pt-3 mt-3">
+                            <button
+                                onClick={() => setExpandedDepartments(!expandedDepartments)}
+                                className="w-full flex items-center justify-between py-2"
+                            >
+                                <span className="text-sm font-medium text-gray-700">Departments</span>
+                                {expandedDepartments ? (
+                                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                                ) : (
+                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                )}
+                            </button>
+
+                            {expandedDepartments && (
+                                <div className="space-y-2 pt-2 max-h-40 overflow-y-auto">
+                                    {uniqueDepartments.map(dept => (
+                                        <label key={dept} className="flex items-center gap-3 cursor-pointer group">
+                                            <input
+                                                type="checkbox"
+                                                checked={departmentFilters[dept] ?? true}
+                                                onChange={(e) => setDepartmentFilters(prev => ({ ...prev, [dept]: e.target.checked }))}
+                                                className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                                            />
+                                            <span className={`text-sm text-gray-600 truncate flex-1 ${dept === 'Unassigned' ? 'italic' : ''}`}>
+                                                {dept}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
