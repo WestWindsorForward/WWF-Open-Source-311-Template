@@ -34,8 +34,8 @@ export default function StaffDashboardMap({
     apiKey,
     requests,
     services,
-    departments: _departments,
-    users: _users,
+    departments,
+    users,
     mapLayers,
     townshipBoundary,
     defaultCenter = { lat: 40.3573, lng: -74.6672 },
@@ -57,6 +57,8 @@ export default function StaffDashboardMap({
         closed: true,
     });
     const [categoryFilters, setCategoryFilters] = useState<Record<string, boolean>>({});
+    const [departmentFilters, setDepartmentFilters] = useState<Record<number, boolean>>({});
+    const [staffFilters, setStaffFilters] = useState<Record<string, boolean>>({});
     const [layerFilters, setLayerFilters] = useState<Record<number, boolean>>({});
     const [assignmentFilter, setAssignmentFilter] = useState<string>('');
 
@@ -67,6 +69,8 @@ export default function StaffDashboardMap({
     const [expandedSections, setExpandedSections] = useState({
         status: true,
         categories: false,
+        departments: false,
+        staff: false,
         layers: true,
         assignment: false,
     });
@@ -88,6 +92,28 @@ export default function StaffDashboardMap({
         });
         setLayerFilters(newFilters);
     }, [mapLayers]);
+
+    // Initialize department filters when departments change
+    useEffect(() => {
+        const newFilters: Record<number, boolean> = {};
+        departments.forEach(d => {
+            newFilters[d.id] = departmentFilters[d.id] ?? true;
+        });
+        // Add "unassigned" option
+        newFilters[0] = departmentFilters[0] ?? true;
+        setDepartmentFilters(newFilters);
+    }, [departments]);
+
+    // Initialize staff filters when users change
+    useEffect(() => {
+        const newFilters: Record<string, boolean> = {};
+        users.forEach(u => {
+            newFilters[u.username] = staffFilters[u.username] ?? true;
+        });
+        // Add "unassigned" option
+        newFilters[''] = staffFilters[''] ?? true;
+        setStaffFilters(newFilters);
+    }, [users]);
 
     // Load Google Maps script
     useEffect(() => {
@@ -214,6 +240,14 @@ export default function StaffDashboardMap({
 
             // Category filter
             if (categoryFilters[r.service_code] === false) return false;
+
+            // Department filter
+            const requestDeptId = (r as any).assigned_department_id || 0;
+            if (departmentFilters[requestDeptId] === false) return false;
+
+            // Staff filter
+            const requestStaff = (r as any).assigned_to || '';
+            if (staffFilters[requestStaff] === false) return false;
 
             // Assignment filter - search in assigned_to, service_name, or description
             if (assignmentFilter) {
@@ -444,6 +478,22 @@ export default function StaffDashboardMap({
         setCategoryFilters(newFilters);
     };
 
+    const toggleAllDepartments = (value: boolean) => {
+        const newFilters: Record<number, boolean> = {};
+        Object.keys(departmentFilters).forEach(key => {
+            newFilters[Number(key)] = value;
+        });
+        setDepartmentFilters(newFilters);
+    };
+
+    const toggleAllStaff = (value: boolean) => {
+        const newFilters: Record<string, boolean> = {};
+        Object.keys(staffFilters).forEach(key => {
+            newFilters[key] = value;
+        });
+        setStaffFilters(newFilters);
+    };
+
     const toggleAllLayers = (value: boolean) => {
         const newFilters: Record<number, boolean> = {};
         Object.keys(layerFilters).forEach(key => {
@@ -577,6 +627,122 @@ export default function StaffDashboardMap({
                                         />
                                         <span className="text-sm text-white/70 truncate group-hover:text-white transition-colors">
                                             {service.service_name}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Department Filters */}
+                    <div className="border-b border-white/5">
+                        <button
+                            onClick={() => toggleSection('departments')}
+                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                        >
+                            <span className="text-sm font-semibold text-white">Departments</span>
+                            {expandedSections.departments ? (
+                                <ChevronDown className="w-4 h-4 text-white/50" />
+                            ) : (
+                                <ChevronRight className="w-4 h-4 text-white/50" />
+                            )}
+                        </button>
+                        {expandedSections.departments && (
+                            <div className="px-4 pb-4 space-y-2">
+                                <div className="flex gap-3 mb-3 pb-2 border-b border-white/5">
+                                    <button
+                                        onClick={() => toggleAllDepartments(true)}
+                                        className="text-xs text-primary-400 hover:text-primary-300 font-medium"
+                                    >
+                                        Select All
+                                    </button>
+                                    <span className="text-white/20">|</span>
+                                    <button
+                                        onClick={() => toggleAllDepartments(false)}
+                                        className="text-xs text-primary-400 hover:text-primary-300 font-medium"
+                                    >
+                                        Clear All
+                                    </button>
+                                </div>
+                                <label className="flex items-center gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={departmentFilters[0] ?? true}
+                                        onChange={(e) => setDepartmentFilters(prev => ({ ...prev, [0]: e.target.checked }))}
+                                        className="w-5 h-5 rounded border-2 border-white/20 bg-transparent text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
+                                    />
+                                    <span className="text-sm text-white/70 truncate group-hover:text-white transition-colors italic">
+                                        Unassigned
+                                    </span>
+                                </label>
+                                {departments.map(dept => (
+                                    <label key={dept.id} className="flex items-center gap-3 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={departmentFilters[dept.id] ?? true}
+                                            onChange={(e) => setDepartmentFilters(prev => ({ ...prev, [dept.id]: e.target.checked }))}
+                                            className="w-5 h-5 rounded border-2 border-white/20 bg-transparent text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
+                                        />
+                                        <span className="text-sm text-white/70 truncate group-hover:text-white transition-colors">
+                                            {dept.name}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Staff Filters */}
+                    <div className="border-b border-white/5">
+                        <button
+                            onClick={() => toggleSection('staff')}
+                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                        >
+                            <span className="text-sm font-semibold text-white">Assigned Staff</span>
+                            {expandedSections.staff ? (
+                                <ChevronDown className="w-4 h-4 text-white/50" />
+                            ) : (
+                                <ChevronRight className="w-4 h-4 text-white/50" />
+                            )}
+                        </button>
+                        {expandedSections.staff && (
+                            <div className="px-4 pb-4 space-y-2">
+                                <div className="flex gap-3 mb-3 pb-2 border-b border-white/5">
+                                    <button
+                                        onClick={() => toggleAllStaff(true)}
+                                        className="text-xs text-primary-400 hover:text-primary-300 font-medium"
+                                    >
+                                        Select All
+                                    </button>
+                                    <span className="text-white/20">|</span>
+                                    <button
+                                        onClick={() => toggleAllStaff(false)}
+                                        className="text-xs text-primary-400 hover:text-primary-300 font-medium"
+                                    >
+                                        Clear All
+                                    </button>
+                                </div>
+                                <label className="flex items-center gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={staffFilters[''] ?? true}
+                                        onChange={(e) => setStaffFilters(prev => ({ ...prev, ['']: e.target.checked }))}
+                                        className="w-5 h-5 rounded border-2 border-white/20 bg-transparent text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
+                                    />
+                                    <span className="text-sm text-white/70 truncate group-hover:text-white transition-colors italic">
+                                        Unassigned
+                                    </span>
+                                </label>
+                                {users.filter(u => u.role === 'staff' || u.role === 'admin').map(user => (
+                                    <label key={user.username} className="flex items-center gap-3 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={staffFilters[user.username] ?? true}
+                                            onChange={(e) => setStaffFilters(prev => ({ ...prev, [user.username]: e.target.checked }))}
+                                            className="w-5 h-5 rounded border-2 border-white/20 bg-transparent text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
+                                        />
+                                        <span className="text-sm text-white/70 truncate group-hover:text-white transition-colors">
+                                            {user.full_name || user.username}
                                         </span>
                                     </label>
                                 ))}
