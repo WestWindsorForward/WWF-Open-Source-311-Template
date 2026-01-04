@@ -341,6 +341,28 @@ class DepartmentMetrics(BaseModel):
     resolution_rate: float
 
 
+class PredictiveInsights(BaseModel):
+    volume_forecast_next_week: int
+    trend_direction: str  # "increasing", "stable", "decreasing"
+    seasonal_peak_day: str
+    seasonal_peak_month: str
+
+
+class CostEstimate(BaseModel):
+    category: str
+    avg_hours: float
+    estimated_cost: float
+    open_tickets: int
+    total_estimated_cost: float
+
+
+class RepeatLocation(BaseModel):
+    address: str
+    lat: float
+    lng: float
+    request_count: int
+
+
 class AdvancedStatisticsResponse(BaseModel):
     # Summary counts
     total_requests: int
@@ -375,6 +397,13 @@ class AdvancedStatisticsResponse(BaseModel):
     workload_by_staff: Dict[str, int]  # {username: active_count} - Current assignments
     open_by_age_sla: Dict[str, int]  # Same as backlog_by_age but only "open" status for SLA tracking
     
+    # Predictive & Government Analytics
+    predictive_insights: PredictiveInsights
+    cost_estimates: List[CostEstimate]
+    avg_response_time_hours: Optional[float]  # Time to first staff action
+    repeat_locations: List[RepeatLocation]
+    aging_high_priority_count: int  # P1-P3 open > 7 days
+    
     # Category analytics
     requests_by_category: Dict[str, int]
     flagged_count: int
@@ -385,6 +414,7 @@ class AdvancedStatisticsResponse(BaseModel):
     
     # Cache info
     cached_at: Optional[datetime] = None
+
 
 
 

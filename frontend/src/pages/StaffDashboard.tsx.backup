@@ -649,237 +649,371 @@ export default function StaffDashboard() {
                     </div>
                 )}
 
-                {/* Statistics View - Clean Government Design */}
+                {/* Statistics View */}
                 {currentView === 'statistics' && (
-                    <div className="flex-1 p-8 overflow-auto bg-gray-50">
+                    <div className="flex-1 p-6 overflow-auto">
                         <div className="max-w-7xl mx-auto space-y-6">
-                            {/* Header */}
-                            <div className="mb-6">
-                                <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-                                {advancedStats?.cached_at && (
-                                    <p className="text-sm text-gray-500 mt-1">
-                                        Last updated: {new Date(advancedStats.cached_at).toLocaleString()}
-                                    </p>
-                                )}
-                            </div>
-
-                            {/* Top KPIs - Government Focused */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-                                    <div className="text-sm font-medium text-gray-600">Estimated Cost (Open)</div>
-                                    <div className="text-3xl font-bold text-blue-600 mt-2">
-                                        ${(advancedStats?.cost_estimates
-                                            ?.reduce((sum, c) => sum + c.total_estimated_cost, 0) || 0)
-                                            .toLocaleString()}
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                        {advancedStats?.open_requests || 0} open tickets
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-                                    <div className="text-sm font-medium text-gray-600">Next Week Forecast</div>
-                                    <div className="text-3xl font-bold text-purple-600 mt-2">
-                                        {advancedStats?.predictive_insights?.volume_forecast_next_week || 0}
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1 capitalize">
-                                        Trend: {advancedStats?.predictive_insights?.trend_direction || 'N/A'}
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-                                    <div className="text-sm font-medium text-gray-600">Avg Resolution Time</div>
-                                    <div className="text-3xl font-bold text-green-600 mt-2">
-                                        {advancedStats?.avg_resolution_hours?.toFixed(1) || 'N/A'}h
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                        {advancedStats?.resolution_rate?.toFixed(0) || 0}% completion rate
-                                    </div>
-                                </div>
-
-                                <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-                                    <div className="text-sm font-medium text-gray-600">High Priority Aging</div>
-                                    <div className="text-3xl font-bold text-red-600 mt-2">
-                                        {advancedStats?.aging_high_priority_count || 0}
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">P1-P3 open &gt; 7 days</div>
-                                </div>
-                            </div>
-
-                            {/* Predictive Insights Panel */}
-                            {advancedStats?.predictive_insights && (
-                                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow p-6 border border-purple-200">
-                                    <h2 className="text-lg font-semibold text-gray-900 mb-4">🔮 Predictive Insights</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div>
-                                            <div className="text-sm font-medium text-gray-700">Volume Forecast</div>
-                                            <div className="text-2xl font-bold text-purple-600 mt-1">
-                                                {advancedStats.predictive_insights.volume_forecast_next_week} tickets
-                                            </div>
-                                            <div className="text-xs text-gray-600 mt-1">Expected next week</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-sm font-medium text-gray-700">Peak Activity</div>
-                                            <div className="text-2xl font-bold text-blue-600 mt-1">
-                                                {advancedStats.predictive_insights.seasonal_peak_day}
-                                            </div>
-                                            <div className="text-xs text-gray-600 mt-1">Busiest day of week</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-sm font-medium text-gray-700">Seasonal Peak</div>
-                                            <div className="text-2xl font-bold text-indigo-600 mt-1">
-                                                {advancedStats.predictive_insights.seasonal_peak_month}
-                                            </div>
-                                            <div className="text-xs text-gray-600 mt-1">Highest volume month</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Cost Breakdown */}
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">💰 Cost Breakdown</h3>
-                                    {advancedStats?.cost_estimates && advancedStats.cost_estimates.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {advancedStats.cost_estimates.slice(0, 6).map((cost, idx) => (
-                                                <div key={idx} className="flex items-center justify-between border-b border-gray-100 pb-2">
-                                                    <div className="flex-1">
-                                                        <div className="text-sm font-medium text-gray-900">{cost.category}</div>
-                                                        <div className="text-xs text-gray-500">
-                                                            {cost.open_tickets} open × {cost.avg_hours}h avg
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="text-lg font-bold text-blue-600">
-                                                            ${cost.total_estimated_cost.toLocaleString()}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500">
-                                                            ${cost.estimated_cost}/ticket
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-gray-400 text-center py-8">No cost data available</p>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <Badge variant="info">Advanced Analytics Dashboard</Badge>
+                                    <h1 className="text-2xl font-bold text-white mt-2">PostGIS-Powered Statistics</h1>
+                                    {advancedStats?.cached_at && (
+                                        <p className="text-xs text-white/40 mt-1">
+                                            Last updated: {new Date(advancedStats.cached_at).toLocaleString()}
+                                        </p>
                                     )}
                                 </div>
-
-                                {/* Priority Backlog */}
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">🚨 Priority Backlog</h3>
-                                    <div className="h-64">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart 
-                                                data={Object.entries(advancedStats?.backlog_by_priority || {})
-                                                    .filter(([_, count]) => count > 0)
-                                                    .map(([priority, count]) => ({ 
-                                                        priority: `P${priority}`,
-                                                        count
-                                                    }))}
-                                                layout="horizontal"
-                                            >
-                                                <XAxis 
-                                                    type="number"
-                                                    stroke="#6b7280"
-                                                    style={{ fontSize: '12px' }}
-                                                />
-                                                <YAxis 
-                                                    type="category"
-                                                    dataKey="priority"
-                                                    stroke="#6b7280"
-                                                    style={{ fontSize: '12px' }}
-                                                />
-                                                <Tooltip 
-                                                    contentStyle={{ 
-                                                        backgroundColor: 'white', 
-                                                        border: '1px solid #e5e7eb'
-                                                    }}
-                                                />
-                                                <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
                             </div>
 
-                            {/* Repeat Locations */}
-                            {advancedStats?.repeat_locations && advancedStats.repeat_locations.length > 0 && (
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">📍 Repeat Locations (Infrastructure Hotspots)</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {advancedStats.repeat_locations.slice(0, 6).map((loc, idx) => (
-                                            <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 transition">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-sm font-medium text-gray-900 truncate">{loc.address}</div>
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                            {loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}
-                                                        </div>
-                                                    </div>
-                                                    <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold ml-2 flex-shrink-0">
-                                                        {loc.request_count}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            {/* Performance KPI Cards */}
+                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                                <Card className="text-center">
+                                    <p className="text-3xl font-bold text-white">{advancedStats?.total_requests || 0}</p>
+                                    <p className="text-white/60 text-sm">Total Requests</p>
+                                </Card>
+                                <Card className="text-center border-emerald-500/30">
+                                    <p className="text-3xl font-bold text-emerald-400">
+                                        {advancedStats?.avg_resolution_hours
+                                            ? `${advancedStats.avg_resolution_hours.toFixed(1)}h`
+                                            : 'N/A'}
+                                    </p>
+                                    <p className="text-white/60 text-sm">Avg Resolution Time</p>
+                                </Card>
+                                <Card className="text-center border-purple-500/30">
+                                    <p className="text-3xl font-bold text-purple-400">
+                                        {advancedStats?.resolution_rate
+                                            ? `${advancedStats.resolution_rate.toFixed(1)}%`
+                                            : 'N/A'}
+                                    </p>
+                                    <p className="text-white/60 text-sm">Resolution Rate</p>
+                                </Card>
+                                <Card className="text-center border-blue-500/30">
+                                    <p className="text-3xl font-bold text-blue-400">
+                                        {advancedStats?.geographic_spread_km
+                                            ? `${advancedStats.geographic_spread_km.toFixed(1)}km`
+                                            : 'N/A'}
+                                    </p>
+                                    <p className="text-white/60 text-sm">Geographic Spread</p>
+                                </Card>
+                                <Card className="text-center border-red-500/50 bg-red-500/5">
+                                    <p className="text-3xl font-bold text-red-400">
+                                        {advancedStats?.open_by_age_sla?.['>2 weeks'] || 0}
+                                    </p>
+                                    <p className="text-white/60 text-sm">⚠️ SLA Breaches</p>
+                                    <p className="text-xs text-white/40">(Open &gt; 14 days)</p>
+                                </Card>
+                            </div>
 
-                            {/* Current Workload */}
-                            {advancedStats?.workload_by_staff && Object.keys(advancedStats.workload_by_staff).length > 0 && (
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">👷 Current Workload</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                        {Object.entries(advancedStats.workload_by_staff)
-                                            .sort(([, a], [, b]) => (b as number) - (a as number))
-                                            .slice(0, 9)
-                                            .map(([staff, count]) => (
-                                                <div key={staff} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                                    <span className="text-sm font-medium text-gray-900 truncate flex-1">{staff}</span>
-                                                    <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold ml-2">
-                                                        {count as number}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Weekly Trend */}
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">📈 Weekly Trend</h3>
-                                <div className="h-64">
+                            {/* Temporal Demand Heatmap (24-hour) */}
+                            <Card>
+                                <h3 className="text-lg font-semibold text-white mb-4">📊 Temporal Demand Pattern (24-Hour Heatmap)</h3>
+                                <p className="text-sm text-white/50 mb-4">Identify peak staffing hours based on community demand</p>
+                                <div className="h-72">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={advancedStats?.weekly_trend || []}>
-                                            <XAxis 
-                                                dataKey="period"
-                                                stroke="#6b7280"
-                                                style={{ fontSize: '12px' }}
+                                        <AreaChart
+                                            data={Object.entries(advancedStats?.requests_by_hour || {})
+                                                .map(([hour, count]) => ({
+                                                    hour: `${hour}:00`,
+                                                    count: count as number
+                                                }))
+                                                .sort((a, b) => parseInt(a.hour) - parseInt(b.hour))}
+                                        >
+                                            <defs>
+                                                <linearGradient id="demandGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1} />
+                                                </linearGradient>
+                                            </defs>
+                                            <XAxis dataKey="hour" stroke="#ffffff40" fontSize={12} />
+                                            <YAxis stroke="#ffffff40" fontSize={12} />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                                labelStyle={{ color: '#fff' }}
                                             />
-                                            <YAxis 
-                                                stroke="#6b7280"
-                                                style={{ fontSize: '12px' }}
-                                            />
-                                            <Tooltip 
-                                                contentStyle={{ 
-                                                    backgroundColor: 'white', 
-                                                    border: '1px solid #e5e7eb'
-                                                }}
-                                            />
-                                            <Area 
-                                                type="monotone" 
-                                                dataKey="total" 
-                                                stroke="#3b82f6" 
-                                                fill="#93c5fd" 
-                                                fillOpacity={0.6}
-                                            />
+                                            <Area type="monotone" dataKey="count" stroke="#6366f1" fillOpacity={1} fill="url(#demandGradient)" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
+                            </Card>
+
+                            {/* Backlog Aging Analysis */}
+                            <Card>
+                                <h3 className="text-lg font-semibold text-white mb-4">⏰ Backlog Aging Analysis</h3>
+                                <p className="text-sm text-white/50 mb-4">Visualize ticket processing delays by age bucket</p>
+                                <div className="h-72">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={Object.entries(advancedStats?.backlog_by_age || {})
+                                                .map(([age, count]) => ({
+                                                    age,
+                                                    count: count as number
+                                                }))}
+                                        >
+                                            <XAxis dataKey="age" stroke="#ffffff40" fontSize={12} />
+                                            <YAxis stroke="#ffffff40" fontSize={12} />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                                labelStyle={{ color: '#fff' }}
+                                            />
+                                            <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </Card>
+
+                            {/* Department Performance Benchmarking */}
+                            <Card>
+                                <h3 className="text-lg font-semibold text-white mb-4">🏢 Department Performance Metrics</h3>
+                                <p className="text-sm text-white/50 mb-4">Compare resolution rates and workload across departments</p>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            layout="vertical"
+                                            data={advancedStats?.department_metrics || []}
+                                        >
+                                            <XAxis type="number" stroke="#ffffff40" fontSize={12} />
+                                            <YAxis type="category" dataKey="name" stroke="#ffffff40" fontSize={12} width={120} />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                                labelStyle={{ color: '#fff' }}
+                                            />
+                                            <Legend />
+                                            <Bar dataKey="total_requests" fill="#3b82f6" name="Total Requests" radius={[0, 4, 4, 0]} />
+                                            <Bar dataKey="open_requests" fill="#ef4444" name="Open" radius={[0, 4, 4, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </Card>
+
+                            {/* Staff Leaderboard + Category Distribution */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Staff Leaderboard */}
+                                <Card>
+                                    <h3 className="text-lg font-semibold text-white mb-4">🏆 Staff Performance Leaderboard</h3>
+                                    <p className="text-sm text-white/50 mb-4">Top performing staff by total resolutions</p>
+                                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                                        {Object.entries(advancedStats?.top_staff_by_resolutions || {})
+                                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                                            .slice(0, 10)
+                                            .map(([staff, count], index) => (
+                                                <div
+                                                    key={staff}
+                                                    className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
+                                                >
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        index === 1 ? 'bg-gray-400/20 text-gray-300' :
+                                                            index === 2 ? 'bg-orange-600/20 text-orange-400' :
+                                                                'bg-blue-500/20 text-blue-400'
+                                                        }`}>
+                                                        {index + 1}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-white font-medium">{staff}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-2xl font-bold text-emerald-400">{count as number}</p>
+                                                        <p className="text-xs text-white/40">resolutions</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        {Object.keys(advancedStats?.top_staff_by_resolutions || {}).length === 0 && (
+                                            <p className="text-white/40 text-center py-8">No staff resolution data available</p>
+                                        )}
+                                    </div>
+                                </Card>
+
+                                {/* Category Distribution */}
+                                <Card>
+                                    <h3 className="text-lg font-semibold text-white mb-4">📋 Requests by Category</h3>
+                                    <div className="h-80">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={Object.entries(advancedStats?.requests_by_category || {})
+                                                .map(([name, count]) => ({
+                                                    name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+                                                    count: count as number
+                                                }))
+                                                .sort((a, b) => b.count - a.count)
+                                                .slice(0, 10)}
+                                            >
+                                                <XAxis dataKey="name" stroke="#ffffff40" fontSize={10} angle={-45} textAnchor="end" height={80} />
+                                                <YAxis stroke="#ffffff40" fontSize={12} />
+                                                <Tooltip
+                                                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                                    labelStyle={{ color: '#fff' }}
+                                                />
+                                                <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </Card>
                             </div>
+
+                            {/* Geospatial Hotspots (PostGIS DBSCAN) - Always show with empty state */}
+                            <Card>
+                                <h3 className="text-lg font-semibold text-white mb-4">🗺️ Geographic Hotspots (PostGIS DBSCAN)</h3>
+                                {advancedStats?.hotspots && advancedStats.hotspots.length > 0 ? (
+                                    <>
+                                        <p className="text-sm text-white/60 mb-4">
+                                            Statistically significant clusters detected within ~500m radius (minimum 2 incidents)
+                                        </p>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {advancedStats.hotspots.slice(0, 6).map((hotspot) => (
+                                                <div
+                                                    key={hotspot.cluster_id}
+                                                    className="p-4 rounded-lg bg-red-500/10 border border-red-500/30"
+                                                >
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <div>
+                                                            <p className="text-sm text-white/60">Cluster #{hotspot.cluster_id}</p>
+                                                            <p className="text-2xl font-bold text-red-400">{hotspot.count}</p>
+                                                            <p className="text-xs text-white/40">incidents</p>
+                                                        </div>
+                                                        <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                                                            <MapPin className="w-5 h-5 text-red-400" />
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-white/40">
+                                                        {hotspot.lat.toFixed(4)}, {hotspot.lng.toFixed(4)}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="py-12 text-center">
+                                        <MapPin className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                                        <p className="text-white/40">
+                                            No clusters detected. Hotspots appear when 2+ incidents occur within 500m radius.
+                                        </p>
+                                        <p className="text-xs text-white/30 mt-2">
+                                            PostGIS spatial analysis requires location data on service requests.
+                                        </p>
+                                    </div>
+                                )}
+                            </Card>
+
+                            {/* Priority Backlog (Infrastructure Focus) */}
+                            <Card>
+                                <h3 className="text-lg font-semibold text-white mb-4">🚨 Current Backlog by Priority</h3>
+                                <p className="text-sm text-white/60 mb-4">
+                                    Open and in-progress tickets by priority level (1=Critical, 10=Low)
+                                </p>
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={Object.entries(advancedStats?.backlog_by_priority || {})
+                                                .filter(([_, count]) => count > 0)
+                                                .map(([priority, count]) => ({
+                                                    priority: `P${priority}`,
+                                                    count,
+                                                    priorityNum: parseInt(priority)
+                                                }))
+                                                .sort((a, b) => a.priorityNum - b.priorityNum)}
+                                            layout="horizontal"
+                                        >
+                                            <XAxis
+                                                type="number"
+                                                stroke="#ffffff40"
+                                                style={{ fontSize: '12px' }}
+                                            />
+                                            <YAxis
+                                                type="category"
+                                                dataKey="priority"
+                                                stroke="#ffffff40"
+                                                style={{ fontSize: '12px' }}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{
+                                                    backgroundColor: '#1e293b',
+                                                    border: '1px solid #334155',
+                                                    borderRadius: '8px'
+                                                }}
+                                                labelStyle={{ color: '#fff' }}
+                                            />
+                                            <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </Card>
+
+                            {/* Current Workload Distribution */}
+                            <Card>
+                                <h3 className="text-lg font-semibold text-white mb-4">👷 Current Workload by Staff</h3>
+                                <p className="text-sm text-white/60 mb-4">
+                                    Active assignments (open + in-progress tickets)
+                                </p>
+                                {advancedStats?.workload_by_staff && Object.keys(advancedStats.workload_by_staff).length > 0 ? (
+                                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                                        {Object.entries(advancedStats.workload_by_staff)
+                                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                                            .map(([staff, count]) => (
+                                                <div
+                                                    key={staff}
+                                                    className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                                                >
+                                                    <span className="text-white font-medium">{staff}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="h-2 rounded-full bg-white/10 w-32">
+                                                            <div
+                                                                className="h-full rounded-full bg-primary-500"
+                                                                style={{
+                                                                    width: `${Math.min((count as number) / Math.max(...Object.values(advancedStats.workload_by_staff)) * 100, 100)}%`
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-primary-400 font-bold w-12 text-right">
+                                                            {count as number}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-white/40 text-center py-8">No active assignments</p>
+                                )}
+                            </Card>
+
+                            {/* Status Distribution (Keep existing) */}
+                            <Card>
+                                <h3 className="text-lg font-semibold text-white mb-4">📈 Status Distribution</h3>
+                                <div className="h-64 flex items-center justify-center">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={[
+                                                    { name: 'Open', value: advancedStats?.open_requests || 0 },
+                                                    { name: 'In Progress', value: advancedStats?.in_progress_requests || 0 },
+                                                    { name: 'Closed', value: advancedStats?.closed_requests || 0 },
+                                                ]}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {[0, 1, 2].map((index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                                                ))}
+                                            </Pie>
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="flex justify-center gap-6 mt-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                                        <span className="text-sm text-white/60">Open ({advancedStats?.open_requests || 0})</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full bg-amber-500" />
+                                        <span className="text-sm text-white/60">In Progress ({advancedStats?.in_progress_requests || 0})</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                                        <span className="text-sm text-white/60">Closed ({advancedStats?.closed_requests || 0})</span>
+                                    </div>
+                                </div>
+                            </Card>
                         </div>
                     </div>
                 )}

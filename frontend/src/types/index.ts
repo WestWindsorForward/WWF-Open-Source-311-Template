@@ -273,6 +273,28 @@ export interface DepartmentMetrics {
     resolution_rate: number;
 }
 
+export interface PredictiveInsights {
+    volume_forecast_next_week: number;
+    trend_direction: string;
+    seasonal_peak_day: string;
+    seasonal_peak_month: string;
+}
+
+export interface CostEstimate {
+    category: string;
+    avg_hours: number;
+    estimated_cost: number;
+    open_tickets: number;
+    total_estimated_cost: number;
+}
+
+export interface RepeatLocation {
+    address: string;
+    lat: number;
+    lng: number;
+    request_count: number;
+}
+
 export interface AdvancedStatistics {
     // Summary counts
     total_requests: number;
@@ -306,6 +328,13 @@ export interface AdvancedStatistics {
     backlog_by_priority: Record<number, number>;
     workload_by_staff: Record<string, number>;
     open_by_age_sla: Record<string, number>;
+
+    // Predictive & Government Analytics
+    predictive_insights: PredictiveInsights;
+    cost_estimates: CostEstimate[];
+    avg_response_time_hours: number | null;
+    repeat_locations: RepeatLocation[];
+    aging_high_priority_count: number;
 
     // Category analytics
     requests_by_category: Record<string, number>;

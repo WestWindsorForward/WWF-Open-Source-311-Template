@@ -202,7 +202,10 @@ from sqlalchemy import text, extract, case
 from sqlalchemy.sql.expression import literal_column
 from datetime import timedelta
 import json
-from app.schemas import AdvancedStatisticsResponse, HotspotData, TrendData, DepartmentMetrics
+from app.schemas import (
+    AdvancedStatisticsResponse, HotspotData, TrendData, DepartmentMetrics,
+    PredictiveInsights, CostEstimate, RepeatLocation
+)
 from app.models import Department
 
 # Redis client import (reuse from open311)
@@ -561,6 +564,82 @@ async def get_advanced_statistics(
             else:
                 open_by_age_sla[">2 weeks"] += 1
     
+    # ========== Predictive & Government Analytics ==========
+    
+    # Labor cost rates (hourly, in dollars)
+    LABOR_RATES = {
+        "Pothole": 50, "Street Repair": 75, "Snow Removal": 50,
+        "Sewer": 85, "Water": 85, "Traffic Signal": 65,
+        "Drainage": 70, "Road Maintenance": 65
+    }
+    DEFAULT_LABOR_RATE = 55
+    
+    # Cost estimates by category
+    cost_estimates = []
+    for category, total_cat_count in requests_by_category.items():
+        # Get avg resolution hours for this category
+        avg_hours = avg_resolution_hours_by_category.get(category, 2.5)
+        labor_rate = LABOR_RATES.get(category, DEFAULT_LABOR_RATE)
+        estimated_cost = avg_hours * labor_rate
+        
+        # Count open tickets in this category
+        open_cat_query = await db.execute(
+            select(func.count(ServiceRequest.id)).where(
+                ServiceRequest.deleted_at.is_(None),
+                ServiceRequest.service_name == category,
+                ServiceRequest.status.in_(["open", "in_progress"])
+            )
+        )
+        open_in_category = open_cat_query.scalar() or 0
+        
+        cost_estimates.append(CostEstimate(
+            category=category,
+            avg_hours=round(avg_hours, 2),
+            estimated_cost=round(estimated_cost, 2),
+            open_tickets=open_in_category,
+            total_estimated_cost=round(open_in_category * estimated_cost, 2)
+        ))
+    
+    # Sort by total cost descending
+    cost_estimates.sort(key=lambda x: x.total_estimated_cost, reverse=True)
+    
+    # Repeat locations (infrastructure maintenance indicators)
+    repeat_locations = []
+    try:
+        repeat_query = text("""
+            SELECT address, lat, long, COUNT(*) as request_count
+            FROM service_requests
+            WHERE deleted_at IS NULL 
+            AND address IS NOT NULL
+            AND lat IS NOT NULL
+            AND long IS NOT NULL
+            GROUP BY address, lat, long
+            HAVING COUNT(*) >= 3
+            ORDER BY COUNT(*) DESC
+            LIMIT 10
+        """)
+        repeat_result = await db.execute(repeat_query)
+        for row in repeat_result.mappings().all():
+            if row['address'] and row['lat'] and row['long']:
+                repeat_locations.append(RepeatLocation(
+                    address=str(row['address']),
+                    lat=float(row['lat']),
+                    lng=float(row['long']),
+                    request_count=int(row['request_count'])
+                ))
+    except Exception as e:
+        print(f"Repeat locations query failed: {e}")
+    
+    # Aging high-priority count (P1-P3 open > 7 days)
+    aging_hp_query = select(func.count(ServiceRequest.id)).where(
+        ServiceRequest.deleted_at.is_(None),
+        ServiceRequest.status == "open",
+        ServiceRequest.priority.in_([1, 2, 3]),
+        ServiceRequest.requested_datetime < now - timedelta(days=7)
+    )
+    aging_hp_result = await db.execute(aging_hp_query)
+    aging_high_priority_count = aging_hp_result.scalar() or 0
+    
     # ========== Trends ==========
     
     # Weekly trend (last 8 weeks)
@@ -608,6 +687,45 @@ async def get_advanced_statistics(
         month_stats["total"] = month_stats["open"] + month_stats["in_progress"] + month_stats["closed"]
         monthly_trend.append(TrendData(**month_stats))
     
+    # Predictive insights
+    # Volume forecast (simple moving average of last 4 weeks)
+    if len(weekly_trend) >= 4:
+        recent_volumes = [w.total for w in weekly_trend[-4:]]
+        volume_forecast_next_week = int(sum(recent_volumes) / len(recent_volumes))
+    else:
+        volume_forecast_next_week = 0
+    
+    # Trend direction (compare last 2 weeks vs previous 2 weeks)
+    if len(weekly_trend) >= 4:
+        recent_avg = sum(w.total for w in weekly_trend[-2:]) / 2
+        previous_avg = sum(w.total for w in weekly_trend[-4:-2]) / 2
+        if recent_avg > previous_avg * 1.1:
+            trend_direction = "increasing"
+        elif recent_avg < previous_avg * 0.9:
+            trend_direction = "decreasing"
+        else:
+            trend_direction = "stable"
+    else:
+        trend_direction = "stable"
+    
+    # Seasonal patterns
+    peak_day = max(requests_by_day_of_week.items(), key=lambda x: x[1])[0] if requests_by_day_of_week else "Monday"
+    peak_month = max(requests_by_month.items(), key=lambda x: x[1])[0] if requests_by_month else "January"
+    if peak_month:
+        # Extract month name from YYYY-MM format
+        try:
+            from datetime import datetime as dt
+            peak_month = dt.strptime(peak_month, "%Y-%m").strftime("%B")
+        except:
+            pass
+    
+    predictive_insights = PredictiveInsights(
+        volume_forecast_next_week=volume_forecast_next_week,
+        trend_direction=trend_direction,
+        seasonal_peak_day=peak_day,
+        seasonal_peak_month=peak_month
+    )
+    
     # Build response
     response_data = AdvancedStatisticsResponse(
         total_requests=total_count,
@@ -631,6 +749,11 @@ async def get_advanced_statistics(
         backlog_by_priority=backlog_by_priority,
         workload_by_staff=workload_by_staff,
         open_by_age_sla=open_by_age_sla,
+        predictive_insights=predictive_insights,
+        cost_estimates=cost_estimates,
+        avg_response_time_hours=None,  # Would need comment/audit log analysis
+        repeat_locations=repeat_locations,
+        aging_high_priority_count=aging_high_priority_count,
         requests_by_category=requests_by_category,
         flagged_count=flagged_count,
         weekly_trend=weekly_trend,
