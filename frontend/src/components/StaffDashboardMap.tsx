@@ -544,12 +544,12 @@ export default function StaffDashboardMap({
                 <div ref={mapRef} className="w-full h-full" />
             </div>
 
-            {/* Filter Panel - Right Side */}
+            {/* Filter Panel - Right Side (full width on mobile, fixed width on desktop) */}
             <div
-                className={`absolute top-0 right-0 bottom-0 w-72 border-l border-white/10 transform transition-all duration-300 z-20 shadow-2xl ${showFilters ? 'translate-x-0' : 'translate-x-full'
+                className={`absolute top-0 right-0 bottom-0 w-full sm:w-72 border-l border-white/10 transform transition-all duration-300 z-20 shadow-2xl ${showFilters ? 'translate-x-0' : 'translate-x-full'
                     }`}
                 style={{
-                    backgroundColor: 'rgba(15, 15, 26, 0.85)',
+                    backgroundColor: 'rgba(15, 15, 26, 0.95)',
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
                 }}

@@ -1250,11 +1250,11 @@ export default function StaffDashboard() {
                                         </div>
 
                                         {/* Row 2: Assignment Dropdowns */}
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <select
                                                 value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''}
                                                 onChange={(e) => { const val = e.target.value ? Number(e.target.value) : null; setEditAssignment(prev => ({ departmentId: val, assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null })); }}
-                                                className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
+                                                className="flex-1 min-w-0 w-full sm:w-auto py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
                                             >
                                                 <option value="" className="text-white/50">Select a department...</option>
                                                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -1262,7 +1262,7 @@ export default function StaffDashboard() {
                                             <select
                                                 value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''}
                                                 onChange={(e) => { const val = e.target.value; setEditAssignment(prev => ({ departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null, assignedTo: val })); }}
-                                                className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
+                                                className="flex-1 min-w-0 w-full sm:w-auto py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
                                             >
                                                 <option value="">All staff in department</option>
                                                 {(() => {

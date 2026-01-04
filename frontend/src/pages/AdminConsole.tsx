@@ -51,6 +51,7 @@ import {
     HelpCircle,
     Info,
     Layers,
+    Upload,
     type LucideIcon,
 } from 'lucide-react';
 import { Button, Card, Modal, Input, Select, Badge } from '../components/ui';
@@ -829,16 +830,84 @@ export default function AdminConsole() {
                                                 value={brandingForm.hero_text || ''}
                                                 onChange={(e) => setBrandingForm((p) => ({ ...p, hero_text: e.target.value }))}
                                             />
-                                            <Input
-                                                label="Logo URL"
-                                                value={brandingForm.logo_url || ''}
-                                                onChange={(e) => setBrandingForm((p) => ({ ...p, logo_url: e.target.value }))}
-                                            />
-                                            <Input
-                                                label="Favicon URL"
-                                                value={brandingForm.favicon_url || ''}
-                                                onChange={(e) => setBrandingForm((p) => ({ ...p, favicon_url: e.target.value }))}
-                                            />
+                                            <div>
+                                                <label className="block text-sm font-medium text-white/70 mb-2">
+                                                    Logo
+                                                </label>
+                                                <div className="flex items-center gap-3">
+                                                    {brandingForm.logo_url && (
+                                                        <img src={brandingForm.logo_url} alt="Logo" className="h-10 rounded" />
+                                                    )}
+                                                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer transition-all">
+                                                        <Upload className="w-4 h-4 text-white/60" />
+                                                        <span className="text-sm text-white/70">Upload Logo</span>
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            onChange={async (e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) {
+                                                                    try {
+                                                                        const result = await api.uploadImage(file);
+                                                                        setBrandingForm((p) => ({ ...p, logo_url: result.url }));
+                                                                    } catch (err) {
+                                                                        console.error('Logo upload failed:', err);
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    {brandingForm.logo_url && (
+                                                        <button
+                                                            onClick={() => setBrandingForm((p) => ({ ...p, logo_url: '' }))}
+                                                            className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                                            title="Remove logo"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-white/70 mb-2">
+                                                    Favicon
+                                                </label>
+                                                <div className="flex items-center gap-3">
+                                                    {brandingForm.favicon_url && (
+                                                        <img src={brandingForm.favicon_url} alt="Favicon" className="h-8 w-8 rounded" />
+                                                    )}
+                                                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer transition-all">
+                                                        <Upload className="w-4 h-4 text-white/60" />
+                                                        <span className="text-sm text-white/70">Upload Favicon</span>
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*,.ico"
+                                                            className="hidden"
+                                                            onChange={async (e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) {
+                                                                    try {
+                                                                        const result = await api.uploadImage(file);
+                                                                        setBrandingForm((p) => ({ ...p, favicon_url: result.url }));
+                                                                    } catch (err) {
+                                                                        console.error('Favicon upload failed:', err);
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    {brandingForm.favicon_url && (
+                                                        <button
+                                                            onClick={() => setBrandingForm((p) => ({ ...p, favicon_url: '' }))}
+                                                            className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                                            title="Remove favicon"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-white/70 mb-2">
                                                     Primary Color
