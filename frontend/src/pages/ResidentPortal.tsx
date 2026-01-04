@@ -25,10 +25,10 @@ import {
 import { Button, Input, Textarea, Card } from '../components/ui';
 import GoogleMapsLocationPicker from '../components/GoogleMapsLocationPicker';
 import TrackRequests from '../components/TrackRequests';
-import ResidentMapView from '../components/ResidentMapView';
+import StaffDashboardMap from '../components/StaffDashboardMap';
 import { useSettings } from '../context/SettingsContext';
 import { api, MapLayer } from '../services/api';
-import { ServiceDefinition, ServiceRequestCreate, ServiceRequest } from '../types';
+import { ServiceDefinition, ServiceRequestCreate, ServiceRequest, Department, User } from '../types';
 
 // Icon mapping for service categories
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
@@ -87,6 +87,8 @@ export default function ResidentPortal() {
     const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([]);
 
     const [mapLayers, setMapLayers] = useState<MapLayer[]>([]);
+    const [departments, setDepartments] = useState<Department[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     // Selected asset from map layer (for report logging)
     const [selectedAsset, setSelectedAsset] = useState<{ layerName: string; properties: Record<string, any>; lat: number; lng: number } | null>(null);
 
@@ -115,6 +117,15 @@ export default function ResidentPortal() {
         // Load custom map layers (public endpoint)
         api.getMapLayers().then((layers) => {
             setMapLayers(layers);
+        }).catch(() => { });
+
+        // Load departments and users for map filters
+        api.getDepartments().then((depts) => {
+            setDepartments(depts);
+        }).catch(() => { });
+
+        api.getUsers().then((userList) => {
+            setUsers(userList);
         }).catch(() => { });
     }, []);
 
@@ -514,7 +525,12 @@ export default function ResidentPortal() {
                                 )}
 
                                 {/* Community Map Section */}
-                                <div className="my-12 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                                {/* Section Divider */}
+                                <div className="my-16 flex items-center gap-4">
+                                    <div className="flex-1 h-[2px] bg-gradient-to-r from-transparent via-white/40 to-white/40" />
+                                    <div className="w-3 h-3 rounded-full bg-white/40" />
+                                    <div className="flex-1 h-[2px] bg-gradient-to-l from-transparent via-white/40 to-white/40" />
+                                </div>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -528,9 +544,13 @@ export default function ResidentPortal() {
                                         View all reported issues and service requests in our community
                                     </p>
                                     <div className="h-[500px] rounded-2xl overflow-hidden">
-                                        <ResidentMapView
+                                        <StaffDashboardMap
                                             apiKey={mapsApiKey || ''}
                                             requests={allRequests}
+                                            mapLayers={mapLayers}
+                                            services={services}
+                                            departments={departments}
+                                            users={users}
                                             townshipBoundary={townshipBoundary}
                                             onRequestSelect={() => { }}
                                         />
