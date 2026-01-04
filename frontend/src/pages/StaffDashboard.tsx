@@ -254,6 +254,36 @@ export default function StaffDashboard() {
         loadInitialData();
     }, []);
 
+    // Auto-refresh requests every 30 seconds for live updates
+    useEffect(() => {
+        const refreshRequests = async () => {
+            try {
+                const freshRequests = await api.getRequests();
+                setAllRequests(freshRequests);
+                // Re-apply current filter by updating requests state
+                // The filtered list will update via the existing useMemo
+            } catch (err) {
+                console.error('Auto-refresh failed:', err);
+            }
+        };
+
+        // Polling interval
+        const pollInterval = setInterval(refreshRequests, 30000); // 30 seconds
+
+        // Also refresh when tab becomes visible
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                refreshRequests();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(pollInterval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
     // Separate effect for statistics (only loads when needed)
     useEffect(() => {
         if (currentView === 'statistics' && !statistics) {
