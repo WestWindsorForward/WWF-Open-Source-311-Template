@@ -63,6 +63,11 @@ async def configure_notifications(db):
 @celery_app.task(bind=True, max_retries=3)
 def analyze_request(self, request_id: int):
     """Analyze service request with Vertex AI (if enabled)"""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[AI Analysis] Starting analysis for request {request_id}")
+    print(f"[AI Analysis] Starting analysis for request {request_id}")
+    
     async def _analyze():
         from app.models import SystemSettings
         from app.services.vertex_ai_service import (
@@ -78,12 +83,24 @@ def analyze_request(self, request_id: int):
             settings_result = await db.execute(select(SystemSettings).limit(1))
             settings = settings_result.scalar_one_or_none()
             if not settings or not settings.modules.get('ai_analysis', False):
+                msg = f"[AI Analysis] Skipped - AI analysis not enabled. modules={settings.modules if settings else 'No settings'}"
+                logger.info(msg)
+                print(msg)
                 return {"status": "skipped", "reason": "AI analysis not enabled"}
+            
+            logger.info(f"[AI Analysis] AI module is enabled, proceeding...")
+            print(f"[AI Analysis] AI module is enabled, proceeding...")
             
             # Get Vertex AI credentials
             project_id = await get_secret(db, "VERTEX_AI_PROJECT")
             if not project_id:
+                msg = "[AI Analysis] Skipped - VERTEX_AI_PROJECT not configured"
+                logger.warning(msg)
+                print(msg)
                 return {"status": "skipped", "reason": "VERTEX_AI_PROJECT not configured"}
+            
+            logger.info(f"[AI Analysis] Project ID found: {project_id}")
+            print(f"[AI Analysis] Project ID found: {project_id}")
             
             location = "us-central1"  # Default location
             service_account_json = await get_secret(db, "VERTEX_AI_SERVICE_ACCOUNT_KEY")
@@ -122,6 +139,9 @@ def analyze_request(self, request_id: int):
             image_data = request.media_urls[:3] if request.media_urls else None
             
             # Call Vertex AI
+            logger.info(f"[AI Analysis] Calling Vertex AI for request {request_id}...")
+            print(f"[AI Analysis] Calling Vertex AI for request {request_id}...")
+            
             analysis_result = await analyze_with_gemini(
                 project_id=project_id,
                 location=location,
@@ -129,6 +149,14 @@ def analyze_request(self, request_id: int):
                 image_data=image_data,
                 service_account_json=service_account_json if service_account_json else None
             )
+            
+            logger.info(f"[AI Analysis] Got result: {analysis_result}")
+            print(f"[AI Analysis] Got result: {analysis_result}")
+            
+            # Check for errors in result
+            if "_error" in analysis_result:
+                logger.error(f"[AI Analysis] Error from Vertex AI: {analysis_result['_error']}")
+                print(f"[AI Analysis] Error from Vertex AI: {analysis_result['_error']}")
             
             # Store the analysis
             request.ai_analysis = analysis_result
@@ -143,11 +171,18 @@ def analyze_request(self, request_id: int):
             request.vertex_ai_analyzed_at = datetime.utcnow()
             
             await db.commit()
+            logger.info(f"[AI Analysis] Saved analysis for request {request_id}")
+            print(f"[AI Analysis] Saved analysis for request {request_id}")
             return {"status": "success", "analysis": analysis_result}
     
     try:
-        return run_async(_analyze())
+        result = run_async(_analyze())
+        print(f"[AI Analysis] Task completed: {result}")
+        return result
     except Exception as exc:
+        print(f"[AI Analysis] Task failed with error: {exc}")
+        import traceback
+        traceback.print_exc()
         raise self.retry(exc=exc, countdown=60)
 
 
