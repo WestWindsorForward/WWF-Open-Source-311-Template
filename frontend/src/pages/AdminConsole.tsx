@@ -1483,14 +1483,23 @@ export default function AdminConsole() {
                                                 </div>
                                             </div>
 
-                                            {['GOOGLE_MAPS_API_KEY', 'VERTEX_AI_PROJECT'].map(key => {
+                                            {['GOOGLE_MAPS_API_KEY', 'VERTEX_AI_PROJECT', 'VERTEX_AI_SERVICE_ACCOUNT_KEY'].map(key => {
                                                 const secret = secrets.find(s => s.key_name === key);
                                                 const isConfigured = secret?.is_configured;
-                                                const label = key === 'GOOGLE_MAPS_API_KEY' ? 'Google Maps API Key' : 'Vertex AI Project ID';
+                                                const label = key === 'GOOGLE_MAPS_API_KEY' ? 'Google Maps API Key' :
+                                                    key === 'VERTEX_AI_PROJECT' ? 'Vertex AI Project ID' :
+                                                        'Service Account Key (JSON)';
+                                                const placeholder = key === 'GOOGLE_MAPS_API_KEY' ? 'AIza...' :
+                                                    key === 'VERTEX_AI_PROJECT' ? 'my-gcp-project' :
+                                                        '{"type": "service_account", ...}';
+                                                const isMultiline = key === 'VERTEX_AI_SERVICE_ACCOUNT_KEY';
                                                 return (
                                                     <div key={key} className="space-y-2">
                                                         <label className="block text-sm font-medium text-white/70">
                                                             {label}
+                                                            {key === 'VERTEX_AI_SERVICE_ACCOUNT_KEY' && (
+                                                                <span className="text-white/40 text-xs ml-2">(optional if using default GCP credentials)</span>
+                                                            )}
                                                         </label>
                                                         {isConfigured && !secretValues[key] ? (
                                                             <div className="flex items-center gap-3">
@@ -1504,12 +1513,21 @@ export default function AdminConsole() {
                                                             </div>
                                                         ) : (
                                                             <div className="flex gap-2">
-                                                                <Input
-                                                                    type={key === 'GOOGLE_MAPS_API_KEY' ? 'password' : 'text'}
-                                                                    placeholder={key === 'GOOGLE_MAPS_API_KEY' ? 'AIza...' : 'my-gcp-project'}
-                                                                    value={secretValues[key]?.trim() || ''}
-                                                                    onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
-                                                                />
+                                                                {isMultiline ? (
+                                                                    <textarea
+                                                                        placeholder={placeholder}
+                                                                        value={secretValues[key]?.trim() || ''}
+                                                                        onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
+                                                                        className="flex-1 min-h-[80px] p-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono resize-y"
+                                                                    />
+                                                                ) : (
+                                                                    <Input
+                                                                        type={key === 'GOOGLE_MAPS_API_KEY' ? 'password' : 'text'}
+                                                                        placeholder={placeholder}
+                                                                        value={secretValues[key]?.trim() || ''}
+                                                                        onChange={(e) => setSecretValues((p) => ({ ...p, [key]: e.target.value }))}
+                                                                    />
+                                                                )}
                                                                 <Button size="sm" onClick={() => handleUpdateSecret(key)} disabled={!secretValues[key]?.trim()}>
                                                                     Save
                                                                 </Button>
