@@ -464,17 +464,19 @@ async def update_request_status(
         )
         db.add(audit_entry)
     
-    # Staff assignment change
+    # Staff assignment change - only log if new value is non-empty
     if "assigned_to" in update_dict and update_dict["assigned_to"] != old_assigned_to:
-        audit_entry = RequestAuditLog(
-            service_request_id=request.id,
-            action="staff_assigned",
-            old_value=old_assigned_to,
-            new_value=update_dict["assigned_to"],
-            actor_type="staff",
-            actor_name=current_user.username
-        )
-        db.add(audit_entry)
+        # Only log if new staff is actually assigned (not cleared)
+        if update_dict["assigned_to"]:
+            audit_entry = RequestAuditLog(
+                service_request_id=request.id,
+                action="staff_assigned",
+                old_value=old_assigned_to,
+                new_value=update_dict["assigned_to"],
+                actor_type="staff",
+                actor_name=current_user.username
+            )
+            db.add(audit_entry)
     
     await db.commit()
     
