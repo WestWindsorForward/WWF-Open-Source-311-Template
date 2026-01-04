@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -42,6 +42,7 @@ import { ServiceRequest, ServiceRequestDetail, ServiceDefinition, Statistics, Ad
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Tooltip, Legend } from 'recharts';
 import StaffDashboardMap from '../components/StaffDashboardMap';
 import RequestDetailMap from '../components/RequestDetailMap';
+import { usePageNavigation } from '../hooks/usePageNavigation';
 
 type View = 'dashboard' | 'active' | 'in_progress' | 'resolved' | 'statistics';
 
@@ -50,6 +51,13 @@ export default function StaffDashboard() {
     const { requestId: urlRequestId } = useParams<{ requestId?: string }>();
     const { user, logout } = useAuth();
     const { settings } = useSettings();
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // URL hashing, dynamic titles, and scroll-to-top
+    const { updateHash, updateTitle, scrollToTop } = usePageNavigation({
+        baseTitle: settings?.township_name ? `Staff Portal | ${settings.township_name}` : 'Staff Portal',
+        scrollContainerRef: contentRef,
+    });
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -230,6 +238,28 @@ export default function StaffDashboard() {
             loadRequestDetail(urlRequestId);
         }
     }, [urlRequestId]);
+
+    // Update URL hash and title when view changes
+    useEffect(() => {
+        updateHash(currentView);
+        const viewTitles: Record<View, string> = {
+            dashboard: 'Dashboard',
+            active: 'Open Requests',
+            in_progress: 'In Progress',
+            resolved: 'Resolved',
+            statistics: 'Statistics'
+        };
+        updateTitle(viewTitles[currentView]);
+        scrollToTop('instant');
+    }, [currentView, updateHash, updateTitle, scrollToTop]);
+
+    // Update URL hash when request is selected
+    useEffect(() => {
+        if (selectedRequest) {
+            updateHash(`${currentView}/request/${selectedRequest.service_request_id}`);
+            updateTitle(`Request ${selectedRequest.service_request_id}`);
+        }
+    }, [selectedRequest, currentView, updateHash, updateTitle]);
 
     const loadInitialData = async () => {
         setIsLoading(true);

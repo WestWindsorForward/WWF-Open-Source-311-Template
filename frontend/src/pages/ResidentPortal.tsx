@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -29,6 +29,7 @@ import StaffDashboardMap from '../components/StaffDashboardMap';
 import { useSettings } from '../context/SettingsContext';
 import { api, MapLayer } from '../services/api';
 import { ServiceDefinition, ServiceRequestCreate, ServiceRequest, Department, User } from '../types';
+import { usePageNavigation } from '../hooks/usePageNavigation';
 
 // Icon mapping for service categories
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
@@ -58,6 +59,31 @@ export default function ResidentPortal() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submittedId, setSubmittedId] = useState<string | null>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // URL hashing, dynamic titles, and scroll-to-top
+    const { updateHash, updateTitle, scrollToTop } = usePageNavigation({
+        baseTitle: settings?.township_name || 'Resident Portal',
+        scrollContainerRef: contentRef,
+    });
+
+    // Update hash and title based on current step and view
+    useEffect(() => {
+        if (showTrackingView) {
+            updateHash('track');
+            updateTitle('Track My Requests');
+        } else if (step === 'categories') {
+            updateHash('');
+            updateTitle('Report an Issue');
+        } else if (step === 'form' && selectedService) {
+            updateHash(`report/${selectedService.service_code}`);
+            updateTitle(selectedService.service_name);
+        } else if (step === 'success') {
+            updateHash('success');
+            updateTitle('Request Submitted');
+        }
+        scrollToTop('instant');
+    }, [step, showTrackingView, selectedService, updateHash, updateTitle, scrollToTop]);
 
     // Requests for staff map
     const [allRequests, setAllRequests] = useState<ServiceRequest[]>([]);

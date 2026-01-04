@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -58,6 +58,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api, MapLayer } from '../services/api';
 import { User, ServiceDefinition, SystemSettings, SystemSecret, Department } from '../types';
+import { usePageNavigation } from '../hooks/usePageNavigation';
 
 // Icon library for service categories
 const ICON_LIBRARY: { name: string; icon: LucideIcon }[] = [
@@ -103,6 +104,29 @@ export default function AdminConsole() {
     const [currentTab, setCurrentTab] = useState<Tab>('branding');
     const [isLoading, setIsLoading] = useState(false);
     const [saveMessage, setSaveMessage] = useState<string | null>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // URL hashing, dynamic titles, and scroll-to-top
+    const { updateHash, updateTitle, scrollToTop } = usePageNavigation({
+        baseTitle: settings?.township_name ? `Admin Console | ${settings.township_name}` : 'Admin Console',
+        scrollContainerRef: contentRef,
+    });
+
+    // Update hash and title when tab changes
+    useEffect(() => {
+        updateHash(currentTab);
+        const tabTitles: Record<Tab, string> = {
+            branding: 'Branding',
+            users: 'User Management',
+            departments: 'Departments',
+            services: 'Service Categories',
+            secrets: 'API Keys',
+            modules: 'Modules',
+            maps: 'Maps Configuration'
+        };
+        updateTitle(tabTitles[currentTab]);
+        scrollToTop('instant');
+    }, [currentTab, updateHash, updateTitle, scrollToTop]);
 
     // Branding state
     const [brandingForm, setBrandingForm] = useState<Partial<SystemSettings>>({});
