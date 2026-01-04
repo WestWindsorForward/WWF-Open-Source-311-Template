@@ -301,6 +301,8 @@ export default function AdminConsole() {
                     setDepartments(deptsData);
                     break;
                 case 'secrets':
+                    // First sync to ensure all default secrets exist
+                    try { await api.syncSecrets(); } catch { /* ignore sync errors */ }
                     const secretsData = await api.getSecrets();
                     setSecrets(secretsData);
                     break;

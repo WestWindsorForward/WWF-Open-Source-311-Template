@@ -294,6 +294,10 @@ class ApiClient {
         });
     }
 
+    async syncSecrets(): Promise<{ status: string; added_secrets: string[]; count: number }> {
+        return this.request('/system/secrets/sync', { method: 'POST' });
+    }
+
     // Statistics
     async getStatistics(): Promise<Statistics> {
         return this.request<Statistics>('/system/statistics');
