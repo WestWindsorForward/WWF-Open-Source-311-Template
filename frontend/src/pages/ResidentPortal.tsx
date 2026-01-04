@@ -148,10 +148,11 @@ export default function ResidentPortal() {
         }
     };
 
-    // Load requests for the map (use same endpoint as Staff Dashboard)
+    // Load requests for the map (public endpoint - includes department/staff for filtering)
     useEffect(() => {
-        api.getRequests().then((requests) => {
-            setAllRequests(requests);
+        api.getPublicRequests().then((requests) => {
+            // Cast to ServiceRequest since we now include assigned_department_id and assigned_to
+            setAllRequests(requests as unknown as ServiceRequest[]);
         }).catch(() => { });
     }, []);
 

@@ -86,6 +86,9 @@ async def list_public_requests(
             "completion_message": r.completion_message[:200] if r.completion_message else None,
             "completion_photo_url": None,  # Excluded from list - use has_completion_photo flag
             "has_completion_photo": bool(r.completion_photo_url),  # Flag indicating completion photo exists
+            # Fields for map filtering
+            "assigned_department_id": r.assigned_department_id,
+            "assigned_to": r.assigned_to,
         }
         for r in requests
     ]
