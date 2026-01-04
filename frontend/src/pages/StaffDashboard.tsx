@@ -1393,91 +1393,114 @@ export default function StaffDashboard() {
                                                 if (!ai && !qualitativeText) return null;
 
                                                 return (
-                                                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-purple-900/20 to-slate-900/80 border border-purple-500/30 mb-4 backdrop-blur-sm">
-                                                        {/* Decorative gradient accent */}
-                                                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500" />
+                                                    <div className="relative overflow-hidden rounded-xl bg-slate-800/40 border border-white/10 mb-4 backdrop-blur-sm">
+                                                        {/* Professional accent line */}
+                                                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500/50 via-purple-500/50 to-primary-500/50" />
 
                                                         <div className="p-5">
                                                             {/* Header Row */}
                                                             <div className="flex items-center justify-between mb-4">
                                                                 <div className="flex items-center gap-2.5">
-                                                                    <div className="p-2 rounded-lg bg-purple-500/20 ring-1 ring-purple-500/30">
-                                                                        <Brain className="w-4 h-4 text-purple-400" />
+                                                                    <div className="p-2 rounded-lg bg-white/5 ring-1 ring-white/10">
+                                                                        <Brain className="w-4 h-4 text-primary-400" />
                                                                     </div>
                                                                     <div>
-                                                                        <span className="text-sm font-bold text-white tracking-wide">AI Analysis</span>
-                                                                        <p className="text-[10px] text-purple-400/70">Powered by Gemini</p>
+                                                                        <span className="text-sm font-bold text-white tracking-wide uppercase">Actionable Intelligence</span>
+                                                                        <p className="text-[10px] text-white/40">Powered by Gemini 3.0 Flash</p>
                                                                     </div>
                                                                 </div>
-                                                                {/* Priority Score Badge - Enhanced */}
+                                                                {/* Priority Score Badge - Cleaned up */}
                                                                 {priorityScore && !hasError && (
-                                                                    <div className={`relative px-4 py-2 rounded-xl font-bold text-sm ${priorityScore >= 8 ? 'bg-gradient-to-br from-red-500/30 to-red-600/20 text-red-300 ring-2 ring-red-500/40 shadow-lg shadow-red-500/20' :
-                                                                            priorityScore >= 6 ? 'bg-gradient-to-br from-amber-500/30 to-orange-600/20 text-amber-300 ring-2 ring-amber-500/40 shadow-lg shadow-amber-500/20' :
-                                                                                priorityScore >= 4 ? 'bg-gradient-to-br from-blue-500/30 to-cyan-600/20 text-blue-300 ring-2 ring-blue-500/40 shadow-lg shadow-blue-500/20' :
-                                                                                    'bg-gradient-to-br from-green-500/30 to-emerald-600/20 text-green-300 ring-2 ring-green-500/40 shadow-lg shadow-green-500/20'
+                                                                    <div className={`px-3 py-1.5 rounded-lg font-bold text-sm ring-1 ${priorityScore >= 8 ? 'bg-red-500/10 text-red-400 ring-red-500/20' :
+                                                                        priorityScore >= 6 ? 'bg-amber-500/10 text-amber-400 ring-amber-500/20' :
+                                                                            priorityScore >= 4 ? 'bg-blue-500/10 text-blue-400 ring-blue-500/20' :
+                                                                                'bg-green-500/10 text-green-400 ring-green-500/20'
                                                                         }`}>
-                                                                        <span className="text-xs uppercase tracking-wider opacity-70">Priority</span>
-                                                                        <span className="ml-1.5 text-lg">{Number(priorityScore).toFixed(1)}</span>
-                                                                        <span className="text-xs opacity-60">/10</span>
+                                                                        <span className="text-[10px] uppercase tracking-wider opacity-60 mr-1.5 font-medium">Priority</span>
+                                                                        <span className="text-base">{Number(priorityScore).toFixed(1)}</span>
                                                                     </div>
                                                                 )}
                                                             </div>
 
+                                                            {/* Content Moderation Warning */}
+                                                            {ai?.content_flags && ai.content_flags.length > 0 && !ai.content_flags.includes('none') && (
+                                                                <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-2.5">
+                                                                    <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                                                                    <div>
+                                                                        <p className="text-xs font-bold text-red-400 uppercase tracking-tight">Content Warning</p>
+                                                                        <p className="text-xs text-red-300/80">AI detected: {ai.content_flags.join(', ').replace(/_/g, ' ')}</p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
                                                             {/* Main Analysis Text */}
                                                             {qualitativeText && (
-                                                                <p className={`text-sm leading-relaxed mb-4 ${hasError ? 'text-amber-300/80' : 'text-white/85'}`}>
+                                                                <p className={`text-sm leading-relaxed mb-4 ${hasError ? 'text-amber-300/80' : 'text-white/80 font-medium'}`}>
                                                                     {qualitativeText}
                                                                 </p>
                                                             )}
 
                                                             {/* Priority Justification Quote */}
                                                             {ai?.priority_justification && !hasError && (
-                                                                <div className="relative pl-4 mb-5 border-l-2 border-purple-500/40">
-                                                                    <p className="text-white/50 text-xs italic leading-relaxed">"{ai.priority_justification}"</p>
+                                                                <div className="relative pl-4 mb-5 border-l-2 border-primary-500/20">
+                                                                    <p className="text-white/40 text-xs italic leading-relaxed">"{ai.priority_justification}"</p>
                                                                 </div>
                                                             )}
 
-                                                            {/* Quantitative Metrics - Enhanced Grid */}
-                                                            {ai?.quantitative_metrics && !hasError && (
-                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                                                                    {ai.quantitative_metrics.estimated_severity && ai.quantitative_metrics.estimated_severity !== 'unknown' && (
-                                                                        <div className="p-3 rounded-lg bg-white/5 border border-white/10">
-                                                                            <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Severity</p>
-                                                                            <p className={`text-sm font-semibold ${ai.quantitative_metrics.estimated_severity === 'critical' ? 'text-red-400' :
-                                                                                    ai.quantitative_metrics.estimated_severity === 'high' ? 'text-amber-400' :
-                                                                                        ai.quantitative_metrics.estimated_severity === 'medium' ? 'text-blue-400' : 'text-green-400'
-                                                                                }`}>{ai.quantitative_metrics.estimated_severity}</p>
+                                                            {/* Photo Assessment - New Section */}
+                                                            {ai?.photo_assessment && !hasError && (
+                                                                <div className="mb-5 p-3 rounded-lg bg-white/5 border border-white/5 space-y-2.5">
+                                                                    <div className="flex items-center gap-1.5 opacity-50">
+                                                                        <Camera className="w-3.5 h-3.5" />
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider">Visual Triage Assessment</span>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 gap-2">
+                                                                        <div className="flex justify-between items-center text-xs">
+                                                                            <span className="text-white/40">Physical Scale</span>
+                                                                            <span className="text-white/80 font-medium">{ai.photo_assessment.physical_scale}</span>
                                                                         </div>
-                                                                    )}
-                                                                    {ai.quantitative_metrics.estimated_affected_area && ai.quantitative_metrics.estimated_affected_area !== 'unknown' && (
-                                                                        <div className="p-3 rounded-lg bg-white/5 border border-white/10">
-                                                                            <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Affected Area</p>
-                                                                            <p className="text-sm font-semibold text-white/80">{ai.quantitative_metrics.estimated_affected_area}</p>
+                                                                        <div className="flex justify-between items-center text-xs">
+                                                                            <span className="text-white/40">Estimated Effort</span>
+                                                                            <span className="text-white/80 font-medium">{ai.photo_assessment.estimated_effort}</span>
+                                                                        </div>
+                                                                        <div className="flex justify-between items-center text-xs">
+                                                                            <span className="text-white/40">Blocking Severity</span>
+                                                                            <span className={`font-bold ${ai.photo_assessment.blocking_severity === 'full_block' ? 'text-red-400' :
+                                                                                ai.photo_assessment.blocking_severity === 'partial' ? 'text-amber-400' : 'text-green-400'
+                                                                                }`}>{ai.photo_assessment.blocking_severity?.replace('_', ' ').toUpperCase()}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Quantitative Metrics - Cleaned up Grid */}
+                                                            {ai?.quantitative_metrics && !hasError && (
+                                                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                                                    {ai.quantitative_metrics.estimated_severity && ai.quantitative_metrics.estimated_severity !== 'unknown' && (
+                                                                        <div className="p-2.5 rounded-lg bg-white/5 border border-white/5">
+                                                                            <p className="text-[9px] uppercase tracking-wider text-white/30 mb-0.5">Severity</p>
+                                                                            <p className={`text-xs font-bold ${ai.quantitative_metrics.estimated_severity === 'critical' ? 'text-red-400' :
+                                                                                ai.quantitative_metrics.estimated_severity === 'high' ? 'text-amber-400' :
+                                                                                    ai.quantitative_metrics.estimated_severity === 'medium' ? 'text-blue-400' : 'text-green-400'
+                                                                                }`}>{ai.quantitative_metrics.estimated_severity.toUpperCase()}</p>
                                                                         </div>
                                                                     )}
                                                                     {ai.quantitative_metrics.recurrence_risk && ai.quantitative_metrics.recurrence_risk !== 'unknown' && (
-                                                                        <div className="p-3 rounded-lg bg-white/5 border border-white/10">
-                                                                            <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Recurrence Risk</p>
-                                                                            <p className={`text-sm font-semibold ${ai.quantitative_metrics.recurrence_risk === 'high' ? 'text-red-400' :
-                                                                                    ai.quantitative_metrics.recurrence_risk === 'medium' ? 'text-amber-400' : 'text-green-400'
-                                                                                }`}>{ai.quantitative_metrics.recurrence_risk}</p>
-                                                                        </div>
-                                                                    )}
-                                                                    {ai.recommended_response_time && (
-                                                                        <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                                                                            <p className="text-[10px] uppercase tracking-wider text-purple-400/60 mb-1">Response Time</p>
-                                                                            <p className="text-sm font-bold text-purple-300">{ai.recommended_response_time}</p>
+                                                                        <div className="p-2.5 rounded-lg bg-white/5 border border-white/5">
+                                                                            <p className="text-[9px] uppercase tracking-wider text-white/30 mb-0.5">Recurrence Risk</p>
+                                                                            <p className={`text-xs font-bold ${ai.quantitative_metrics.recurrence_risk === 'high' ? 'text-red-400' :
+                                                                                ai.quantitative_metrics.recurrence_risk === 'medium' ? 'text-amber-400' : 'text-green-400'
+                                                                                }`}>{ai.quantitative_metrics.recurrence_risk.toUpperCase()}</p>
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                             )}
 
-                                                            {/* Safety Flags - Enhanced Pills */}
+                                                            {/* Safety Flags - Cleaned up Pills */}
                                                             {ai?.safety_flags && Array.isArray(ai.safety_flags) && ai.safety_flags.length > 0 && (
-                                                                <div className="flex flex-wrap gap-2 mb-3">
+                                                                <div className="flex flex-wrap gap-1.5 mb-4">
                                                                     {ai.safety_flags.map((flag: string, i: number) => (
-                                                                        <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-500/20 to-orange-500/20 text-red-300 text-xs font-semibold ring-1 ring-red-500/30 shadow-sm">
-                                                                            <span className="text-amber-400">⚠</span>
+                                                                        <span key={i} className="inline-flex items-center px-2 py-1 rounded bg-red-500/10 text-red-400 text-[10px] font-bold ring-1 ring-red-500/20">
                                                                             {flag.replace(/_/g, ' ').toUpperCase()}
                                                                         </span>
                                                                     ))}
@@ -1485,16 +1508,19 @@ export default function StaffDashboard() {
                                                             )}
 
                                                             {/* Footer with timestamp */}
-                                                            <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                                                            <div className="flex items-center justify-between pt-3 border-t border-white/5">
                                                                 {selectedRequest.vertex_ai_analyzed_at && (
-                                                                    <p className="text-white/30 text-[10px]">
+                                                                    <p className="text-white/20 text-[9px]">
                                                                         Analyzed {new Date(selectedRequest.vertex_ai_analyzed_at).toLocaleString()}
                                                                     </p>
                                                                 )}
                                                                 {!hasError && (
-                                                                    <p className="text-[10px] text-purple-400/50">
-                                                                        ✓ Photo + Historical Data Analyzed
-                                                                    </p>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500/50 animate-pulse" />
+                                                                        <p className="text-[9px] text-white/30 font-medium">
+                                                                            Visual + Spatial Context Integrated
+                                                                        </p>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </div>

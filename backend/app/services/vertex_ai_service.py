@@ -95,7 +95,7 @@ def build_analysis_prompt(
         prompt += f"""
 ## Historical Context
 - **Previous reports at this location**: {historical_context.get('recurrence_count', 0)}
-- **Similar active reports nearby**: {historical_context.get('nearby_similar', 0)}
+- **Similar active reports nearby (within 500m)**: {historical_context.get('nearby_similar', 0)}
 - **Past resolution success rate at location**: {historical_context.get('resolution_rate', 'N/A')}%
 """
 
@@ -112,13 +112,27 @@ def build_analysis_prompt(
     prompt += """
 ## Analysis Required
 
-Provide your analysis in the following JSON format ONLY (no other text):
+Analyze the provided description and any attached photos (if available) to provide a professional triage assessment.
+
+### Photo & Description Analysis Instructions:
+1. **Size/Scale Assessment**: Deeply analyze the photo to estimate the physical dimensions or scale of the issue (e.g., "pothole is ~2ft wide", "debris pile is significant").
+2. **Effort Estimation**: Estimate the likely effort required to resolve (e.g., "requires heavy machinery", "simple manual clearing", "requires 2-person crew").
+3. **Blocking Analysis**: Specifically assess if the issue is blocking regular flow (e.g., "blocking entire sidewalk", "lane reduction required", "completely blocking residential access").
+4. **Content Moderation**: Check if the description or photo contains inappropriate, malicious, obscene, or threatening content.
+
+Provide your analysis in the following JSON format ONLY:
 
 ```json
 {
   "priority_score": <float 1.0-10.0>,
-  "priority_justification": "<brief explanation for the score>",
+  "priority_justification": "<brief explanation for the score based on photos and description>",
   "qualitative_analysis": "<2-3 sentence assessment of the issue, its likely cause, and impact>",
+  "photo_assessment": {
+    "physical_scale": "<desc>",
+    "estimated_effort": "<desc>",
+    "blocking_severity": "<none|partial|full_block>"
+  },
+  "content_flags": ["<inappropriate_content|malicious_intent|obscene_language|none>"],
   "quantitative_metrics": {
     "estimated_severity": "<low|medium|high|critical>",
     "estimated_affected_area": "<localized|block|neighborhood|widespread>",
@@ -146,7 +160,7 @@ async def analyze_with_gemini(
     service_account_json: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Call Gemini 2.0 Flash via Vertex AI API.
+    Call Gemini 3.0 Flash via Vertex AI API.
     
     Args:
         project_id: Google Cloud project ID
@@ -182,7 +196,7 @@ async def analyze_with_gemini(
         credentials.refresh(Request())
         
         # Build the API endpoint
-        endpoint = f"https://{location}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{location}/publishers/google/models/gemini-2.0-flash:generateContent"
+        endpoint = f"https://{location}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{location}/publishers/google/models/gemini-3.0-flash:generateContent"
         
         # Build the request payload
         contents = []
@@ -296,7 +310,7 @@ async def analyze_with_gemini(
         }
 
 
-async def get_historical_context(db, address: str, service_code: str) -> Dict[str, Any]:
+async def get_historical_context(db, address: str, service_code: str, lat: Optional[float] = None, long: Optional[float] = None) -> Dict[str, Any]:
     """
     Query historical data for context.
     Returns recurrence count, nearby similar reports, resolution rate.
@@ -310,28 +324,47 @@ async def get_historical_context(db, address: str, service_code: str) -> Dict[st
         "resolution_rate": None
     }
     
-    if not address:
-        return context
-    
     try:
-        # Count previous reports at same address
-        result = await db.execute(
-            select(func.count(ServiceRequest.id)).where(
-                ServiceRequest.address == address,
-                ServiceRequest.deleted_at.is_(None)
+        # Count previous reports at same address (if address provided)
+        if address:
+            result = await db.execute(
+                select(func.count(ServiceRequest.id)).where(
+                    ServiceRequest.address == address,
+                    ServiceRequest.deleted_at.is_(None)
+                )
             )
-        )
-        context["recurrence_count"] = result.scalar() or 0
+            context["recurrence_count"] = result.scalar() or 0
         
         # Count similar active reports
-        result = await db.execute(
-            select(func.count(ServiceRequest.id)).where(
+        # If lat/long provided, use PostGIS for proximity (within 500m)
+        if lat is not None and long is not None:
+            # Using PostGIS ST_DWithin with geography for meter-based radius
+            from geoalchemy2 import Geography
+            from sqlalchemy import cast
+            
+            point = func.ST_SetSRID(func.ST_MakePoint(long, lat), 4326)
+            query = select(func.count(ServiceRequest.id)).where(
                 ServiceRequest.service_code == service_code,
                 ServiceRequest.status.in_(["open", "in_progress"]),
-                ServiceRequest.deleted_at.is_(None)
+                ServiceRequest.deleted_at.is_(None),
+                func.ST_DWithin(
+                    cast(ServiceRequest.location, Geography),
+                    cast(point, Geography),
+                    500
+                )
             )
-        )
-        context["nearby_similar"] = result.scalar() or 0
+            result = await db.execute(query)
+            context["nearby_similar"] = result.scalar() or 0
+        else:
+            # Fallback to category match if no location (less precise)
+            result = await db.execute(
+                select(func.count(ServiceRequest.id)).where(
+                    ServiceRequest.service_code == service_code,
+                    ServiceRequest.status.in_(["open", "in_progress"]),
+                    ServiceRequest.deleted_at.is_(None)
+                )
+            )
+            context["nearby_similar"] = result.scalar() or 0
         
     except Exception as e:
         print(f"Error getting historical context: {e}")

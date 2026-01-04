@@ -125,7 +125,8 @@ def analyze_request(self, request_id: int):
             
             # Get historical context
             historical_context = await get_historical_context(
-                db, request.address, request.service_code
+                db, request.address, request.service_code,
+                lat=request.lat, long=request.long
             )
             
             # Build the analysis prompt
