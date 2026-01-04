@@ -121,12 +121,14 @@ export default function ResidentPortal() {
 
         // Load departments and users for map filters
         api.getDepartments().then((depts) => {
+            console.log('[ResidentPortal] Loaded departments:', depts.length, depts);
             setDepartments(depts);
-        }).catch(() => { });
+        }).catch((err) => { console.error('[ResidentPortal] Failed to load departments:', err); });
 
         api.getPublicStaffList().then((userList) => {
+            console.log('[ResidentPortal] Loaded users:', userList.length, userList);
             setUsers(userList);
-        }).catch(() => { });
+        }).catch((err) => { console.error('[ResidentPortal] Failed to load public staff:', err); });
     }, []);
 
 
