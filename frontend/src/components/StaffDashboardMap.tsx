@@ -241,13 +241,23 @@ export default function StaffDashboardMap({
             // Category filter
             if (categoryFilters[r.service_code] === false) return false;
 
-            // Department filter
-            const requestDeptId = (r as any).assigned_department_id || 0;
-            if (departmentFilters[requestDeptId] === false) return false;
+            // Department filter - only filter if departments are loaded
+            const requestDeptId = (r as any).assigned_department_id ?? 0;
+            if (Object.keys(departmentFilters).length > 0) {
+                // If the department ID is in filters and set to false, hide it
+                if (departmentFilters[requestDeptId] === false) return false;
+                // If the department ID isn't in filters at all (unknown dept), check if unassigned is hidden
+                if (!(requestDeptId in departmentFilters) && departmentFilters[0] === false) return false;
+            }
 
-            // Staff filter
-            const requestStaff = (r as any).assigned_to || '';
-            if (staffFilters[requestStaff] === false) return false;
+            // Staff filter - only filter if users are loaded
+            const requestStaff = (r as any).assigned_to ?? '';
+            if (Object.keys(staffFilters).length > 0) {
+                // If the staff is in filters and set to false, hide it
+                if (staffFilters[requestStaff] === false) return false;
+                // If the staff isn't in filters at all (unknown staff), check if unassigned is hidden
+                if (!(requestStaff in staffFilters) && staffFilters[''] === false) return false;
+            }
 
             // Assignment filter - search in assigned_to, service_name, or description
             if (assignmentFilter) {
