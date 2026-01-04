@@ -30,6 +30,7 @@ import {
     LayoutDashboard,
     Users,
     ChevronDown,
+    ChevronLeft,
     Check,
     ExternalLink,
 } from 'lucide-react';
@@ -1129,8 +1130,20 @@ export default function StaffDashboard() {
                             </div>
                         </div>
 
-                        {/* Detail Panel - Simplified Unified Layout */}
-                        <div className="hidden lg:flex flex-1 flex-col">
+                        {/* Detail Panel - Shows as overlay on mobile, side panel on desktop */}
+                        <div className={`${selectedRequest ? 'fixed inset-0 z-50 lg:relative lg:inset-auto' : 'hidden'} lg:flex flex-1 flex-col bg-slate-900`}>
+                            {/* Mobile Back Button */}
+                            {selectedRequest && (
+                                <div className="lg:hidden p-3 border-b border-white/10 flex items-center">
+                                    <button
+                                        onClick={() => setSelectedRequest(null)}
+                                        className="flex items-center gap-2 text-white/70 hover:text-white"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" />
+                                        <span>Back to List</span>
+                                    </button>
+                                </div>
+                            )}
                             {selectedRequest ? (
                                 <div className="flex-1 flex flex-col">
                                     {/* Sticky Header with Actions & Assignment - Premium Glass Style */}
