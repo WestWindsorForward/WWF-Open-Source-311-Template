@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -53,10 +53,34 @@ export default function StaffDashboard() {
     const { settings } = useSettings();
     const contentRef = useRef<HTMLDivElement>(null);
 
+    // Handle browser back/forward navigation
+    const handleHashChange = useCallback((hash: string) => {
+        // Parse hash: could be 'dashboard', 'statistics', 'active', 'active/request/SR-123', etc.
+        const parts = hash.split('/');
+        const view = parts[0] as View;
+        const validViews: View[] = ['dashboard', 'active', 'in_progress', 'resolved', 'statistics'];
+
+        if (validViews.includes(view)) {
+            setCurrentView(view);
+            if (parts[1] === 'request' && parts[2]) {
+                // Has request ID - load it
+                loadRequestDetail(parts[2]);
+            } else {
+                // No request - clear selection
+                setSelectedRequest(null);
+            }
+        } else if (!hash) {
+            // Empty hash - go to dashboard
+            setCurrentView('dashboard');
+            setSelectedRequest(null);
+        }
+    }, []);
+
     // URL hashing, dynamic titles, and scroll-to-top
     const { updateHash, updateTitle, scrollToTop } = usePageNavigation({
         baseTitle: settings?.township_name ? `Staff Portal | ${settings.township_name}` : 'Staff Portal',
         scrollContainerRef: contentRef,
+        onHashChange: handleHashChange,
     });
 
     const [sidebarOpen, setSidebarOpen] = useState(false);

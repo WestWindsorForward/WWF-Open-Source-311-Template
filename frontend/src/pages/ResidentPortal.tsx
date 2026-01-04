@@ -475,7 +475,16 @@ export default function ResidentPortal() {
                             <ArrowLeft className="w-5 h-5" />
                             <span>Back to Home</span>
                         </button>
-                        <TrackRequests initialRequestId={urlRequestId} />
+                        <TrackRequests
+                            initialRequestId={urlRequestId}
+                            onRequestSelect={(requestId) => {
+                                if (requestId) {
+                                    updateHash(`track/${requestId}`);
+                                } else {
+                                    updateHash('track');
+                                }
+                            }}
+                        />
                     </div>
                 ) : (
                     <AnimatePresence mode="wait">

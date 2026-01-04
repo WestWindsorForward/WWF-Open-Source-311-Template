@@ -39,8 +39,6 @@ function AppRoutes() {
     return (
         <Routes>
             <Route path="/" element={<ResidentPortal />} />
-            <Route path="/track" element={<ResidentPortal />} />
-            <Route path="/track/:requestId" element={<ResidentPortal />} />
             <Route path="/login" element={<Login />} />
             <Route
                 path="/staff"

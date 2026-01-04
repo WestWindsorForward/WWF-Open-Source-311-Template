@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import {
     MapPin,
     Clock,
@@ -28,6 +27,7 @@ type StatusFilter = 'all' | 'open' | 'in_progress' | 'closed';
 
 interface TrackRequestsProps {
     initialRequestId?: string;
+    onRequestSelect?: (requestId: string | null) => void;  // Callback for when a request is selected/deselected
 }
 
 const statusColors: Record<string, { bg: string; text: string; border: string; label: string; icon: React.ReactNode }> = {
@@ -54,8 +54,7 @@ const statusColors: Record<string, { bg: string; text: string; border: string; l
     },
 };
 
-export default function TrackRequests({ initialRequestId }: TrackRequestsProps) {
-    const navigate = useNavigate();
+export default function TrackRequests({ initialRequestId, onRequestSelect }: TrackRequestsProps) {
     const [requests, setRequests] = useState<PublicServiceRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -144,7 +143,8 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
 
     const copyLink = () => {
         if (!selectedRequest) return;
-        const url = `${window.location.origin}/track/${selectedRequest.service_request_id}`;
+        // Use hash-based URL for sharing
+        const url = `${window.location.origin}/#track/${selectedRequest.service_request_id}`;
         navigator.clipboard.writeText(url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -153,7 +153,8 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
     const handleSelectRequest = async (request: PublicServiceRequest) => {
         // Set initial data from list (without media)
         setSelectedRequest(request);
-        navigate(`/track/${request.service_request_id}`, { replace: true });
+        // Notify parent of selection for hash update
+        onRequestSelect?.(request.service_request_id);
 
         // Fetch full details with media in background
         try {
@@ -167,7 +168,8 @@ export default function TrackRequests({ initialRequestId }: TrackRequestsProps) 
 
     const handleBackToList = () => {
         setSelectedRequest(null);
-        navigate('/track', { replace: true });
+        // Notify parent to update hash back to track list
+        onRequestSelect?.(null);
     };
 
 
