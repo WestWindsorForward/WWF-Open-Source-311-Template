@@ -148,10 +148,10 @@ export default function ResidentPortal() {
         }
     };
 
-    // Load requests for the map
+    // Load requests for the map (use same endpoint as Staff Dashboard)
     useEffect(() => {
-        api.getPublicRequests().then((requests) => {
-            setAllRequests(requests as unknown as ServiceRequest[]);
+        api.getRequests().then((requests) => {
+            setAllRequests(requests);
         }).catch(() => { });
     }, []);
 
