@@ -1374,106 +1374,133 @@ export default function StaffDashboard() {
                                             {/* Description */}
                                             <p className="text-white/90 leading-relaxed mb-4">{selectedRequest.description}</p>
 
-                                            {/* AI Analysis - Enhanced Display */}
+                                            {/* Photos - Now ABOVE AI Analysis */}
+                                            {selectedRequest.media_urls && selectedRequest.media_urls.length > 0 && (
+                                                <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+                                                    {selectedRequest.media_urls.map((url, i) => (
+                                                        <img key={i} src={url} alt={`Photo ${i + 1}`} className="w-28 h-20 flex-shrink-0 object-cover rounded-lg cursor-pointer hover:opacity-80 ring-1 ring-white/10" onClick={() => setLightboxUrl(url)} />
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* AI Analysis - Premium Enhanced Display (Now BELOW Photos) */}
                                             {(() => {
                                                 const ai = selectedRequest.ai_analysis as any;
                                                 const priorityScore = ai?.priority_score ?? selectedRequest.vertex_ai_priority_score ?? null;
                                                 const qualitativeText = ai?.qualitative_analysis ?? selectedRequest.vertex_ai_summary ?? null;
+                                                const hasError = ai?._error;
 
                                                 if (!ai && !qualitativeText) return null;
 
                                                 return (
-                                                    <div className="p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border border-purple-500/20 mb-4">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <Brain className="w-4 h-4 text-purple-400" />
-                                                                <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">AI Analysis</span>
+                                                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-purple-900/20 to-slate-900/80 border border-purple-500/30 mb-4 backdrop-blur-sm">
+                                                        {/* Decorative gradient accent */}
+                                                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500" />
+
+                                                        <div className="p-5">
+                                                            {/* Header Row */}
+                                                            <div className="flex items-center justify-between mb-4">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className="p-2 rounded-lg bg-purple-500/20 ring-1 ring-purple-500/30">
+                                                                        <Brain className="w-4 h-4 text-purple-400" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-sm font-bold text-white tracking-wide">AI Analysis</span>
+                                                                        <p className="text-[10px] text-purple-400/70">Powered by Gemini</p>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Priority Score Badge - Enhanced */}
+                                                                {priorityScore && !hasError && (
+                                                                    <div className={`relative px-4 py-2 rounded-xl font-bold text-sm ${priorityScore >= 8 ? 'bg-gradient-to-br from-red-500/30 to-red-600/20 text-red-300 ring-2 ring-red-500/40 shadow-lg shadow-red-500/20' :
+                                                                            priorityScore >= 6 ? 'bg-gradient-to-br from-amber-500/30 to-orange-600/20 text-amber-300 ring-2 ring-amber-500/40 shadow-lg shadow-amber-500/20' :
+                                                                                priorityScore >= 4 ? 'bg-gradient-to-br from-blue-500/30 to-cyan-600/20 text-blue-300 ring-2 ring-blue-500/40 shadow-lg shadow-blue-500/20' :
+                                                                                    'bg-gradient-to-br from-green-500/30 to-emerald-600/20 text-green-300 ring-2 ring-green-500/40 shadow-lg shadow-green-500/20'
+                                                                        }`}>
+                                                                        <span className="text-xs uppercase tracking-wider opacity-70">Priority</span>
+                                                                        <span className="ml-1.5 text-lg">{Number(priorityScore).toFixed(1)}</span>
+                                                                        <span className="text-xs opacity-60">/10</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                            {/* Priority Score Badge */}
-                                                            {priorityScore && (
-                                                                <div className={`px-3 py-1 rounded-full text-xs font-bold ${priorityScore >= 8 ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/30' :
-                                                                        priorityScore >= 6 ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30' :
-                                                                            priorityScore >= 4 ? 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/30' :
-                                                                                'bg-green-500/20 text-green-400 ring-1 ring-green-500/30'
-                                                                    }`}>
-                                                                    Priority: {Number(priorityScore).toFixed(1)}/10
+
+                                                            {/* Main Analysis Text */}
+                                                            {qualitativeText && (
+                                                                <p className={`text-sm leading-relaxed mb-4 ${hasError ? 'text-amber-300/80' : 'text-white/85'}`}>
+                                                                    {qualitativeText}
+                                                                </p>
+                                                            )}
+
+                                                            {/* Priority Justification Quote */}
+                                                            {ai?.priority_justification && !hasError && (
+                                                                <div className="relative pl-4 mb-5 border-l-2 border-purple-500/40">
+                                                                    <p className="text-white/50 text-xs italic leading-relaxed">"{ai.priority_justification}"</p>
                                                                 </div>
                                                             )}
+
+                                                            {/* Quantitative Metrics - Enhanced Grid */}
+                                                            {ai?.quantitative_metrics && !hasError && (
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                                                                    {ai.quantitative_metrics.estimated_severity && ai.quantitative_metrics.estimated_severity !== 'unknown' && (
+                                                                        <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                                                                            <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Severity</p>
+                                                                            <p className={`text-sm font-semibold ${ai.quantitative_metrics.estimated_severity === 'critical' ? 'text-red-400' :
+                                                                                    ai.quantitative_metrics.estimated_severity === 'high' ? 'text-amber-400' :
+                                                                                        ai.quantitative_metrics.estimated_severity === 'medium' ? 'text-blue-400' : 'text-green-400'
+                                                                                }`}>{ai.quantitative_metrics.estimated_severity}</p>
+                                                                        </div>
+                                                                    )}
+                                                                    {ai.quantitative_metrics.estimated_affected_area && ai.quantitative_metrics.estimated_affected_area !== 'unknown' && (
+                                                                        <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                                                                            <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Affected Area</p>
+                                                                            <p className="text-sm font-semibold text-white/80">{ai.quantitative_metrics.estimated_affected_area}</p>
+                                                                        </div>
+                                                                    )}
+                                                                    {ai.quantitative_metrics.recurrence_risk && ai.quantitative_metrics.recurrence_risk !== 'unknown' && (
+                                                                        <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                                                                            <p className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Recurrence Risk</p>
+                                                                            <p className={`text-sm font-semibold ${ai.quantitative_metrics.recurrence_risk === 'high' ? 'text-red-400' :
+                                                                                    ai.quantitative_metrics.recurrence_risk === 'medium' ? 'text-amber-400' : 'text-green-400'
+                                                                                }`}>{ai.quantitative_metrics.recurrence_risk}</p>
+                                                                        </div>
+                                                                    )}
+                                                                    {ai.recommended_response_time && (
+                                                                        <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                                                                            <p className="text-[10px] uppercase tracking-wider text-purple-400/60 mb-1">Response Time</p>
+                                                                            <p className="text-sm font-bold text-purple-300">{ai.recommended_response_time}</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Safety Flags - Enhanced Pills */}
+                                                            {ai?.safety_flags && Array.isArray(ai.safety_flags) && ai.safety_flags.length > 0 && (
+                                                                <div className="flex flex-wrap gap-2 mb-3">
+                                                                    {ai.safety_flags.map((flag: string, i: number) => (
+                                                                        <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-500/20 to-orange-500/20 text-red-300 text-xs font-semibold ring-1 ring-red-500/30 shadow-sm">
+                                                                            <span className="text-amber-400">⚠</span>
+                                                                            {flag.replace(/_/g, ' ').toUpperCase()}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Footer with timestamp */}
+                                                            <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                                                                {selectedRequest.vertex_ai_analyzed_at && (
+                                                                    <p className="text-white/30 text-[10px]">
+                                                                        Analyzed {new Date(selectedRequest.vertex_ai_analyzed_at).toLocaleString()}
+                                                                    </p>
+                                                                )}
+                                                                {!hasError && (
+                                                                    <p className="text-[10px] text-purple-400/50">
+                                                                        ✓ Photo + Historical Data Analyzed
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         </div>
-
-                                                        {/* Qualitative Analysis */}
-                                                        {qualitativeText && (
-                                                            <p className="text-white/80 text-sm mb-3 leading-relaxed">{qualitativeText}</p>
-                                                        )}
-
-                                                        {/* Priority Justification */}
-                                                        {ai?.priority_justification && (
-                                                            <p className="text-white/50 text-xs italic mb-3">"{ai.priority_justification}"</p>
-                                                        )}
-
-                                                        {/* Quantitative Metrics */}
-                                                        {ai?.quantitative_metrics && (
-                                                            <div className="grid grid-cols-2 gap-2 mb-3">
-                                                                {ai.quantitative_metrics.estimated_severity && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <span className="text-white/40 text-xs">Severity:</span>
-                                                                        <span className={`text-xs font-medium ${ai.quantitative_metrics.estimated_severity === 'critical' ? 'text-red-400' :
-                                                                                ai.quantitative_metrics.estimated_severity === 'high' ? 'text-amber-400' :
-                                                                                    ai.quantitative_metrics.estimated_severity === 'medium' ? 'text-blue-400' :
-                                                                                        'text-green-400'
-                                                                            }`}>{ai.quantitative_metrics.estimated_severity}</span>
-                                                                    </div>
-                                                                )}
-                                                                {ai.quantitative_metrics.estimated_affected_area && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <span className="text-white/40 text-xs">Area:</span>
-                                                                        <span className="text-white/70 text-xs">{ai.quantitative_metrics.estimated_affected_area}</span>
-                                                                    </div>
-                                                                )}
-                                                                {ai.quantitative_metrics.recurrence_risk && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <span className="text-white/40 text-xs">Recurrence:</span>
-                                                                        <span className="text-white/70 text-xs">{ai.quantitative_metrics.recurrence_risk}</span>
-                                                                    </div>
-                                                                )}
-                                                                {ai.recommended_response_time && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <span className="text-white/40 text-xs">Response:</span>
-                                                                        <span className="text-purple-300 text-xs font-medium">{ai.recommended_response_time}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-
-                                                        {/* Safety Flags */}
-                                                        {ai?.safety_flags && Array.isArray(ai.safety_flags) && ai.safety_flags.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {ai.safety_flags.map((flag: string, i: number) => (
-                                                                    <span key={i} className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-medium uppercase">
-                                                                        ⚠️ {flag.replace(/_/g, ' ')}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        )}
-
-                                                        {/* Analyzed timestamp */}
-                                                        {selectedRequest.vertex_ai_analyzed_at && (
-                                                            <p className="text-white/30 text-[10px] mt-2">
-                                                                Analyzed {new Date(selectedRequest.vertex_ai_analyzed_at).toLocaleString()}
-                                                            </p>
-                                                        )}
                                                     </div>
                                                 );
                                             })()}
-
-                                            {/* Photos */}
-                                            {selectedRequest.media_urls && selectedRequest.media_urls.length > 0 && (
-                                                <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
-                                                    {selectedRequest.media_urls.map((url, i) => (
-                                                        <img key={i} src={url} alt={`Photo ${i + 1}`} className="w-28 h-20 flex-shrink-0 object-cover rounded-lg cursor-pointer hover:opacity-80" onClick={() => setLightboxUrl(url)} />
-                                                    ))}
-                                                </div>
-                                            )}
 
                                             {/* Completion info */}
                                             {selectedRequest.status === 'closed' && (selectedRequest.completion_message || selectedRequest.completion_photo_url) && (
