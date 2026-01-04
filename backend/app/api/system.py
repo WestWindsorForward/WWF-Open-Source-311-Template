@@ -380,24 +380,43 @@ async def get_advanced_statistics(
     if center_row and center_row[0] and center_row[1]:
         geographic_center = {"lat": float(center_row[0]), "lng": float(center_row[1])}
     
-    # Geographic spread (standard deviation in km)
-    geographic_spread_km = None
+    # Geospatial metrics in imperial units (miles)
+    # 1 meter = 0.000621371 miles, 1 sq meter = 0.0000003861 sq miles
+    geographic_spread_miles = None
+    total_coverage_sq_miles = None
+    avg_distance_from_center_miles = None
+    furthest_request_miles = None
+    
     try:
-        spread_query = text("""
+        geo_metrics_query = text("""
+            WITH centroid AS (
+                SELECT ST_Centroid(ST_Collect(location))::geography as center
+                FROM service_requests 
+                WHERE deleted_at IS NULL AND location IS NOT NULL
+            ),
+            distances AS (
+                SELECT 
+                    ST_Distance(location::geography, (SELECT center FROM centroid)) as dist_meters
+                FROM service_requests
+                WHERE deleted_at IS NULL AND location IS NOT NULL
+            )
             SELECT 
-                STDDEV(ST_Distance(
-                    location::geography,
-                    (SELECT ST_Centroid(ST_Collect(location))::geography FROM service_requests WHERE deleted_at IS NULL AND location IS NOT NULL)
-                )) / 1000 as spread_km
-            FROM service_requests
-            WHERE deleted_at IS NULL AND location IS NOT NULL
+                STDDEV(dist_meters) * 0.000621371 as spread_miles,
+                AVG(dist_meters) * 0.000621371 as avg_distance_miles,
+                MAX(dist_meters) * 0.000621371 as max_distance_miles,
+                (SELECT ST_Area(ST_ConvexHull(ST_Collect(location))::geography) * 0.0000003861 
+                 FROM service_requests WHERE deleted_at IS NULL AND location IS NOT NULL) as coverage_sq_miles
+            FROM distances
         """)
-        spread_result = await db.execute(spread_query)
-        spread_row = spread_result.scalar()
-        if spread_row:
-            geographic_spread_km = round(float(spread_row), 2)
-    except Exception:
-        pass
+        geo_result = await db.execute(geo_metrics_query)
+        geo_row = geo_result.mappings().one_or_none()
+        if geo_row:
+            geographic_spread_miles = round(float(geo_row['spread_miles']), 2) if geo_row['spread_miles'] else None
+            avg_distance_from_center_miles = round(float(geo_row['avg_distance_miles']), 2) if geo_row['avg_distance_miles'] else None
+            furthest_request_miles = round(float(geo_row['max_distance_miles']), 2) if geo_row['max_distance_miles'] else None
+            total_coverage_sq_miles = round(float(geo_row['coverage_sq_miles']), 2) if geo_row['coverage_sq_miles'] else None
+    except Exception as e:
+        print(f"Geographic metrics query failed: {e}")
     
     # ========== Department Analytics ==========
     
@@ -749,7 +768,10 @@ async def get_advanced_statistics(
         avg_resolution_hours_by_category=avg_resolution_hours_by_category,
         hotspots=hotspots,
         geographic_center=geographic_center,
-        geographic_spread_km=geographic_spread_km,
+        geographic_spread_miles=geographic_spread_miles,
+        total_coverage_sq_miles=total_coverage_sq_miles,
+        avg_distance_from_center_miles=avg_distance_from_center_miles,
+        furthest_request_miles=furthest_request_miles,
         requests_density_by_zone={},
         department_metrics=department_metrics,
         top_staff_by_resolutions=top_staff_by_resolutions,

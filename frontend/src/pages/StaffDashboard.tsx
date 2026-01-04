@@ -771,15 +771,27 @@ export default function StaffDashboard() {
                             {advancedStats?.hotspots && advancedStats.hotspots.length > 0 && (
                                 <div className="bg-white rounded-lg shadow-lg p-6 border-t-4 border-red-500">
                                     <div className="mb-4">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between flex-wrap gap-2">
                                             <h3 className="text-lg font-bold text-gray-900">Problem Areas</h3>
-                                            {advancedStats.geographic_spread_km && (
-                                                <span className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
-                                                    Spread: {advancedStats.geographic_spread_km.toFixed(1)} km
-                                                </span>
-                                            )}
+                                            <div className="flex flex-wrap gap-2">
+                                                {advancedStats.total_coverage_sq_miles && (
+                                                    <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                                                        Coverage: {advancedStats.total_coverage_sq_miles.toFixed(1)} sq mi
+                                                    </span>
+                                                )}
+                                                {advancedStats.avg_distance_from_center_miles && (
+                                                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                                        Avg: {advancedStats.avg_distance_from_center_miles.toFixed(1)} mi from center
+                                                    </span>
+                                                )}
+                                                {advancedStats.furthest_request_miles && (
+                                                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
+                                                        Furthest: {advancedStats.furthest_request_miles.toFixed(1)} mi
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <p className="text-sm text-gray-600 mt-1">
+                                        <p className="text-sm text-gray-600 mt-2">
                                             Locations with concentrated service requests. Consider prioritizing inspections or infrastructure improvements.
                                         </p>
                                         <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">

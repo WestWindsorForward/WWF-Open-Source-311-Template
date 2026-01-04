@@ -326,6 +326,7 @@ class HotspotData(BaseModel):
     sample_address: Optional[str] = None  # Representative address for the cluster
     top_categories: Optional[List[str]] = None  # Most common issue types in cluster
     unique_reporters: Optional[int] = None  # Count of distinct reporters (for bias detection)
+    oldest_days: Optional[int] = None  # Age of oldest open request in this cluster (in days)
 
 
 class TrendData(BaseModel):
@@ -379,10 +380,13 @@ class AdvancedStatisticsResponse(BaseModel):
     requests_by_month: Dict[str, int]  # {"2024-01": 50, ...}
     avg_resolution_hours_by_category: Dict[str, float]
     
-    # Geospatial analytics (PostGIS)
+    # Geospatial analytics (PostGIS) - using imperial units for US municipalities
     hotspots: List[HotspotData]
     geographic_center: Optional[Dict[str, float]]  # {lat, lng}
-    geographic_spread_km: Optional[float]  # Standard deviation of request locations
+    geographic_spread_miles: Optional[float]  # Standard deviation of request locations in miles
+    total_coverage_sq_miles: Optional[float]  # Total area covered by all requests
+    avg_distance_from_center_miles: Optional[float]  # Average distance from geographic center
+    furthest_request_miles: Optional[float]  # Distance of furthest request from center
     requests_density_by_zone: Dict[str, int]  # If zones are defined
     
     # Department analytics

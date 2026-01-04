@@ -258,6 +258,7 @@ export interface HotspotData {
     sample_address?: string;  // Representative address for the cluster
     top_categories?: string[];  // Most common issue types in cluster
     unique_reporters?: number;  // Count of distinct reporters (for bias detection)
+    oldest_days?: number;  // Age of oldest open request in this cluster
 }
 
 export interface TrendData {
@@ -311,10 +312,13 @@ export interface AdvancedStatistics {
     requests_by_month: Record<string, number>;
     avg_resolution_hours_by_category: Record<string, number>;
 
-    // Geospatial analytics (PostGIS)
+    // Geospatial analytics (PostGIS) - imperial units
     hotspots: HotspotData[];
     geographic_center: { lat: number; lng: number } | null;
-    geographic_spread_km: number | null;
+    geographic_spread_miles: number | null;  // Standard deviation in miles
+    total_coverage_sq_miles: number | null;  // Total area covered by requests
+    avg_distance_from_center_miles: number | null;  // Average distance from center
+    furthest_request_miles: number | null;  // Distance of furthest request
     requests_density_by_zone: Record<string, number>;
 
     // Department analytics
