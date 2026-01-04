@@ -514,7 +514,7 @@ export default function ResidentPortal() {
                                 )}
 
                                 {/* Community Map Section */}
-                                <div className="border-t border-white/10 my-10" />
+                                <div className="my-12 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
