@@ -346,10 +346,9 @@ View the full conversation at: {tracking_url}
 
 
 def build_sms_confirmation(request_id: str, township_name: str, portal_url: str = "", service_name: str = "", description: str = "", address: str = "") -> str:
-    """Build SMS message for request confirmation.
+    """Build SMS message for request confirmation."""
+    tracking_link = f"{portal_url}/#track/{request_id}" if portal_url else ""
     
-    Note: URLs removed because Textbelt blocks them for non-verified accounts.
-    """
     # Truncate description for SMS
     short_desc = description[:60] + "..." if len(description) > 60 else description
     
@@ -366,17 +365,14 @@ Your request has been received!
     
     message += f"\n\n🔖 Ref: {request_id}"
     
-    # Note: Tracking URL intentionally omitted - Textbelt blocks URLs for unverified accounts
-    # Residents can track via email or by visiting the portal directly
+    if tracking_link:
+        message += f"\n🔗 Track: {tracking_link}"
     
     return message
 
 
 def build_sms_status_update(request_id: str, new_status: str, township_name: str, portal_url: str = "", completion_message: str = "", service_name: str = "") -> str:
-    """Build SMS message for status update.
-    
-    Note: URLs removed because Textbelt blocks them for non-verified accounts.
-    """
+    """Build SMS message for status update."""
     status_emoji = {
         "open": "📋",
         "in_progress": "🔧", 
@@ -388,6 +384,8 @@ def build_sms_status_update(request_id: str, new_status: str, township_name: str
         "in_progress": "is being worked on",
         "closed": "has been resolved"
     }.get(new_status, f"status: {new_status}")
+    
+    tracking_link = f"{portal_url}/#track/{request_id}" if portal_url else ""
     
     message = f"""{status_emoji} {township_name} 311
 Your request {status_text}!"""
@@ -402,6 +400,7 @@ Your request {status_text}!"""
     
     message += f"\n\n🔖 Ref: {request_id}"
     
-    # Note: Tracking URL intentionally omitted - Textbelt blocks URLs for unverified accounts
+    if tracking_link:
+        message += f"\n🔗 Details: {tracking_link}"
     
     return message
