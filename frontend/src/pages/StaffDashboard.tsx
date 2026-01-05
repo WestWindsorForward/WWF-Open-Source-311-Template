@@ -1529,7 +1529,10 @@ export default function StaffDashboard() {
                                                 if (!ai && !qualitativeText) return null;
 
                                                 return (
-                                                    <div className="relative overflow-hidden rounded-xl bg-slate-800/40 border border-white/10 mb-4 backdrop-blur-sm">
+                                                    <div
+                                                        className={`relative overflow-hidden rounded-xl bg-slate-800/40 border border-white/10 mb-4 backdrop-blur-sm ${!isAIExpanded ? 'cursor-pointer hover:bg-slate-800/60 transition-colors' : ''}`}
+                                                        onClick={!isAIExpanded ? () => setIsAIExpanded(true) : undefined}
+                                                    >
                                                         {/* Professional accent line */}
                                                         <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500/50 via-purple-500/50 to-primary-500/50" />
 
