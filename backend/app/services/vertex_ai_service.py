@@ -289,27 +289,9 @@ async def analyze_with_gemini(
         else:
             raise Exception("No response candidates from Vertex AI")
             
-    except json.JSONDecodeError as e:
-        # This block is now mostly redundant if the internal try-except handles it,
-        # but kept for any other potential JSONDecodeErrors outside the explicit parsing.
-        logger.error(f"[Vertex AI] Final JSONDecodeError: {str(e)}")
-        return {
-            "priority_score": 5.0,
-            "priority_justification": "Unable to parse AI response",
-            "qualitative_analysis": "AI analysis could not be completed. Manual review recommended.",
-            "quantitative_metrics": {
-                "estimated_severity": "medium",
-                "estimated_affected_area": "localized",
-                "is_likely_duplicate": False,
-                "recurrence_risk": "unknown"
-            },
-            "safety_flags": [],
-            "recommended_response_time": "48h",
-            "_error": str(e)
-        }
     except Exception as e:
         # Return error information for debugging
-        logger.error(f"[Vertex AI] General Error: {str(e)}")
+        print(f"[Vertex AI] General Error: {str(e)}") # Changed logger.error to print for this specific instruction
         return {
             "priority_score": 5.0,
             "priority_justification": f"AI analysis failed: {str(e)[:100]}",
