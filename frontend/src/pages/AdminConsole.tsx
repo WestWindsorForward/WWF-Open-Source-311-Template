@@ -1076,15 +1076,12 @@ export default function AdminConsole() {
                                                 <tr key={u.id} className="hover:bg-white/5 transition-colors group">
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="relative">
-                                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-lg">
-                                                                    {u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()}
-                                                                </div>
-                                                                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${u.is_active ? 'bg-green-500' : 'bg-gray-500'}`} />
+                                                            <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-300 font-semibold">
+                                                                {u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()}
                                                             </div>
                                                             <div>
                                                                 <p className="font-medium text-white">{u.full_name || u.username}</p>
-                                                                <p className="text-sm text-white/40 font-mono">@{u.username}</p>
+                                                                <p className="text-sm text-white/40">@{u.username}</p>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -1093,7 +1090,7 @@ export default function AdminConsole() {
                                                     </td>
                                                     <td className="p-4">
                                                         <Badge variant={u.role === 'admin' ? 'warning' : 'info'}>
-                                                            {u.role === 'admin' ? '👑 Admin' : '👤 Staff'}
+                                                            {u.role === 'admin' ? 'Admin' : 'Staff'}
                                                         </Badge>
                                                     </td>
                                                     <td className="p-4">

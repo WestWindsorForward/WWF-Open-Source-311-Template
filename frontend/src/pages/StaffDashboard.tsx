@@ -739,17 +739,12 @@ export default function StaffDashboard() {
                                 <div className="w-10 h-10 rounded-full bg-primary-500/30 flex items-center justify-center text-white font-medium">
                                     {user?.full_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
                                 </div>
-                                <div>
-                                    <p className="font-medium text-white text-sm">{user?.full_name || user?.username}</p>
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-xs text-white/50 capitalize">{user?.role}</p>
-                                        {user?.departments && user.departments.length > 0 && (
-                                            <>
-                                                <span className="text-white/20">•</span>
-                                                <p className="text-xs text-primary-400">{user.departments.map(d => d.name).join(', ')}</p>
-                                            </>
-                                        )}
-                                    </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-white text-sm truncate">{user?.full_name || user?.username}</p>
+                                    <p className="text-xs text-white/50 capitalize">{user?.role}</p>
+                                    {user?.departments && user.departments.length > 0 && (
+                                        <p className="text-xs text-primary-400 truncate mt-0.5">{user.departments.map(d => d.name).join(', ')}</p>
+                                    )}
                                 </div>
                             </div>
                             <button
