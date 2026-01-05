@@ -271,9 +271,6 @@ async def analyze_with_gemini(
             ]
         }
         
-        import sys
-        print(f"[Vertex AI] Final Prompt Sent: {prompt[:1500]}...", file=sys.stderr)
-        
         # Make the API call
         async with aiohttp.ClientSession() as session:
             async with session.post(
