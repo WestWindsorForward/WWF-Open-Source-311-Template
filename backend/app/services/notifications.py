@@ -73,7 +73,11 @@ class GenericHTTPSMSProvider(SMSProvider):
                     # Textbelt returns JSON with "success": true/false
                     if response.is_success:
                         result = response.json()
+                        print(f"[Textbelt SMS] Response: {result}")
+                        if not result.get("success"):
+                            print(f"[Textbelt SMS] Error: {result.get('error', 'Unknown error')}")
                         return result.get("success", False)
+                    print(f"[Textbelt SMS] HTTP Error: {response.status_code}")
                     return False
                 else:
                     # Standard format with Bearer auth
