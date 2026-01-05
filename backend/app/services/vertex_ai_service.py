@@ -323,7 +323,7 @@ async def analyze_with_gemini(
         }
 
 
-async def get_historical_context(db, address: str, service_code: str, lat: Optional[float] = None, long: Optional[float] = None) -> Dict[str, Any]:
+async def get_historical_context(db, address: str, service_code: str, lat: Optional[float] = None, long: Optional[float] = None, exclude_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Query historical data for context including chronic recurrence and nodal reporting.
     """
@@ -347,7 +347,12 @@ async def get_historical_context(db, address: str, service_code: str, lat: Optio
             ServiceRequest.address == address,
             ServiceRequest.requested_datetime >= three_months_ago,
             ServiceRequest.deleted_at.is_(None)
-        ).order_by(ServiceRequest.requested_datetime.desc())
+        )
+        
+        if exclude_id:
+            addr_history_query = addr_history_query.where(ServiceRequest.id != exclude_id)
+            
+        addr_history_query = addr_history_query.order_by(ServiceRequest.requested_datetime.desc())
         
         addr_result = await db.execute(addr_history_query)
         addr_history = addr_result.all()
@@ -359,15 +364,17 @@ async def get_historical_context(db, address: str, service_code: str, lat: Optio
         ]
         
         # 2. Past Resolution Quality (Last closed report at this address)
+        last_res_query = select(ServiceRequest.service_request_id, ServiceRequest.closed_substatus, ServiceRequest.completion_message, ServiceRequest.status).where(
+            ServiceRequest.address == address,
+            ServiceRequest.status == "closed",
+            ServiceRequest.deleted_at.is_(None)
+        )
+        
+        if exclude_id:
+            last_res_query = last_res_query.where(ServiceRequest.id != exclude_id)
+            
         last_res = await db.execute(
-            select(ServiceRequest.service_request_id, ServiceRequest.closed_substatus, ServiceRequest.completion_message, ServiceRequest.status)
-            .where(
-                ServiceRequest.address == address,
-                ServiceRequest.status == "closed",
-                ServiceRequest.deleted_at.is_(None)
-            )
-            .order_by(ServiceRequest.closed_datetime.desc())
-            .limit(1)
+            last_res_query.order_by(ServiceRequest.closed_datetime.desc()).limit(1)
         )
         row = last_res.first()
         if row:
@@ -389,9 +396,12 @@ async def get_historical_context(db, address: str, service_code: str, lat: Optio
                 ServiceRequest.status.in_(["open", "in_progress"]),
                 ServiceRequest.deleted_at.is_(None),
                 func.ST_DWithin(cast(ServiceRequest.location, Geography), cast(point, Geography), 500)
-            ).limit(5)
+            )
             
-            nearby_result = await db.execute(nearby_query)
+            if exclude_id:
+                nearby_query = nearby_query.where(ServiceRequest.id != exclude_id)
+                
+            nearby_result = await db.execute(nearby_query.limit(5))
             nearby_rows = nearby_result.all()
             context["nearby_similar"] = len(nearby_rows)
             context["nearby_similar_ids"] = [r[0] for r in nearby_rows[:3]]
@@ -402,6 +412,10 @@ async def get_historical_context(db, address: str, service_code: str, lat: Optio
                 ServiceRequest.deleted_at.is_(None),
                 func.ST_DWithin(cast(ServiceRequest.location, Geography), cast(point, Geography), 15)
             )
+            
+            if exclude_id:
+                nodal_query = nodal_query.where(ServiceRequest.id != exclude_id)
+                
             nodal_result = await db.execute(nodal_query)
             context["duplicate_density"] = nodal_result.scalar() or 0
             
