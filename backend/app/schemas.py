@@ -206,6 +206,10 @@ class ServiceRequestResponse(BaseModel):
     # Soft delete info
     deleted_at: Optional[datetime] = None
     deleted_by: Optional[str] = None
+    # Priority fields for sorting/filtering
+    manual_priority_score: Optional[float] = None
+    vertex_ai_priority_score: Optional[float] = None
+    ai_analysis: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
