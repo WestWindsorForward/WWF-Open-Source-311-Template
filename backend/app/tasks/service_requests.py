@@ -33,8 +33,12 @@ async def get_secret(db, key_name: str) -> str:
 
 async def configure_notifications(db):
     """Configure notification service from database secrets"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Configure SMS provider
     sms_provider = await get_secret(db, "SMS_PROVIDER")
+    logger.info(f"[SMS Config] SMS_PROVIDER secret value: '{sms_provider}'")
     
     if sms_provider == "twilio":
         notification_service.configure_sms("twilio", {
@@ -42,12 +46,19 @@ async def configure_notifications(db):
             "auth_token": await get_secret(db, "TWILIO_AUTH_TOKEN"),
             "from_number": await get_secret(db, "TWILIO_PHONE_NUMBER")
         })
+        logger.info("[SMS Config] Configured Twilio provider")
     elif sms_provider == "http":
+        api_url = await get_secret(db, "SMS_HTTP_API_URL")
+        api_key = await get_secret(db, "SMS_HTTP_API_KEY")
+        logger.info(f"[SMS Config] Configuring HTTP provider with URL: {api_url[:50] if api_url else 'EMPTY'}...")
         notification_service.configure_sms("http", {
-            "api_url": await get_secret(db, "SMS_HTTP_API_URL"),
-            "api_key": await get_secret(db, "SMS_HTTP_API_KEY"),
+            "api_url": api_url,
+            "api_key": api_key,
             "from_number": await get_secret(db, "SMS_FROM_NUMBER")
         })
+        logger.info("[SMS Config] Configured HTTP/Textbelt provider")
+    else:
+        logger.warning(f"[SMS Config] Unknown or empty SMS_PROVIDER: '{sms_provider}' - SMS will not work")
     
     # Configure Email provider
     email_enabled = await get_secret(db, "EMAIL_ENABLED")
