@@ -622,11 +622,17 @@ export default function StaffDashboard() {
         const myActive = myRequests.filter(r => r.status === 'open').length;
         const myInProgress = myRequests.filter(r => r.status === 'in_progress').length;
 
-        // Department requests would need department_id on requests - using total for now
+        // Department requests - filter by user's department IDs
+        const userDeptIds = user?.departments?.map(d => d.id) || [];
+        const deptRequests = allRequests.filter(r =>
+            userDeptIds.includes(r.assigned_department_id as number)
+        );
+        const deptActive = deptRequests.filter(r => r.status === 'open').length;
+
         return {
             myActive,
             myInProgress,
-            deptActive: counts.open, // Would filter by department if available
+            deptActive,
             totalActive: counts.open,
             totalInProgress: counts.inProgress,
         };
