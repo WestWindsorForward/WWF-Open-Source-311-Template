@@ -68,6 +68,16 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
     const [copied, setCopied] = useState(false);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
     const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+    const [mapsApiKey, setMapsApiKey] = useState<string | null>(null);
+
+    // Load Maps API key on mount
+    useEffect(() => {
+        api.getMapsConfig().then((config) => {
+            if (config.google_maps_api_key) {
+                setMapsApiKey(config.google_maps_api_key);
+            }
+        }).catch(() => { });
+    }, []);
 
     useEffect(() => {
         loadRequests();
@@ -327,14 +337,14 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                                 <p className="text-white/70">{selectedRequest.address}</p>
                             </div>
 
-                            {selectedRequest.lat && selectedRequest.long && (
+                            {selectedRequest.lat && selectedRequest.long && mapsApiKey && (
                                 <div className="h-48 bg-white/5 border-t border-white/10">
                                     <iframe
                                         width="100%"
                                         height="100%"
                                         style={{ border: 0 }}
                                         loading="lazy"
-                                        src={`https://www.google.com/maps/embed/v1/place?key=${(window as any).GOOGLE_MAPS_API_KEY || ''}&q=${selectedRequest.lat},${selectedRequest.long}&zoom=17`}
+                                        src={`https://www.google.com/maps/embed/v1/place?key=${mapsApiKey}&q=${selectedRequest.lat},${selectedRequest.long}&zoom=17`}
                                         allowFullScreen
                                     />
                                 </div>
