@@ -26,6 +26,7 @@ import {
     Send,
     Camera,
     Link,
+    Link2,
     Brain,
     LayoutDashboard,
     Users,
@@ -1564,6 +1565,33 @@ export default function StaffDashboard() {
                                                                             </div>
                                                                         </div>
                                                                     )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Similar Reports - Clickable Links */}
+                                                            {ai.similar_reports && ai.similar_reports.length > 0 && (
+                                                                <div className="mb-4 px-3 py-2 rounded-lg bg-purple-500/5 border border-purple-500/10 flex items-start gap-2.5">
+                                                                    <Link2 className="w-3.5 h-3.5 text-purple-400 mt-0.5 flex-shrink-0" />
+                                                                    <div className="flex-1">
+                                                                        <p className="text-[9px] font-bold text-purple-400 uppercase tracking-tight">Similar Reports</p>
+                                                                        <div className="mt-1 space-y-1">
+                                                                            {ai.similar_reports.map((report: { id: string; description: string; similarity: number }) => (
+                                                                                <button
+                                                                                    key={report.id}
+                                                                                    onClick={() => {
+                                                                                        window.location.hash = `detail/${report.id}`;
+                                                                                    }}
+                                                                                    className="w-full text-left px-2 py-1.5 rounded bg-purple-500/10 hover:bg-purple-500/20 transition-colors group"
+                                                                                >
+                                                                                    <div className="flex items-center justify-between gap-2">
+                                                                                        <span className="text-[10px] text-purple-300 font-mono group-hover:text-purple-200">{report.id}</span>
+                                                                                        <span className="text-[9px] text-purple-400/60">{Math.round(report.similarity * 100)}% match</span>
+                                                                                    </div>
+                                                                                    <p className="text-[9px] text-purple-200/50 mt-0.5 line-clamp-1">{report.description}</p>
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             )}
 

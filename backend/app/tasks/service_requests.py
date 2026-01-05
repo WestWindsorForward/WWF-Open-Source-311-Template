@@ -140,7 +140,7 @@ def analyze_request(self, request_id: int):
 
             # Get historical & spatial context
             historical_context = await get_historical_context(
-                db, request.address, request.service_code, request.lat, request.long, exclude_id=request.id
+                db, request.address, request.service_code, request.lat, request.long, exclude_id=request.id, description=request.description or ""
             )
             spatial_context = await get_spatial_context(
                 db, request.lat, request.long, request.service_code

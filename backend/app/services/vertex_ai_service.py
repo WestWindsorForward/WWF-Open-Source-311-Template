@@ -335,7 +335,7 @@ async def analyze_with_gemini(
         }
 
 
-async def get_historical_context(db, address: str, service_code: str, lat: Optional[float] = None, long: Optional[float] = None, exclude_id: Optional[int] = None) -> Dict[str, Any]:
+async def get_historical_context(db, address: str, service_code: str, lat: Optional[float] = None, long: Optional[float] = None, exclude_id: Optional[int] = None, description: str = "") -> Dict[str, Any]:
     """
     Query historical data for context including chronic recurrence and nodal reporting.
     """
@@ -397,14 +397,18 @@ async def get_historical_context(db, address: str, service_code: str, lat: Optio
                 "message": row[2]
             }
 
-        # 3. Nodal reporting / Proximity Similarity
+        # 3. Nodal reporting / Proximity Similarity with TEXT-BASED matching
         if lat is not None and long is not None:
             from geoalchemy2 import Geography
             from sqlalchemy import cast
+            from difflib import SequenceMatcher
             point = func.ST_SetSRID(func.ST_MakePoint(long, lat), 4326)
             
-            # Nearby similar (500m) - context for duplicate check
-            nearby_query = select(ServiceRequest.service_request_id).where(
+            # Nearby candidates (500m, same category) - fetch descriptions for similarity
+            nearby_query = select(
+                ServiceRequest.service_request_id,
+                ServiceRequest.description
+            ).where(
                 ServiceRequest.service_code == service_code,
                 ServiceRequest.status.in_(["open", "in_progress"]),
                 ServiceRequest.deleted_at.is_(None),
@@ -414,10 +418,30 @@ async def get_historical_context(db, address: str, service_code: str, lat: Optio
             if exclude_id:
                 nearby_query = nearby_query.where(ServiceRequest.id != exclude_id)
                 
-            nearby_result = await db.execute(nearby_query.limit(5))
+            nearby_result = await db.execute(nearby_query.limit(10))
             nearby_rows = nearby_result.all()
-            context["nearby_similar"] = len(nearby_rows)
-            context["nearby_similar_ids"] = [r[0] for r in nearby_rows[:3]]
+            
+            # Compute text similarity for each candidate
+            # Get the current request's description from the caller context (passed via address or a new param)
+            # For now, we'll store candidates and let the caller filter using the request description
+            similar_reports = []
+            for row in nearby_rows:
+                candidate_id, candidate_desc = row
+                if candidate_desc:
+                    # Use SequenceMatcher for text similarity between descriptions
+                    similarity = SequenceMatcher(None, description.lower(), candidate_desc.lower()).ratio()
+                    if similarity > 0.25:  # 25% content match threshold
+                        similar_reports.append({
+                            "id": candidate_id,
+                            "description": candidate_desc[:100] + ("..." if len(candidate_desc) > 100 else ""),
+                            "similarity": round(similarity, 2)
+                        })
+            
+            # Sort by similarity and take top 3
+            similar_reports.sort(key=lambda x: x["similarity"], reverse=True)
+            context["similar_reports"] = similar_reports[:3]
+            context["nearby_similar"] = len(similar_reports)
+            context["nearby_similar_ids"] = [r["id"] for r in similar_reports[:3]]
             
             # Duplicate Density (Nodal - within 15m)
             nodal_query = select(func.count(ServiceRequest.id)).where(
