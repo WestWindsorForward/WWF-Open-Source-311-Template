@@ -526,53 +526,80 @@ async def get_spatial_context(db, lat: float, long: float, service_code: str) ->
                         import logging
                         logging.warning(f"Failed to check spatial proximity for layer {layer.name}: {e}")
 
-        # Fallback: If no critical infrastructure found from GeoJSON layers, use Google Places API
+        # Fallback: If no critical infrastructure found from GeoJSON layers, use Nominatim (OSM)
         if not spatial_info["critical_infrastructure"]:
             try:
                 import httpx
                 import logging
-                from app.models import SystemSecret
+                import math
                 
-                # Fetch Google Maps API key from database (same as gis.py)
-                secret_result = await db.execute(
-                    select(SystemSecret).where(SystemSecret.key_name == "GOOGLE_MAPS_API_KEY")
-                )
-                secret = secret_result.scalar_one_or_none()
-                google_maps_key = secret.key_value if secret and secret.is_configured else None
+                logging.info(f"[Critical Infrastructure] Using Nominatim fallback for {lat},{long}")
                 
-                logging.info(f"[Critical Infrastructure] Google Maps API key available: {bool(google_maps_key)}")
+                # Search radius in degrees (~500m at this latitude)
+                # 1 degree lat ≈ 111km, 1 degree lon ≈ 111km * cos(lat)
+                radius_deg = 0.005  # ~500m
                 
-                if google_maps_key:
-                    # Google Places Nearby Search for critical infrastructure types
-                    critical_place_types = ["fire_station", "hospital", "police", "school"]
+                # Critical infrastructure types to search for
+                search_terms = ["school", "fire station", "hospital", "police"]
+                
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    for search_term in search_terms:
+                        nominatim_url = "https://nominatim.openstreetmap.org/search"
+                        params = {
+                            "q": search_term,
+                            "format": "json",
+                            "bounded": 1,
+                            "viewbox": f"{long - radius_deg},{lat + radius_deg},{long + radius_deg},{lat - radius_deg}",
+                            "limit": 3,
+                            "addressdetails": 1
+                        }
+                        headers = {
+                            "User-Agent": "Township311/1.0 (township311-infrastructure-check)"
+                        }
+                        
+                        response = await client.get(nominatim_url, params=params, headers=headers)
+                        logging.info(f"[Critical Infrastructure] Nominatim search for '{search_term}': status {response.status_code}")
+                        
+                        if response.status_code == 200:
+                            results = response.json()
+                            logging.info(f"[Critical Infrastructure] Found {len(results)} {search_term} results")
+                            
+                            if results:
+                                # Calculate distance to each result and find closest
+                                for result in results:
+                                    result_lat = float(result.get("lat", 0))
+                                    result_lon = float(result.get("lon", 0))
+                                    
+                                    # Haversine distance calculation
+                                    R = 6371000  # Earth radius in meters
+                                    d_lat = math.radians(result_lat - lat)
+                                    d_lon = math.radians(result_lon - long)
+                                    a = math.sin(d_lat / 2) ** 2 + math.cos(math.radians(lat)) * math.cos(math.radians(result_lat)) * math.sin(d_lon / 2) ** 2
+                                    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                                    distance_m = R * c
+                                    
+                                    # Only include if within 300m (filter out far results from bounding box)
+                                    if distance_m <= 300:
+                                        place_name = result.get("display_name", "").split(",")[0]  # Get first part of name
+                                        place_type = search_term.replace("_", " ").title()
+                                        spatial_info["critical_infrastructure"].append(
+                                            f"{place_type}: {place_name} ({int(distance_m)}m)"
+                                        )
+                                        logging.info(f"[Critical Infrastructure] Detected via Nominatim: {place_name} at {int(distance_m)}m")
+                                        break  # Take first match within 300m
+                                
+                                if spatial_info["critical_infrastructure"]:
+                                    break  # Stop searching if we found something
+                        
+                        # Rate limit: Nominatim requests 1 req/sec max
+                        await asyncio.sleep(0.2)
+                
+                if not spatial_info["critical_infrastructure"]:
+                    logging.info("[Critical Infrastructure] No critical infrastructure found within 300m via Nominatim")
                     
-                    async with httpx.AsyncClient(timeout=5.0) as client:
-                        for place_type in critical_place_types:
-                            places_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-                            params = {
-                                "location": f"{lat},{long}",
-                                "radius": 200,  # 200 meters for better detection
-                                "type": place_type,
-                                "key": google_maps_key
-                            }
-                            logging.info(f"[Critical Infrastructure] Searching for {place_type} at {lat},{long}")
-                            response = await client.get(places_url, params=params)
-                            logging.info(f"[Critical Infrastructure] Response status: {response.status_code}")
-                            if response.status_code == 200:
-                                data = response.json()
-                                logging.info(f"[Critical Infrastructure] Found {len(data.get('results', []))} {place_type} results")
-                                if data.get("results"):
-                                    # Found a nearby critical infrastructure via Google Maps
-                                    place = data["results"][0]  # Take the closest one
-                                    place_name = place.get("name", place_type.replace("_", " ").title())
-                                    spatial_info["critical_infrastructure"].append(f"{place_type.replace('_', ' ').title()}: {place_name} (via Google Maps)")
-                                    logging.info(f"[Critical Infrastructure] Detected: {place_name}")
-                                    break  # One match is enough
-                else:
-                    logging.warning("[Critical Infrastructure] GOOGLE_MAPS_API_KEY not configured in system secrets")
             except Exception as e:
                 import logging
-                logging.warning(f"Google Places API fallback failed: {e}")
+                logging.warning(f"Nominatim critical infrastructure search failed: {e}")
 
         # 2. Lighting / Outages (Streetlight reports within 100m)
         outage_query = select(func.count(ServiceRequest.id)).where(
