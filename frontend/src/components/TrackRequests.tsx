@@ -81,7 +81,7 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
 
     useEffect(() => {
         loadRequests();
-    }, [statusFilter]);
+    }, []);
 
     // Auto-load request from URL
     useEffect(() => {
@@ -117,9 +117,8 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
     const loadRequests = async () => {
         setIsLoading(true);
         try {
-            const data = await api.getPublicRequests(
-                statusFilter === 'all' ? undefined : statusFilter
-            );
+            // Always load all requests - filtering happens client-side
+            const data = await api.getPublicRequests();
             setRequests(data);
         } catch (err) {
             console.error('Failed to load requests:', err);
@@ -199,6 +198,10 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
 
 
     const filteredRequests = requests.filter((r) => {
+        // Filter by status
+        if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+
+        // Filter by search query
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
         return (
