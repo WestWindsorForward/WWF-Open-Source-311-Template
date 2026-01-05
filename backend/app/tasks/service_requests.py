@@ -467,7 +467,7 @@ def send_department_notification(request_id: int, department_email: str):
             # Find staff members who should receive this notification
             # Get department by email to find staff members
             dept_result = await db.execute(
-                select(Department).where(Department.email == department_email)
+                select(Department).where(Department.routing_email == department_email)
             )
             department = dept_result.scalar_one_or_none()
             
