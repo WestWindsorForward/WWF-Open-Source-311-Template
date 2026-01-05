@@ -168,6 +168,9 @@ export default function StaffDashboard() {
     const [showShareMenu, setShowShareMenu] = useState(false);
     const [copiedLink, setCopiedLink] = useState<'staff' | 'resident' | null>(null);
 
+    // Detail panel ref for scroll-to-top on request selection
+    const detailPanelRef = useRef<HTMLDivElement>(null);
+
     // Priority editing state
     const [showPriorityEditor, setShowPriorityEditor] = useState(false);
     const [pendingPriority, setPendingPriority] = useState<number | null>(null);
@@ -387,6 +390,10 @@ export default function StaffDashboard() {
         if (selectedRequest) {
             updateHash(`${currentView}/request/${selectedRequest.service_request_id}`);
             updateTitle(`Request ${selectedRequest.service_request_id}`);
+            // Scroll detail panel to top when a new request is selected
+            if (detailPanelRef.current) {
+                detailPanelRef.current.scrollTo({ top: 0, behavior: 'instant' });
+            }
         }
     }, [selectedRequest, currentView, updateHash, updateTitle]);
 
@@ -1284,7 +1291,7 @@ export default function StaffDashboard() {
                 {currentView !== 'statistics' && currentView !== 'dashboard' && (
                     <div className="flex-1 flex min-h-0">
                         {/* Request List Panel */}
-                        <div className="w-full lg:w-96 flex flex-col border-r border-white/10">
+                        <div className="w-full lg:w-96 flex flex-col border-r border-white/10 lg:h-[calc(100vh-theme(spacing.16))] lg:overflow-hidden">
                             {/* List Header with Quick Stats */}
                             <div className="p-4 border-b border-white/10 space-y-3">
                                 <div className="flex items-center justify-between">
@@ -1476,7 +1483,10 @@ export default function StaffDashboard() {
                         </div>
 
                         {/* Detail Panel - Shows as overlay on mobile, side panel on desktop */}
-                        <div className={`${selectedRequest ? 'fixed inset-0 z-50 lg:relative lg:inset-auto overflow-y-auto overscroll-contain touch-pan-y' : 'hidden'} lg:flex flex-1 flex-col bg-slate-900`}>
+                        <div
+                            ref={detailPanelRef}
+                            className={`${selectedRequest ? 'fixed inset-0 z-50 lg:relative lg:inset-auto overflow-y-auto overscroll-contain touch-pan-y' : 'hidden'} lg:flex flex-1 flex-col bg-slate-900 lg:overflow-y-auto lg:h-[calc(100vh-theme(spacing.16))]`}
+                        >
                             {/* Mobile Back Button */}
                             {selectedRequest && (
                                 <div className="lg:hidden p-3 border-b border-white/10 flex items-center">
