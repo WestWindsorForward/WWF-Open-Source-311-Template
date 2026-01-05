@@ -345,22 +345,33 @@ View the full conversation at: {tracking_url}
     }
 
 
-def build_sms_confirmation(request_id: str, township_name: str, portal_url: str = "") -> str:
+def build_sms_confirmation(request_id: str, township_name: str, portal_url: str = "", service_name: str = "", description: str = "", address: str = "") -> str:
     """Build SMS message for request confirmation."""
     tracking_link = f"{portal_url}/#track/{request_id}" if portal_url else ""
     
+    # Truncate description for SMS
+    short_desc = description[:60] + "..." if len(description) > 60 else description
+    
     message = f"""✅ {township_name} 311
-Your request {request_id} has been received!
+Your request has been received!
 
-We'll notify you as we make progress."""
+📋 {service_name}"""
+    
+    if short_desc:
+        message += f"\n\"{short_desc}\""
+    
+    if address:
+        message += f"\n📍 {address}"
+    
+    message += f"\n\n🔖 Ref: {request_id}"
     
     if tracking_link:
-        message += f"\n\n📍 Track: {tracking_link}"
+        message += f"\n🔗 Track: {tracking_link}"
     
     return message
 
 
-def build_sms_status_update(request_id: str, new_status: str, township_name: str, portal_url: str = "", completion_message: str = "") -> str:
+def build_sms_status_update(request_id: str, new_status: str, township_name: str, portal_url: str = "", completion_message: str = "", service_name: str = "") -> str:
     """Build SMS message for status update."""
     status_emoji = {
         "open": "📋",
@@ -369,22 +380,27 @@ def build_sms_status_update(request_id: str, new_status: str, township_name: str
     }.get(new_status, "📋")
     
     status_text = {
-        "open": "is now being reviewed",
-        "in_progress": "is now being worked on",
+        "open": "is being reviewed",
+        "in_progress": "is being worked on",
         "closed": "has been resolved"
     }.get(new_status, f"status: {new_status}")
     
     tracking_link = f"{portal_url}/#track/{request_id}" if portal_url else ""
     
     message = f"""{status_emoji} {township_name} 311
-Request {request_id} {status_text}."""
+Your request {status_text}!"""
+    
+    if service_name:
+        message += f"\n\n📋 {service_name}"
     
     if new_status == "closed" and completion_message:
         # Truncate long completion messages for SMS
         short_msg = completion_message[:80] + "..." if len(completion_message) > 80 else completion_message
-        message += f"\n\n💬 {short_msg}"
+        message += f"\n💬 {short_msg}"
+    
+    message += f"\n\n🔖 Ref: {request_id}"
     
     if tracking_link:
-        message += f"\n\n📍 Details: {tracking_link}"
+        message += f"\n🔗 Details: {tracking_link}"
     
     return message

@@ -343,7 +343,14 @@ def send_branded_notification(request_id: int, notification_type: str, old_statu
                 # Also send SMS if phone provided
                 if request.phone:
                     from app.services.email_templates import build_sms_confirmation
-                    sms_message = build_sms_confirmation(request.service_request_id, township_name, portal_url)
+                    sms_message = build_sms_confirmation(
+                        request.service_request_id, 
+                        township_name, 
+                        portal_url,
+                        service_name=request.service_name,
+                        description=request.description or "",
+                        address=request.address or ""
+                    )
                     await notification_service.send_sms(request.phone, sms_message)
                     
             elif notification_type == "status_update":
