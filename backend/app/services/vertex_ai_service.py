@@ -290,11 +290,20 @@ async def analyze_with_gemini(
                 print(f"[Vertex AI] Raw Response: {response_text[:2000]}", file=sys.stderr)
                 result = json.loads(response_text)
         
-        # Extract the text response
+        # Extract the text response from all parts
         if 'candidates' in result and result['candidates']:
-            text_response = result['candidates'][0].get('content', {}).get('parts', [{}])[0].get('text', '')
+            parts = result['candidates'][0].get('content', {}).get('parts', [])
+            text_response = ""
+            
+            for part in parts:
+                if 'text' in part:
+                    # Append text from this part
+                    text_response += part['text']
+            
+            print(f"[Vertex AI] Combined Text Response: {text_response[:2000]}", file=sys.stderr)
             
             # Parse JSON from response (handle markdown code blocks)
+            # Look for the last JSON block if multiple exist, or just the main one
             json_match = re.search(r'```json\s*(.*?)\s*```', text_response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
