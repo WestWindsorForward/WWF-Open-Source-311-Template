@@ -9,11 +9,17 @@ import asyncio
 
 def run_async(coro):
     """Helper to run async functions in sync context"""
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
+    from app.db.session import engine
+    
+    async def _runner():
+        try:
+            return await coro
+        finally:
+            # Important: dispose the engine pool when the loop is about to close
+            # to avoid loop-contaminated state in subsequent tasks
+            await engine.dispose()
+            
+    return asyncio.run(_runner())
 
 
 async def get_secret(db, key_name: str) -> str:
