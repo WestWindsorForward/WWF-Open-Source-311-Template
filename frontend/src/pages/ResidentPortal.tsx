@@ -401,6 +401,8 @@ export default function ResidentPortal() {
         setBlockContacts([]);
         // Clear custom answers
         setCustomAnswers({});
+        // Strip hash from URL
+        window.history.replaceState(null, '', window.location.pathname);
     };
 
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -947,8 +949,8 @@ export default function ResidentPortal() {
                                                                     <input
                                                                         type="text"
                                                                         placeholder={q.placeholder || ''}
-                                                                        value={(customAnswers[q.id] as string) || ''}
-                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }))}
+                                                                        value={(customAnswers[q.label] as string) || ''}
+                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.label]: e.target.value }))}
                                                                         className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
                                                                         required={q.required}
                                                                     />
@@ -959,8 +961,8 @@ export default function ResidentPortal() {
                                                                     <textarea
                                                                         rows={3}
                                                                         placeholder={q.placeholder || ''}
-                                                                        value={(customAnswers[q.id] as string) || ''}
-                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }))}
+                                                                        value={(customAnswers[q.label] as string) || ''}
+                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.label]: e.target.value }))}
                                                                         className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2"
                                                                         required={q.required}
                                                                     />
@@ -971,8 +973,8 @@ export default function ResidentPortal() {
                                                                     <input
                                                                         type="number"
                                                                         placeholder={q.placeholder || ''}
-                                                                        value={(customAnswers[q.id] as string) || ''}
-                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }))}
+                                                                        value={(customAnswers[q.label] as string) || ''}
+                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.label]: e.target.value }))}
                                                                         className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
                                                                         required={q.required}
                                                                     />
@@ -982,8 +984,8 @@ export default function ResidentPortal() {
                                                                 {q.type === 'date' && (
                                                                     <input
                                                                         type="date"
-                                                                        value={(customAnswers[q.id] as string) || ''}
-                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }))}
+                                                                        value={(customAnswers[q.label] as string) || ''}
+                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.label]: e.target.value }))}
                                                                         className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
                                                                         required={q.required}
                                                                     />
@@ -996,8 +998,8 @@ export default function ResidentPortal() {
                                                                             <button
                                                                                 key={opt}
                                                                                 type="button"
-                                                                                onClick={() => setCustomAnswers(p => ({ ...p, [q.id]: opt }))}
-                                                                                className={`flex-1 py-2 rounded-lg border transition-colors ${customAnswers[q.id] === opt
+                                                                                onClick={() => setCustomAnswers(p => ({ ...p, [q.label]: opt }))}
+                                                                                className={`flex-1 py-2 rounded-lg border transition-colors ${customAnswers[q.label] === opt
                                                                                     ? 'bg-primary-500/30 border-primary-500 text-white'
                                                                                     : 'bg-white/5 border-white/20 text-white/70 hover:border-white/40'
                                                                                     }`}
@@ -1011,8 +1013,8 @@ export default function ResidentPortal() {
                                                                 {/* Select Dropdown */}
                                                                 {q.type === 'select' && (
                                                                     <select
-                                                                        value={(customAnswers[q.id] as string) || ''}
-                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }))}
+                                                                        value={(customAnswers[q.label] as string) || ''}
+                                                                        onChange={(e) => setCustomAnswers(p => ({ ...p, [q.label]: e.target.value }))}
                                                                         className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
                                                                         required={q.required}
                                                                     >
@@ -1032,8 +1034,8 @@ export default function ResidentPortal() {
                                                                                     type="radio"
                                                                                     name={q.id}
                                                                                     value={opt}
-                                                                                    checked={customAnswers[q.id] === opt}
-                                                                                    onChange={(e) => setCustomAnswers(p => ({ ...p, [q.id]: e.target.value }))}
+                                                                                    checked={customAnswers[q.label] === opt}
+                                                                                    onChange={(e) => setCustomAnswers(p => ({ ...p, [q.label]: e.target.value }))}
                                                                                     className="w-4 h-4"
                                                                                 />
                                                                                 {opt}
@@ -1050,13 +1052,13 @@ export default function ResidentPortal() {
                                                                                 <input
                                                                                     type="checkbox"
                                                                                     value={opt}
-                                                                                    checked={(customAnswers[q.id] as string[] || []).includes(opt)}
+                                                                                    checked={(customAnswers[q.label] as string[] || []).includes(opt)}
                                                                                     onChange={(e) => {
-                                                                                        const current = (customAnswers[q.id] as string[]) || [];
+                                                                                        const current = (customAnswers[q.label] as string[]) || [];
                                                                                         const updated = e.target.checked
                                                                                             ? [...current, opt]
                                                                                             : current.filter(v => v !== opt);
-                                                                                        setCustomAnswers(p => ({ ...p, [q.id]: updated }));
+                                                                                        setCustomAnswers(p => ({ ...p, [q.label]: updated }));
                                                                                     }}
                                                                                     className="w-4 h-4 rounded"
                                                                                 />

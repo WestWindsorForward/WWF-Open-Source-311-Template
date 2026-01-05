@@ -150,7 +150,6 @@ Provide your analysis in the following JSON format ONLY:
   "qualitative_analysis": "<assessment of issue, root cause, and systemic impact>",
   "photo_assessment": {{
     "physical_scale": "<desc>",
-    "estimated_effort": "<desc>",
     "blocking_severity": "<none|partial|full_block>"
   }},
   "content_flags": ["<inappropriate_content|malicious_intent|obscene_language|none>"],
