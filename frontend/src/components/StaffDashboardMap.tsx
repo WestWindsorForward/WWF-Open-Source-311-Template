@@ -61,6 +61,7 @@ export default function StaffDashboardMap({
     const [staffFilters, setStaffFilters] = useState<Record<string, boolean>>({});
     const [layerFilters, setLayerFilters] = useState<Record<number, boolean>>({});
     const [assignmentFilter, setAssignmentFilter] = useState<string>('');
+    const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
 
     // UI state
     const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +72,7 @@ export default function StaffDashboardMap({
         categories: false,
         departments: false,
         staff: false,
+        priority: false,
         layers: true,
         assignment: false,
     });
@@ -214,7 +216,7 @@ export default function StaffDashboardMap({
     useEffect(() => {
         if (!mapInstanceRef.current || !window.google) return;
         updateMarkers();
-    }, [requests, statusFilters, categoryFilters, departmentFilters, staffFilters, assignmentFilter]);
+    }, [requests, statusFilters, categoryFilters, departmentFilters, staffFilters, assignmentFilter, priorityFilter]);
 
     // Update GeoJSON layers when layer filters change
     useEffect(() => {
@@ -285,6 +287,15 @@ export default function StaffDashboardMap({
 
             // Must have coordinates
             if (!r.lat || !r.long) return false;
+
+            // Priority filter
+            if (priorityFilter !== 'all') {
+                const ai = (r as any).ai_analysis;
+                const priority = (r as any).manual_priority_score ?? (r as any).vertex_ai_priority_score ?? ai?.priority_score ?? 5;
+                if (priorityFilter === 'high' && priority < 8) return false;
+                if (priorityFilter === 'medium' && (priority < 5 || priority >= 8)) return false;
+                if (priorityFilter === 'low' && priority >= 5) return false;
+            }
 
             return true;
         });
@@ -764,6 +775,50 @@ export default function StaffDashboardMap({
                                         />
                                         <span className="text-sm text-white/70 truncate group-hover:text-white transition-colors">
                                             {user.full_name || user.username}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Priority Level Filter */}
+                    <div className="border-b border-white/5">
+                        <button
+                            onClick={() => toggleSection('priority')}
+                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                        >
+                            <span className="text-sm font-semibold text-white">Priority Level</span>
+                            {expandedSections.priority ? (
+                                <ChevronDown className="w-4 h-4 text-white/50" />
+                            ) : (
+                                <ChevronRight className="w-4 h-4 text-white/50" />
+                            )}
+                        </button>
+                        {expandedSections.priority && (
+                            <div className="px-4 pb-4 space-y-2">
+                                {[
+                                    { value: 'all', label: 'All Priorities', color: null },
+                                    { value: 'high', label: 'High (8-10)', color: '#ef4444' },
+                                    { value: 'medium', label: 'Medium (5-7)', color: '#f59e0b' },
+                                    { value: 'low', label: 'Low (1-4)', color: '#22c55e' },
+                                ].map(option => (
+                                    <label key={option.value} className="flex items-center gap-3 cursor-pointer group">
+                                        <input
+                                            type="radio"
+                                            name="priorityFilter"
+                                            checked={priorityFilter === option.value}
+                                            onChange={() => setPriorityFilter(option.value as typeof priorityFilter)}
+                                            className="w-4 h-4 text-primary-500 focus:ring-primary-500 focus:ring-offset-0"
+                                        />
+                                        {option.color && (
+                                            <span
+                                                className="w-3 h-3 rounded-full shadow-lg"
+                                                style={{ backgroundColor: option.color }}
+                                            />
+                                        )}
+                                        <span className="text-sm text-white/70 group-hover:text-white transition-colors">
+                                            {option.label}
                                         </span>
                                     </label>
                                 ))}

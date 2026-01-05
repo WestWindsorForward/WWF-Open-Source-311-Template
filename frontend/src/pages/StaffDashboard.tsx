@@ -224,18 +224,20 @@ export default function StaffDashboard() {
             );
         }
 
-        // Sort by priority score (higher = more urgent), then assignment, then date
+        // Sort by assignment group FIRST (mine -> dept -> all), then by priority within each group
         filtered.sort((a, b) => {
-            // Assignment priority: assigned to me -> my department -> others
-            const getAssignmentPriority = (r: ServiceRequest) => {
+            // Primary: Assignment grouping (assigned to me -> my department -> others)
+            const getAssignmentGroup = (r: ServiceRequest) => {
                 if (user && r.assigned_to === user.username) return 0; // Assigned specifically to me
                 // My department, but no specific person assigned (All Department Staff)
                 if (r.assigned_department_id && userDepartmentIds.includes(r.assigned_department_id) && !r.assigned_to) return 1;
                 return 2; // Others (including requests assigned to specific people in my dept who are not me)
             };
 
-            // Primary: Higher priority score = more urgent (descending)
-            // Note: getEffectivePriority is defined above and handles manual > vertex_ai > ai_analysis.priority_score
+            const assignmentDiff = getAssignmentGroup(a) - getAssignmentGroup(b);
+            if (assignmentDiff !== 0) return assignmentDiff; // Group by assignment first
+
+            // Secondary: Within each group, sort by priority (higher = more urgent, descending)
             const priorityA =
                 a.manual_priority_score ??
                 a.vertex_ai_priority_score ??
@@ -247,10 +249,6 @@ export default function StaffDashboard() {
                 ((b.ai_analysis as any)?.priority_score) ??
                 5;
             if (priorityA !== priorityB) return priorityB - priorityA; // Higher score first
-
-            // Secondary: Assignment priority (ascending - me first)
-            const assignmentDiff = getAssignmentPriority(a) - getAssignmentPriority(b);
-            if (assignmentDiff !== 0) return assignmentDiff;
 
             // Tertiary: Sort by requested_datetime (newest first)
             return new Date(b.requested_datetime).getTime() - new Date(a.requested_datetime).getTime();
@@ -1671,6 +1669,13 @@ export default function StaffDashboard() {
                                                                 )}
 
                                                             </div>
+
+                                                            {/* Summary Preview - visible when collapsed */}
+                                                            {!isAIExpanded && qualitativeText && !hasError && (
+                                                                <p className="text-sm text-white/60 mt-2 line-clamp-2">
+                                                                    {qualitativeText.split('. ').slice(0, 2).join('. ')}{qualitativeText.split('. ').length > 2 ? '...' : ''}
+                                                                </p>
+                                                            )}
 
                                                             {/* Collapsible AI Details */}
                                                             {isAIExpanded && (
