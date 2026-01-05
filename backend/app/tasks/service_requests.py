@@ -311,6 +311,15 @@ def send_branded_notification(request_id: int, notification_type: str, old_statu
             logo_url = settings.logo_url if settings else None
             primary_color = settings.primary_color if settings else "#6366f1"
             
+            # Check if notifications are enabled via module toggles
+            modules = settings.modules if settings else {}
+            email_enabled = modules.get('email_notifications', True)  # Default to enabled for backwards compatibility
+            sms_enabled = modules.get('sms_alerts', False)
+            
+            if not email_enabled and not sms_enabled:
+                logger.info(f"[Notification] Skipping - both email and SMS notifications disabled in modules")
+                return {"status": "skipped", "reason": "notifications disabled"}
+            
             # Get custom domain for portal URL
             custom_domain = settings.custom_domain if settings else None
             portal_url = f"https://{custom_domain}" if custom_domain else "http://localhost:5173"
@@ -323,25 +332,26 @@ def send_branded_notification(request_id: int, notification_type: str, old_statu
             if not request:
                 return {"error": "Request not found"}
             
-            logger.info(f"[Notification] Sending {notification_type} for request {request.service_request_id} to {request.email}")
+            logger.info(f"[Notification] Sending {notification_type} for request {request.service_request_id} (email={email_enabled}, sms={sms_enabled})")
             
             if notification_type == "confirmation":
-                # Send branded confirmation for new request
-                notification_service.send_request_confirmation_branded(
-                    request_id=str(request.service_request_id),
-                    service_name=request.service_name,
-                    description=request.description or "",
-                    address=request.address,
-                    email=request.email,
-                    phone=request.phone,
-                    township_name=township_name,
-                    logo_url=logo_url,
-                    primary_color=primary_color,
-                    portal_url=portal_url
-                )
+                # Send branded confirmation email if enabled
+                if email_enabled and request.email:
+                    notification_service.send_request_confirmation_branded(
+                        request_id=str(request.service_request_id),
+                        service_name=request.service_name,
+                        description=request.description or "",
+                        address=request.address,
+                        email=request.email,
+                        phone=request.phone,
+                        township_name=township_name,
+                        logo_url=logo_url,
+                        primary_color=primary_color,
+                        portal_url=portal_url
+                    )
                 
-                # Also send SMS if phone provided
-                if request.phone:
+                # Also send SMS if enabled and phone provided
+                if sms_enabled and request.phone:
                     from app.services.email_templates import build_sms_confirmation
                     sms_message = build_sms_confirmation(
                         request.service_request_id, 
@@ -354,7 +364,7 @@ def send_branded_notification(request_id: int, notification_type: str, old_statu
                     await notification_service.send_sms(request.phone, sms_message)
                     
             elif notification_type == "status_update":
-                # Send branded status update
+                # Send branded status update (checks internally for email/phone)
                 await notification_service.send_status_update_branded(
                     request_id=str(request.service_request_id),
                     service_name=request.service_name,
@@ -362,15 +372,15 @@ def send_branded_notification(request_id: int, notification_type: str, old_statu
                     new_status=request.status,
                     completion_message=completion_message or request.completion_message,
                     completion_photo_url=request.completion_photo_url,
-                    email=request.email,
-                    phone=request.phone,
+                    email=request.email if email_enabled else None,
+                    phone=request.phone if sms_enabled else None,
                     township_name=township_name,
                     logo_url=logo_url,
                     primary_color=primary_color,
                     portal_url=portal_url
                 )
             
-            return {"status": "sent", "type": notification_type}
+            return {"status": "sent", "type": notification_type, "email": email_enabled, "sms": sms_enabled}
     
     try:
         return run_async(_notify())
