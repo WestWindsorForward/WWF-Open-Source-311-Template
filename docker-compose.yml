@@ -61,6 +61,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${DB_USER:-township}:${DB_PASSWORD:-township}@db/${DB_NAME:-township_db}
       REDIS_URL: redis://redis:6379/0
+      GOOGLE_VERTEX_PROJECT: ${GOOGLE_VERTEX_PROJECT:-}
+      GOOGLE_VERTEX_LOCATION: ${GOOGLE_VERTEX_LOCATION:-us-central1}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

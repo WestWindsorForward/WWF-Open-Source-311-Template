@@ -531,30 +531,39 @@ async def get_spatial_context(db, lat: float, long: float, service_code: str) ->
             try:
                 import httpx
                 import os
+                import logging
                 
                 google_maps_key = os.environ.get("GOOGLE_MAPS_API_KEY")
+                logging.info(f"[Critical Infrastructure] Google Maps API key available: {bool(google_maps_key)}")
+                
                 if google_maps_key:
                     # Google Places Nearby Search for critical infrastructure types
                     critical_place_types = ["fire_station", "hospital", "police", "school"]
                     
                     async with httpx.AsyncClient(timeout=5.0) as client:
                         for place_type in critical_place_types:
-                            places_url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+                            places_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
                             params = {
                                 "location": f"{lat},{long}",
-                                "radius": 50,  # 50 meters
+                                "radius": 100,  # 100 meters for better detection
                                 "type": place_type,
                                 "key": google_maps_key
                             }
+                            logging.info(f"[Critical Infrastructure] Searching for {place_type} at {lat},{long}")
                             response = await client.get(places_url, params=params)
+                            logging.info(f"[Critical Infrastructure] Response status: {response.status_code}")
                             if response.status_code == 200:
                                 data = response.json()
+                                logging.info(f"[Critical Infrastructure] Found {len(data.get('results', []))} {place_type} results")
                                 if data.get("results"):
                                     # Found a nearby critical infrastructure via Google Maps
                                     place = data["results"][0]  # Take the closest one
                                     place_name = place.get("name", place_type.replace("_", " ").title())
                                     spatial_info["critical_infrastructure"].append(f"{place_type.replace('_', ' ').title()}: {place_name} (via Google Maps)")
+                                    logging.info(f"[Critical Infrastructure] Detected: {place_name}")
                                     break  # One match is enough
+                else:
+                    logging.warning("[Critical Infrastructure] GOOGLE_MAPS_API_KEY not set, skipping Google Places fallback")
             except Exception as e:
                 import logging
                 logging.warning(f"Google Places API fallback failed: {e}")
