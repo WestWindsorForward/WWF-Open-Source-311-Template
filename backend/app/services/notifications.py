@@ -312,7 +312,7 @@ class NotificationService:
             self.send_email(email, email_content["subject"], email_content["html"], email_content["text"])
         
         if phone:
-            sms_message = build_sms_status_update(request_id, new_status, township_name)
+            sms_message = build_sms_status_update(request_id, new_status, township_name, portal_url, completion_message)
             await self.send_sms(phone, sms_message)
     
     async def send_status_update(

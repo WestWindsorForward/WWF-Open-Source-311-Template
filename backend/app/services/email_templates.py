@@ -345,17 +345,46 @@ View the full conversation at: {tracking_url}
     }
 
 
-def build_sms_confirmation(request_id: str, township_name: str) -> str:
+def build_sms_confirmation(request_id: str, township_name: str, portal_url: str = "") -> str:
     """Build SMS message for request confirmation."""
-    return f"{township_name} 311: Your request #{request_id} has been received. We'll notify you of updates."
+    tracking_link = f"{portal_url}/#track/{request_id}" if portal_url else ""
+    
+    message = f"""✅ {township_name} 311
+Your request {request_id} has been received!
+
+We'll notify you as we make progress."""
+    
+    if tracking_link:
+        message += f"\n\n📍 Track: {tracking_link}"
+    
+    return message
 
 
-def build_sms_status_update(request_id: str, new_status: str, township_name: str) -> str:
+def build_sms_status_update(request_id: str, new_status: str, township_name: str, portal_url: str = "", completion_message: str = "") -> str:
     """Build SMS message for status update."""
+    status_emoji = {
+        "open": "📋",
+        "in_progress": "🔧", 
+        "closed": "✅"
+    }.get(new_status, "📋")
+    
     status_text = {
         "open": "is now being reviewed",
         "in_progress": "is now being worked on",
         "closed": "has been resolved"
-    }.get(new_status, f"status changed to {new_status}")
+    }.get(new_status, f"status: {new_status}")
     
-    return f"{township_name} 311: Request #{request_id} {status_text}."
+    tracking_link = f"{portal_url}/#track/{request_id}" if portal_url else ""
+    
+    message = f"""{status_emoji} {township_name} 311
+Request {request_id} {status_text}."""
+    
+    if new_status == "closed" and completion_message:
+        # Truncate long completion messages for SMS
+        short_msg = completion_message[:80] + "..." if len(completion_message) > 80 else completion_message
+        message += f"\n\n💬 {short_msg}"
+    
+    if tracking_link:
+        message += f"\n\n📍 Details: {tracking_link}"
+    
+    return message
