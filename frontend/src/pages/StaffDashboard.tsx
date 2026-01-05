@@ -40,6 +40,7 @@ import {
     Cloud,
     Shield,
     Edit3,
+    Bell,
 } from 'lucide-react';
 import { Button, Card, Modal, Input, Textarea, Select, StatusBadge, Badge } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
@@ -51,6 +52,7 @@ import StaffDashboardMap from '../components/StaffDashboardMap';
 import RequestDetailMap from '../components/RequestDetailMap';
 import { usePageNavigation } from '../hooks/usePageNavigation';
 import NotificationSettings from '../components/NotificationSettings';
+import ActivityFeed from '../components/ActivityFeed';
 
 type View = 'dashboard' | 'active' | 'in_progress' | 'resolved' | 'statistics';
 
@@ -179,6 +181,9 @@ export default function StaffDashboard() {
 
     // Notification settings modal state
     const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+
+    // Activity feed state
+    const [showActivityFeed, setShowActivityFeed] = useState(false);
 
     // Get current user's department IDs
     const userDepartmentIds = useMemo(() => {
@@ -686,12 +691,41 @@ export default function StaffDashboard() {
                                     <p className="text-xs text-white/50">{settings?.township_name}</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => setSidebarOpen(false)}
-                                className="lg:hidden p-2 hover:bg-white/10 rounded-lg"
-                            >
-                                <X className="w-5 h-5 text-white/60" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {/* Activity Feed Bell */}
+                                <button
+                                    onClick={() => setShowActivityFeed(true)}
+                                    className="relative p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                    title="Activity Feed"
+                                >
+                                    <Bell className="w-5 h-5 text-white/60" />
+                                    {/* Calculate and show unread count */}
+                                    {(() => {
+                                        const now = Date.now();
+                                        const twentyFourHours = 24 * 60 * 60 * 1000;
+                                        const readItems = JSON.parse(localStorage.getItem('activityFeedRead') || '[]');
+                                        const readSet = new Set(readItems);
+                                        let count = 0;
+                                        requests.forEach(req => {
+                                            const age = now - new Date(req.requested_datetime).getTime();
+                                            if (age < twentyFourHours && req.assigned_department_id && userDepartmentIds.includes(req.assigned_department_id)) {
+                                                if (!readSet.has(`new-${req.service_request_id}`)) count++;
+                                            }
+                                        });
+                                        return count > 0 ? (
+                                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center animate-pulse">
+                                                {count > 9 ? '9+' : count}
+                                            </span>
+                                        ) : null;
+                                    })()}
+                                </button>
+                                <button
+                                    onClick={() => setSidebarOpen(false)}
+                                    className="lg:hidden p-2 hover:bg-white/10 rounded-lg"
+                                >
+                                    <X className="w-5 h-5 text-white/60" />
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -1403,9 +1437,17 @@ export default function StaffDashboard() {
                                                 whileTap={{ scale: 0.98 }}
                                             >
                                                 <div className="flex items-start justify-between mb-2">
-                                                    <span className="font-mono text-xs text-white/50">
-                                                        {request.service_request_id}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-xs text-white/50">
+                                                            {request.service_request_id}
+                                                        </span>
+                                                        {/* NEW badge for requests < 24 hours old */}
+                                                        {Date.now() - new Date(request.requested_datetime).getTime() < 24 * 60 * 60 * 1000 && (
+                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold animate-pulse">
+                                                                NEW
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <StatusBadge status={request.status} />
                                                 </div>
                                                 <h3 className="font-medium text-white mb-1">{request.service_name}</h3>
@@ -2566,6 +2608,19 @@ export default function StaffDashboard() {
                 isOpen={showNotificationSettings}
                 onClose={() => setShowNotificationSettings(false)}
                 userName={user?.full_name || user?.username || 'User'}
+            />
+            {/* Activity Feed Panel */}
+            <ActivityFeed
+                isOpen={showActivityFeed}
+                onClose={() => setShowActivityFeed(false)}
+                requests={requests}
+                userId={user?.username || ''}
+                userDepartmentIds={userDepartmentIds}
+                onSelectRequest={(request) => {
+                    // Find and select this request by its ID
+                    handleMapRequestSelect(request.service_request_id);
+                    setSidebarOpen(false);
+                }}
             />
         </div>
     );
