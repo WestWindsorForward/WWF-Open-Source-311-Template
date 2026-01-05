@@ -191,10 +191,18 @@ def build_status_update_email(
     # Build completion photo section if available
     completion_photo_section = ""
     if completion_photo_url and new_status == "closed":
+        # Convert relative URLs to absolute for email compatibility
+        if completion_photo_url.startswith('/'):
+            # Remove trailing slash from portal_url if present and prepend
+            base_url = portal_url.rstrip('/')
+            photo_full_url = f"{base_url}{completion_photo_url}"
+        else:
+            photo_full_url = completion_photo_url
+            
         completion_photo_section = f'''
         <div style="margin-bottom: 24px; text-align: center;">
             <p style="margin: 0 0 12px 0; color: #166534; font-size: 13px; font-weight: 600;">Completion Photo</p>
-            <img src="{completion_photo_url}" alt="Completion photo" style="max-width: 100%; height: auto; border-radius: 12px; border: 2px solid #dcfce7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <img src="{photo_full_url}" alt="Completion photo" style="max-width: 100%; height: auto; border-radius: 12px; border: 2px solid #dcfce7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
         </div>
         '''
     
