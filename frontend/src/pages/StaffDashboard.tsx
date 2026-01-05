@@ -2264,7 +2264,10 @@ export default function StaffDashboard() {
                                                         <div className="absolute bottom-full left-0 right-0 mb-2 bg-slate-800 rounded-lg border border-white/10 shadow-xl overflow-hidden z-20">
                                                             <button
                                                                 onClick={() => {
-                                                                    navigator.clipboard.writeText(`${window.location.origin}/staff#detail/${selectedRequest.service_request_id}`);
+                                                                    // Use current status for staff link (active, in_progress, resolved)
+                                                                    const statusPath = selectedRequest.status === 'open' ? 'active' :
+                                                                        selectedRequest.status === 'in_progress' ? 'in_progress' : 'resolved';
+                                                                    navigator.clipboard.writeText(`${window.location.origin}/staff#${statusPath}/request/${selectedRequest.service_request_id}`);
                                                                     setCopiedLink('staff');
                                                                     setTimeout(() => { setCopiedLink(null); setShowShareMenu(false); }, 1500);
                                                                 }}
@@ -2283,7 +2286,8 @@ export default function StaffDashboard() {
                                                             <div className="border-t border-white/5" />
                                                             <button
                                                                 onClick={() => {
-                                                                    navigator.clipboard.writeText(`${window.location.origin}/track#request/${selectedRequest.service_request_id}`);
+                                                                    // Resident portal uses /#track/ID format
+                                                                    navigator.clipboard.writeText(`${window.location.origin}/#track/${selectedRequest.service_request_id}`);
                                                                     setCopiedLink('resident');
                                                                     setTimeout(() => { setCopiedLink(null); setShowShareMenu(false); }, 1500);
                                                                 }}

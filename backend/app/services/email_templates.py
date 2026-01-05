@@ -82,7 +82,7 @@ def build_confirmation_email(
     Build email for new request confirmation.
     Returns dict with 'subject', 'html', and 'text' keys.
     """
-    tracking_url = f"{portal_url}/track/{request_id}"
+    tracking_url = f"{portal_url}/#track/{request_id}"
     
     content = f"""
         <div style="text-align: center; margin-bottom: 24px;">
@@ -178,7 +178,7 @@ def build_status_update_email(
     Build email for status update notification.
     Includes completion photo if provided (for closed requests).
     """
-    tracking_url = f"{portal_url}/track/{request_id}"
+    tracking_url = f"{portal_url}/#track/{request_id}"
     
     status_configs = {
         "open": {"label": "Open", "color": "#f59e0b", "bg": "#fef3c7", "icon": "circle"},
@@ -282,7 +282,7 @@ def build_comment_email(
     Build email for new public comment notification.
     Uses table-based layout for email client compatibility.
     """
-    tracking_url = f"{portal_url}/track/{request_id}"
+    tracking_url = f"{portal_url}/#track/{request_id}"
     author_initial = comment_author[0].upper() if comment_author else "S"
     
     content = f"""
