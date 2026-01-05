@@ -551,7 +551,7 @@ async def get_spatial_context(db, lat: float, long: float, service_code: str) ->
                             places_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
                             params = {
                                 "location": f"{lat},{long}",
-                                "radius": 100,  # 100 meters for better detection
+                                "radius": 200,  # 200 meters for better detection
                                 "type": place_type,
                                 "key": google_maps_key
                             }
