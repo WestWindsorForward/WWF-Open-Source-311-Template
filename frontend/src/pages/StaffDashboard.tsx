@@ -741,7 +741,15 @@ export default function StaffDashboard() {
                                 </div>
                                 <div>
                                     <p className="font-medium text-white text-sm">{user?.full_name || user?.username}</p>
-                                    <p className="text-xs text-white/50 capitalize">{user?.role}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-xs text-white/50 capitalize">{user?.role}</p>
+                                        {user?.departments && user.departments.length > 0 && (
+                                            <>
+                                                <span className="text-white/20">•</span>
+                                                <p className="text-xs text-primary-400">{user.departments.map(d => d.name).join(', ')}</p>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <button

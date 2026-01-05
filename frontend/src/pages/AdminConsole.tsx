@@ -1060,43 +1060,66 @@ export default function AdminConsole() {
                                     </Button>
                                 </div>
 
-                                <Card className="p-0 overflow-hidden">
+                                <Card className="p-0 overflow-hidden border-white/10">
                                     <table className="w-full">
-                                        <thead className="border-b border-white/10">
+                                        <thead className="border-b border-white/10 bg-white/5">
                                             <tr>
-                                                <th className="text-left p-4 text-white/60 font-medium">User</th>
-                                                <th className="text-left p-4 text-white/60 font-medium">Email</th>
-                                                <th className="text-left p-4 text-white/60 font-medium">Role</th>
-                                                <th className="text-right p-4 text-white/60 font-medium">Actions</th>
+                                                <th className="text-left p-4 text-white/60 font-medium text-sm uppercase tracking-wider">User</th>
+                                                <th className="text-left p-4 text-white/60 font-medium text-sm uppercase tracking-wider">Email</th>
+                                                <th className="text-left p-4 text-white/60 font-medium text-sm uppercase tracking-wider">Role</th>
+                                                <th className="text-left p-4 text-white/60 font-medium text-sm uppercase tracking-wider">Department</th>
+                                                <th className="text-right p-4 text-white/60 font-medium text-sm uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
                                             {users.map((u) => (
-                                                <tr key={u.id} className="hover:bg-white/5">
+                                                <tr key={u.id} className="hover:bg-white/5 transition-colors group">
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 rounded-full bg-primary-500/30 flex items-center justify-center text-white font-medium">
-                                                                {u.username.charAt(0).toUpperCase()}
+                                                            <div className="relative">
+                                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-lg">
+                                                                    {u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${u.is_active ? 'bg-green-500' : 'bg-gray-500'}`} />
                                                             </div>
                                                             <div>
-                                                                <p className="font-medium text-white">{u.username}</p>
-                                                                <p className="text-sm text-white/50">{u.full_name}</p>
+                                                                <p className="font-medium text-white">{u.full_name || u.username}</p>
+                                                                <p className="text-sm text-white/40 font-mono">@{u.username}</p>
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="p-4 text-white/70">{u.email}</td>
+                                                    <td className="p-4">
+                                                        <span className="text-white/70 text-sm">{u.email}</span>
+                                                    </td>
                                                     <td className="p-4">
                                                         <Badge variant={u.role === 'admin' ? 'warning' : 'info'}>
-                                                            {u.role}
+                                                            {u.role === 'admin' ? '👑 Admin' : '👤 Staff'}
                                                         </Badge>
                                                     </td>
+                                                    <td className="p-4">
+                                                        {u.departments && u.departments.length > 0 ? (
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {u.departments.map((dept) => (
+                                                                    <span
+                                                                        key={dept.id}
+                                                                        className="px-2 py-1 text-xs font-medium rounded-md bg-primary-500/15 text-primary-300 border border-primary-500/20"
+                                                                    >
+                                                                        {dept.name}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-white/30 text-sm italic">No department</span>
+                                                        )}
+                                                    </td>
                                                     <td className="p-4 text-right">
-                                                        <div className="flex items-center justify-end gap-2">
+                                                        <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => openPasswordReset(u)}
                                                                 title="Reset password"
+                                                                className="hover:bg-white/10"
                                                             >
                                                                 <RotateCcw className="w-4 h-4" />
                                                             </Button>
@@ -1106,6 +1129,7 @@ export default function AdminConsole() {
                                                                 onClick={() => handleDeleteUser(u.id)}
                                                                 disabled={u.id === user?.id}
                                                                 title="Delete user"
+                                                                className="hover:bg-red-500/20 hover:text-red-400"
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </Button>
