@@ -1,297 +1,222 @@
-# Township 311 System
+# Township 311 - Advanced Municipal Request System
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
   <img src="https://img.shields.io/badge/React-18-61DAFB.svg" alt="React 18">
   <img src="https://img.shields.io/badge/FastAPI-0.109-009688.svg" alt="FastAPI">
   <img src="https://img.shields.io/badge/PostgreSQL-15-336791.svg" alt="PostgreSQL 15">
-  <img src="https://img.shields.io/badge/Open311-v2-green.svg" alt="Open311 v2">
+  <img src="https://img.shields.io/badge/AI-Gemini%203.0-8E24AA.svg" alt="Gemini 3.0 Flash">
+  <img src="https://img.shields.io/badge/Geo-PostGIS-336791.svg" alt="PostGIS">
 </p>
 
-A white-label, open-source civic engagement platform for municipal request management (311 system). Features AI-powered triage, GIS integration, and a premium glassmorphism UI. Built for on-premises government deployment.
+## 🏛️ Introduction
 
-## ✨ Features
+Township 311 is a production-grade, open-source platform designed for modern municipalities. It replaces legacy, clunky government forms with a **consumer-grade user experience** that feels as polished as a ride-sharing or food-delivery app.
 
-- **Open311 Compliant** - GeoReport v2 compatible API
-- **Premium Glassmorphism UI** - Modern, responsive design
-- **Mobile-First** - App-like experience on mobile devices
-- **AI Triage** - Optional Vertex AI integration for request analysis
-- **GIS Ready** - PostGIS for spatial queries and geocoding
-- **White-Label** - Fully customizable branding
-- **Self-Hosted** - Data sovereignty with on-premises deployment
+Beyond the UI, it features a sophisticated **AI & Geospatial Engine** that automates triage, detects duplicate reports, and routes requests based on precise location data—saving thousands of staff hours manually sorting tickets.
 
 ---
 
-## 🚀 Quick Start
+## 🌟 Core Features Overview
+
+### 🎨 User Experience First
+- **Premium Glassmorphism Design**: A modern, translucent UI that builds trust and engagement.
+- **Mobile-First Architecture**: Fully responsive web app that behaves natively on iOS/Android.
+- **No-Login Submission**: Removes friction for residents while maintaining security via email magic links.
+
+### 🧠 Advanced Intelligence
+- **Information Redaction**: Automatically strips PII (names, phones, emails) from public request logs.
+- **Visual Analysis**: Uses **Gemini 3.0 Flash** to "see" uploaded photos and categorize hazards (e.g., "pothole caused by water damage").
+- **Priority Scoring**: AI assigns a 1-10 urgency score based on safety risks and recurrence history.
+
+### 🗺️ Geospatial Power
+- **Asset Matching**: snaps user pins to verified infrastructure (e.g., streetlights, hydrants) using PostGIS `ST_DWithin`.
+- **Boundary Enforcement**: Validates that requests are actually within township limits before submission.
+- **Heatmaps & Clustering**: Auto-groups nearby requests to visualize problem hotspots.
+
+---
+
+## 🏠 Resident Portal Features
+
+The Resident Portal is the public face of the system, designed for zero friction.
+
+- **Visual Grid**: Services are displayed with clear, consistent iconography (Lucide React) for instant recognition.
+- **Service Categories**: Browsable catalog of all available township services.
+
+### 2. Intelligent Location Picker
+- **Interactive Map**: Google Maps integration with drag-to-set pin functionality.
+- **Address Autocomplete**: Type-ahead search for local addresses.
+- **Jurisdiction Boundaries**: System-level polygons (GeoJSON) define the valid service area. PINS dropped outside are auto-rejected.
+- **Asset Integration**: Requests can be linked to specific infrastructure assets (e.g., specific park zones) if configured.
+
+### 3. Advanced Routing Logic
+- **Road-Based Routing**: Configurable rules for state/county roads.
+    - *Example*: Potholes on "Route 1" are automatically blocked with a custom message: "This road is maintained by the State DOT. Please call 555-0199."
+- **Third-Party Hand-off**: Services managed by private contractors (e.g., Waste Management) show specific contact info instead of a generic form.
+
+### 4. Submission & Tracking
+- **Multi-Photo Upload**: Supports up to 3 high-res images with client-side compression.
+- **Magic Link Tracking**: Users receive a unique, hash-based tracking link (e.g., `/track/req-123`) to view live status updates without creating an account.
+- **Status Timeline**: clean visualization of the request journey from "Received" → "In Progress" → "Resolved" → "Closed".
+- **Public Request Map**: Interactive map allowing residents to view all open and resolved requests. Features robust filtering by:
+    - **Department** (Police, Public Works, etc.)
+    - **Status** (Open, Closed, In Progress)
+    - **Date Range**
+    - **Service Type**
+
+---
+
+## 👷 Staff Dashboard Features
+
+The Staff Dashboard is the command center for municipal operations, protected by secure JWT authentication.
+
+### 1. Unified Workspace
+- **Unified Workspace**:
+    - **Live Feed**: Auto-refreshes every 30s; identifying "NEW" requests with badging.
+    - **Split-Pane View**: Independent scrolling for the request list and details panel.
+    - **Interactive Map**: Features "Satellite View" for precise location verification. Includes comprehensive filters for:
+        - **Priority Level** (Critical, High, Normal)
+        - **Department & Assigned Staff**
+        - **Status & Date Range**
+        - **Service Category**
+- **Collaboration Tools**:
+    - **Internal Comments**: Private staff-only notes for coordination.
+    - **External Updates**: Public comments visible to residents via the tracker.
+    - **Staff Preferences**: Each staff member can toggle their own SMS/Email notifications.
+- **Audit Log**: Immutable history of every action (status change, assignment, comment).
+
+### 3. Request Management
+- **Smart Assignment**: Auto-route to specific departments or keep in a general queue.
+- **Completion Types**: Close requests as **Resolved** (with photo proof), **No Action Needed** (invalid), or **Transferred** (third-party).
+- **Priority Override**: Manually escalate issues that AI might have missed.
+- **Asset History**: When viewing a request attached to a physical asset (e.g., Hydrant #404), automatically shows all past history for that specific asset.
+- **Status Workflow**:
+    - **Open**: New request.
+    - **In Progress**: Staff acknowledged and working.
+    - **Resolved**: Work complete.
+    - **Closed**: Final state (includes optional "Completion Photo" proof).
+
+### 4. AI Insights Panel
+- **Safety Flags**: Highlights potential liabilities (e.g., "Downed power line detected").
+- **Proximity Analysis**: Checks if the issue is near critical infrastructure (Schools, Hospitals, Fire Stations) via PostGIS, with a **Nominatim (OpenStreetMap)** fallback for unmapped areas.
+- **Sentiment Analysis**: Gauges the tone of the resident's description (Neutral, Frustrated, Urgent).
+- **Weather Context**: Automatically fetches real-time weather (e.g., "Heavy Rain, 45°F") to validiate hazards.
+- **Gemini 3.0 Flash**: Powered by Google's latest model with "Thinking Config" for deep reasoning and lower latency.
+- **Duplicate Detection**: Suggests potential duplicate reports based on location (within 50m) and time window.
+- **PostGIS Geospatial Analytics**:
+    - **Hotspot Analysis**: Automatically clusters requests to identify problem areas (e.g., "Pothole Clusters" on specific roads).
+    - **User Bias Detection**: Flags suspicious activity using spatial statistics (e.g., single user spamming requests in a 10m radius).
+    - **Jurisdiction Verification**: Real-time point-in-polygon checks against township boundaries.
+
+---
+
+## ⚙️ Admin Console Features
+
+A full CMS for managing the municipality's presence without touching code.
+
+- **Custom Icons**: Select from a library of 100+ icons.
+- **Routing Rules**: Assign services to specific departments (e.g., "Potholes" → "DPW").
+- **SLA Definitions**: Set expected response times (e.g., "24 hours" for urgent issues).
+
+### 6. Service Configuration (Admin)
+- **Granular Routing**: Configure each service category (e.g., "Pothole") to:
+    - **Township Handled**: Route to internal Public Works department.
+    - **Third-Party Handoff**: Direct residents to external agencies (e.g., "This road is state-maintained, please call DOT at...").
+    - **Road-Based Logic**: Automatically split jurisdiction based on specific street names (e.g., "Main St" goes to County, "Elm St" stays local).
+- **Custom Questions**: specific follow-up questions (e.g., "Is the dog aggressive?") for each service category to gather precise details.
+
+### 3. System Management
+- **System Updates**: One-click "Pull Updates" to fetch the latest code from GitHub and rebuild containers.
+- **Custom Map Layers**: Upload **GeoJSON** files to visualize township assets (Parks, Storm Drains, Zoning Districts) directly on the staff map.
+- **Domain Configuration**: Automatic HTTPS provisioning via Caddy (Let's Encrypt) for custom domains.
+- **Key Management**: Securely store API keys for Google Maps, Vertex AI (Google Cloud Project ID + Service Account Key), and SMS Providers.
+- **Feature Modules**: Toggle major features like "AI Analysis" or "SMS Alerts" on/off globally.
+    - `ENABLE_SMS_ALERTS`: Toggle text message notifications (Twilio or Generic).
+- **Database Maintenance**: Tools to seed default data or flush test records.
+
+---
+
+## 🚀 Technical Architecture
+
+### Communication Engine
+- **Branding Engine**: Automatically injects township logo, colors, and font settings into every email.
+- **Rich SMS**: Sends text alerts with status emojis (✅, 🚧), request details (category, address), and magic links for instant tracking.
+- **Provider Agnostic**: Built-in support for **Twilio**, plus a generic HTTP adapter for any other SMS gateway.
+- **Completion Proof**: "Review & Close" workflow attaches the final resolution photo to the closing email sent to the resident.
+
+### Standards Compliance
+- **Open311 v2**: Fully compliant with the Open311 GeoReport v2 standard (JSON).
+    - `GET /requests.json`: Public feed (cached via Redis).
+    - `POST /requests.json`: Standard submission endpoint.
+- **Audit Trails**: Every action (submission, comment, status change) is logged for accountability.
+
+### Tech Stack
+| Component | Technology | Description |
+|-----------|------------|-------------|
+| **Frontend** | React 18 + TypeScript | Performant, type-safe UI built with Vite |
+| **Styling** | Tailwind CSS + Framer Motion | Fluid animations and glassmorphism themes |
+| **Backend** | FastAPI (Python 3.11) | High-performance async REST API |
+| **Database** | PostgreSQL 15 + PostGIS | Relational data with advanced spatial queries |
+| **Caching** | Redis | High-speed caching for public request feeds (60s TTL) |
+| **AI** | Vertex AI (Gemini Flash) | Multimodal model for image/text analysis |
+| **Queue** | Celery + Redis | Background processing for emails and reports |
+| **Reverse Proxy** | Caddy | Automatic HTTPS and SSL termination |
+
+### The "Atomic Page" Pattern
+The frontend uses a unique **Atomic Page Architecture**. Instead of deep component trees, pages like `ResidentPortal.tsx` and `StaffDashboard.tsx` are self-contained "atoms" that manage their own complex state. This reduces prop-drilling and makes the codebase easier to audit for security.
+
+### 🔒 Security Standards
+- **PII Protection**: Personally Identifiable Information is encrypted at rest and redacted from public API feeds.
+- **RBAC**: Role-Based Access Control separates `Staff` (view/edit) from `Admin` (config/delete).
+- **Rate Limiting**: API endpoints are protected against flood attacks.
+- **SQL Injection Proof**: Usage of SQLAlchemy ORM prevents injection vulnerabilities.
+
+---
+
+## 📦 Deployment & Setup
 
 ### Prerequisites
-
 - Docker & Docker Compose
-- Git
+- A Google Cloud Project (for Maps & Vertex AI)
 
-### Installation
+### Quick Start
+```bash
+# 1. Clone the repository
+git clone https://github.com/WestWindsorForward/WWF-Open-Source-311-Template.git
+cd WWF-Open-Source-311-Template
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/WestWindsorForward/WWF-Open-Source-311-Template.git
-   cd WWF-Open-Source-311-Template
-   ```
+# 2. Configure Environment
+cp .env.example .env
+# Edit .env and set your secrets (DB_PASSWORD, SECRET_KEY, etc.)
 
-2. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
+# 3. Launch
+docker-compose up --build -d
+```
 
-3. **Start the services**
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Access the portals**
-   - 🏠 **Resident Portal**: http://localhost/
-   - 👷 **Staff Dashboard**: http://localhost/staff
-   - ⚙️ **Admin Console**: http://localhost/admin
-   - 📚 **API Docs**: http://localhost/api/docs
+### Access Points
+- **Resident Portal**: `http://localhost/`
+- **Staff Dashboard**: `http://localhost/staff`
+- **Admin Console**: `http://localhost/admin`
+- **API Documentation**: `http://localhost/api/docs`
 
 ### Default Credentials
+user: `admin` | password: `admin123`
 
-| Portal | Username | Password |
-|--------|----------|----------|
-| Staff/Admin | `admin` | `admin123` |
-
-> ⚠️ **Change these in production!**
+*(You will be prompted to change this immediately upon login)*
 
 ---
-
-## 📱 User Roles
-
-| Role | Capabilities |
-|------|-------------|
-| **Resident** | Submit requests (no login required) |
-| **Staff** | View/update requests, manual intake, statistics |
-| **Admin** | All staff permissions + user management, branding, settings |
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18, TypeScript, Tailwind CSS, Framer Motion |
-| Backend | FastAPI, Python 3.11, SQLAlchemy Async |
-| Database | PostgreSQL 15 + PostGIS |
-| Queue | Celery + Redis |
-| AI | Google Vertex AI (Gemini 3.0 Flash) |
-| Proxy | Caddy (auto-SSL) |
-| Container | Docker Compose |
-
----
-
-## 🎯 Feature Deep-Dive
-
-### Resident Portal
-- **No Login Required**: Anonymous submission with email/SMS tracking
-- **Photo Upload**: Multiple images with automatic compression
-- **Location Picker**: Google Maps integration with address autocomplete
-- **Request Tracking**: Track status via confirmation email or request ID
-
-### AI-Powered Triage
-- **Automatic Priority Scoring**: 1-10 scale based on severity, safety, and context
-- **Photo Analysis**: Multimodal analysis of uploaded images
-- **Historical Context**: Detects recurring issues at the same location
-- **Safety Flags**: Identifies urgent hazards requiring immediate attention
-
-### Staff Dashboard
-- **Real-Time Updates**: Live feed of new and updated requests
-- **Advanced Statistics**: PostGIS-powered analytics with heatmaps
-- **Department Routing**: Automatic assignment based on service category
-- **Audit Timeline**: Complete history of all actions on each request
-
-### Notification System
-- **Email Notifications**: Branded HTML emails for confirmations and updates
-- **SMS Alerts**: Optional Twilio or HTTP-based SMS integration
-- **Staff Alerts**: Per-user notification preferences (email/SMS)
-- **Department Routing**: Automatic email to responsible department
-
-### GIS Integration
-- **PostGIS Analytics**: Hotspot detection, coverage analysis
-- **Map Layers**: Upload custom GeoJSON layers (parcels, zones, assets)
-- **Asset Matching**: Link requests to nearest infrastructure asset
-- **Boundary Validation**: Verify addresses within township limits
-
-### Setup Wizard
-- **First-Run Configuration**: Guided 7-step setup for new installations
-- **Branding Setup**: Township name, logo, and color customization
-- **Department Creation**: Create routing departments with emails
-- **Security**: Automatic prompt to change default password
-- **Optional Integrations**: Google Maps and Vertex AI configuration
-
----
-
-## 📁 Project Structure
-
-```
-township-311/
-├── backend/
-│   ├── app/
-│   │   ├── api/          # API route handlers
-│   │   ├── core/         # Auth, config, Celery
-│   │   ├── db/           # Database session & init
-│   │   ├── services/     # Business logic
-│   │   ├── tasks/        # Background tasks
-│   │   ├── main.py       # FastAPI app
-│   │   ├── models.py     # SQLAlchemy models
-│   │   └── schemas.py    # Pydantic schemas
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/   # UI components
-│   │   ├── context/      # React contexts
-│   │   ├── pages/        # Page components
-│   │   ├── services/     # API client
-│   │   └── types/        # TypeScript types
-│   ├── Dockerfile
-│   └── package.json
-├── docker-compose.yml
-├── Caddyfile
-├── COMPLIANCE.md         # Security & government compliance
-└── .env.example
-```
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DOMAIN` | Your domain for SSL | `localhost` |
-| `SECRET_KEY` | JWT signing key | (change me!) |
-| `DB_PASSWORD` | Database password | `township` |
-| `INITIAL_ADMIN_PASSWORD` | Default admin password | `admin123` |
-
-### Admin Console Settings
-
-Access `/admin` to configure:
-
-| Section | Options |
-|---------|---------|
-| **Branding** | Municipality name, logo, primary color, hero text |
-| **Users** | Staff and admin accounts with department assignments |
-| **Services** | Request categories with icons and custom fields |
-| **Departments** | Department routing emails and staff assignment |
-| **API Keys** | Google Maps, Vertex AI, SMS providers |
-| **Modules** | Enable/disable AI analysis, SMS alerts, email notifications |
-
-### API Keys (via Admin Console)
-
-| Key | Purpose | Required |
-|-----|---------|----------|
-| `GOOGLE_MAPS_API_KEY` | Address autocomplete, maps | Recommended |
-| `VERTEX_AI_PROJECT` | AI triage and analysis | Optional |
-| `SMTP_*` | Email notifications | Optional |
-| `TWILIO_*` or `SMS_HTTP_*` | SMS notifications | Optional |
-
----
-
-## 🔄 Updates
-
-From the Admin Console, click "Pull Updates" to:
-1. Fetch latest code from GitHub
-2. Rebuild Docker containers
-3. Restart services
-
-Or manually:
-```bash
-git pull origin main
-docker-compose build --no-cache
-docker-compose up -d
-```
-
----
-
-## 📖 API Documentation
-
-Interactive API documentation available at `/api/docs` (Swagger UI) or `/api/redoc` (ReDoc).
-
-### Key Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/services/` | GET | List service categories |
-| `/api/open311/v2/requests.json` | POST | Submit request (public) |
-| `/api/open311/v2/requests.json` | GET | List requests (staff) |
-| `/api/auth/login` | POST | OAuth2 login |
-| `/api/system/settings` | GET/POST | Branding settings |
-| `/api/system/advanced-statistics` | GET | PostGIS analytics (staff) |
-
----
-
-## 🔒 Security
-
-- Passwords hashed with bcrypt
-- JWT tokens for authentication
-- CORS configured for API protection
-- Caddy provides automatic HTTPS
-- PII hidden from public endpoints
-- Audit logging for all request changes
-
-See [COMPLIANCE.md](COMPLIANCE.md) for detailed security posture and government compliance documentation.
-
----
-
-## 🔧 Troubleshooting
-
-### Database Connection Failed
-```bash
-# Check if PostgreSQL is running
-docker-compose logs db
-
-# Restart the database
-docker-compose restart db
-```
-
-### Frontend Not Loading
-```bash
-# Rebuild the frontend container
-docker-compose build --no-cache frontend
-docker-compose up -d
-```
-
-### Celery Tasks Not Running
-```bash
-# Check worker logs
-docker-compose logs celery
-
-# Restart the worker
-docker-compose restart celery
-```
-
-### Maps Not Displaying
-1. Verify `GOOGLE_MAPS_API_KEY` is configured in Admin Console
-2. Check browser console for API errors
-3. Ensure Maps JavaScript API is enabled in Google Cloud Console
-
-### AI Analysis Not Working
-1. Verify `VERTEX_AI_PROJECT` is configured
-2. Check that service account has Vertex AI permissions
-3. Review backend logs: `docker-compose logs backend`
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🤝 Contributing
 
-Contributions welcome! Please read our contributing guidelines before submitting PRs.
+We welcome contributions from developers and public servants!
+1.  Fork the repo
+2.  Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
 
 ---
 
 <p align="center">
-  Built with ❤️ for civic engagement
+  Built with ❤️ for Civic Engagement
 </p>
