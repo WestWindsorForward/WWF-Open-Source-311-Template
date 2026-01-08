@@ -233,7 +233,6 @@ export interface SystemSettings {
         ai_analysis: boolean;
         sms_alerts: boolean;
         email_notifications?: boolean;
-        wizard_completed?: boolean;
     };
     updated_at: string | null;
 }
