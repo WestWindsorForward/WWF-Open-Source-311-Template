@@ -407,17 +407,21 @@ async def export_csv(
             # Category & Infrastructure
             "service_code", "service_name", "infrastructure_category", "matched_asset_type",
             # Issue Details (sanitized)
-            "description_sanitized", "ai_flagged", "ai_priority_score",
+            "description_sanitized", "description_word_count", "has_photos", "photo_count",
+            # AI Analysis (for ML/NLP research)
+            "ai_flagged", "ai_flag_reason", "ai_priority_score", "ai_classification",
+            "ai_summary_sanitized", "ai_analyzed", "ai_vs_manual_priority_diff",
             # Status & Resolution
-            "status", "closed_substatus", "priority",
+            "status", "closed_substatus", "priority", "resolution_outcome",
             # Location (privacy-aware)
             "address_anonymized", "latitude", "longitude", "zone_id",
             # Temporal (for equity/civics research)
-            "submitted_datetime", "closed_datetime",
+            "submitted_datetime", "closed_datetime", "updated_datetime",
             "submission_hour", "submission_day_of_week", "submission_month", "submission_year",
             "is_weekend_submission", "is_business_hours_submission",
             # Performance Metrics
             "total_hours_to_resolve", "business_hours_to_resolve",
+            "days_to_first_update", "status_change_count",
             # Civic Engagement
             "submission_channel", "department_id",
         ])
@@ -451,6 +455,41 @@ async def export_csv(
             if req.matched_asset and isinstance(req.matched_asset, dict):
                 asset_type = req.matched_asset.get('asset_type') or req.matched_asset.get('layer_name')
             
+            # AI analysis data
+            ai_summary = sanitize_description(req.vertex_ai_summary) if req.vertex_ai_summary else None
+            ai_priority_diff = None
+            if req.vertex_ai_priority_score and req.manual_priority_score:
+                ai_priority_diff = round(req.manual_priority_score - req.vertex_ai_priority_score, 2)
+            
+            # Description metrics
+            desc_word_count = len(req.description.split()) if req.description else 0
+            
+            # Media presence
+            has_photos = bool(req.media_urls and len(req.media_urls) > 0)
+            photo_count = len(req.media_urls) if req.media_urls else 0
+            
+            # Resolution outcome classification
+            resolution_outcome = None
+            if req.status == 'closed':
+                if req.closed_substatus == 'resolved':
+                    resolution_outcome = 'completed'
+                elif req.closed_substatus == 'no_action':
+                    resolution_outcome = 'no_action_needed'
+                elif req.closed_substatus == 'third_party':
+                    resolution_outcome = 'referred_external'
+                else:
+                    resolution_outcome = 'closed_other'
+            elif req.status == 'in_progress':
+                resolution_outcome = 'in_progress'
+            else:
+                resolution_outcome = 'pending'
+            
+            # Days to first update
+            days_to_first_update = None
+            if req.updated_datetime and req.requested_datetime:
+                delta = req.updated_datetime - req.requested_datetime
+                days_to_first_update = round(delta.total_seconds() / 86400, 2)
+            
             writer.writerow([
                 req.service_request_id,
                 req.service_code,
@@ -458,17 +497,27 @@ async def export_csv(
                 infra_category,
                 asset_type,
                 sanitize_description(req.description),
+                desc_word_count,
+                has_photos,
+                photo_count,
                 req.flagged,
-                req.vertex_ai_priority_score or req.manual_priority_score,
+                req.flag_reason,
+                req.vertex_ai_priority_score,
+                req.vertex_ai_classification,
+                ai_summary,
+                bool(req.vertex_ai_analyzed_at),
+                ai_priority_diff,
                 req.status,
                 req.closed_substatus,
                 req.priority,
+                resolution_outcome,
                 anonymize_address(req.address, privacy_mode),
                 lat,
                 long,
                 generate_zone_id(req.lat, req.long),
                 req.requested_datetime.isoformat() if req.requested_datetime else None,
                 req.closed_datetime.isoformat() if req.closed_datetime else None,
+                req.updated_datetime.isoformat() if req.updated_datetime else None,
                 time_info.get('hour_of_day'),
                 time_info.get('day_of_week'),
                 time_info.get('month'),
@@ -477,6 +526,8 @@ async def export_csv(
                 time_info.get('is_business_hours'),
                 resolution_hours,
                 business_hours,
+                days_to_first_update,
+                len(req.audit_logs) if hasattr(req, 'audit_logs') and req.audit_logs else 0,
                 req.source,
                 req.assigned_department_id,
             ])
@@ -568,6 +619,32 @@ async def export_geojson(
         if req.matched_asset and isinstance(req.matched_asset, dict):
             asset_type = req.matched_asset.get('asset_type') or req.matched_asset.get('layer_name')
         
+        # AI analysis data for this record
+        ai_summary = sanitize_description(req.vertex_ai_summary) if req.vertex_ai_summary else None
+        ai_priority_diff = None
+        if req.vertex_ai_priority_score and req.manual_priority_score:
+            ai_priority_diff = round(req.manual_priority_score - req.vertex_ai_priority_score, 2)
+        
+        # Description metrics
+        desc_word_count = len(req.description.split()) if req.description else 0
+        has_photos = bool(req.media_urls and len(req.media_urls) > 0)
+        
+        # Resolution outcome
+        resolution_outcome = None
+        if req.status == 'closed':
+            if req.closed_substatus == 'resolved':
+                resolution_outcome = 'completed'
+            elif req.closed_substatus == 'no_action':
+                resolution_outcome = 'no_action_needed'
+            elif req.closed_substatus == 'third_party':
+                resolution_outcome = 'referred_external'
+            else:
+                resolution_outcome = 'closed_other'
+        elif req.status == 'in_progress':
+            resolution_outcome = 'in_progress'
+        else:
+            resolution_outcome = 'pending'
+        
         features.append({
             "type": "Feature",
             "geometry": {
@@ -585,11 +662,24 @@ async def export_geojson(
                 "infrastructure_category": infra_category,
                 "matched_asset_type": asset_type,
                 
-                # Status
+                # Issue Details
+                "description_word_count": desc_word_count,
+                "has_photos": has_photos,
+                
+                # AI Analysis (for ML/NLP research)
+                "ai_flagged": req.flagged,
+                "ai_flag_reason": req.flag_reason,
+                "ai_priority_score": req.vertex_ai_priority_score,
+                "ai_classification": req.vertex_ai_classification,
+                "ai_summary_sanitized": ai_summary,
+                "ai_analyzed": bool(req.vertex_ai_analyzed_at),
+                "ai_vs_manual_priority_diff": ai_priority_diff,
+                
+                # Status & Resolution
                 "status": req.status,
                 "closed_substatus": req.closed_substatus,
                 "priority": req.priority,
-                "ai_flagged": req.flagged,
+                "resolution_outcome": resolution_outcome,
                 
                 # Temporal
                 "submitted_datetime": req.requested_datetime.isoformat() if req.requested_datetime else None,
@@ -622,7 +712,8 @@ async def export_geojson(
             "research_fields": {
                 "civil_engineering": ["infrastructure_category", "matched_asset_type"],
                 "equity_studies": ["zone_id", "total_hours_to_resolve", "business_hours_to_resolve"],
-                "civics": ["submission_channel", "is_weekend", "is_business_hours", "submission_hour"]
+                "civics": ["submission_channel", "is_weekend", "is_business_hours", "submission_hour"],
+                "ai_ml_research": ["ai_flagged", "ai_priority_score", "ai_classification", "ai_summary_sanitized", "ai_vs_manual_priority_diff"]
             }
         }
     }
@@ -759,38 +850,105 @@ async def get_data_dictionary(
                 "type": "integer",
                 "description": "ID of assigned department"
             },
+            "description_word_count": {
+                "type": "integer",
+                "description": "Number of words in the issue description",
+                "note": "Useful for text complexity analysis"
+            },
+            "has_photos": {
+                "type": "boolean",
+                "description": "Whether the request includes photo attachments"
+            },
+            "photo_count": {
+                "type": "integer",
+                "description": "Number of photos attached to the request",
+                "note": "Useful for studying documentation quality impact on resolution"
+            },
             "ai_flagged": {
                 "type": "boolean",
-                "description": "Whether AI flagged this request for review"
+                "description": "Whether AI flagged this request for staff review"
+            },
+            "ai_flag_reason": {
+                "type": "string",
+                "description": "Reason provided by AI for flagging (e.g., 'safety concern', 'urgent')"
             },
             "ai_priority_score": {
                 "type": "float",
-                "description": "AI-generated priority score (if available)"
+                "range": "1-10",
+                "description": "AI-generated priority score (1=highest priority)",
+                "note": "Use with ai_vs_manual_priority_diff to study AI-human alignment"
+            },
+            "ai_classification": {
+                "type": "string",
+                "description": "AI-assigned category classification",
+                "note": "May differ from service_code; useful for classification accuracy studies"
+            },
+            "ai_summary_sanitized": {
+                "type": "string",
+                "description": "AI-generated summary of the issue (PII redacted)",
+                "note": "Useful for NLP/text summarization research"
+            },
+            "ai_analyzed": {
+                "type": "boolean",
+                "description": "Whether this request was processed by the AI analysis system"
+            },
+            "ai_vs_manual_priority_diff": {
+                "type": "float",
+                "description": "Difference between manual override priority and AI priority (manual - AI)",
+                "note": "Positive = staff rated higher priority than AI. Useful for AI calibration research"
+            },
+            "resolution_outcome": {
+                "type": "string",
+                "values": ["completed", "no_action_needed", "referred_external", "closed_other", "in_progress", "pending"],
+                "description": "Standardized resolution outcome for cross-system comparison"
+            },
+            "days_to_first_update": {
+                "type": "float",
+                "description": "Days from submission to first staff action",
+                "note": "Measures initial response time separate from full resolution"
+            },
+            "status_change_count": {
+                "type": "integer",
+                "description": "Number of status changes in audit log",
+                "note": "Indicator of issue complexity or workflow efficiency"
             }
         },
         "research_applications": {
             "civil_engineering": {
-                "relevant_fields": ["infrastructure_category", "matched_asset_type", "service_code"],
+                "relevant_fields": ["infrastructure_category", "matched_asset_type", "service_code", "has_photos"],
                 "suggested_analyses": [
                     "Infrastructure maintenance patterns by category",
                     "Correlation between asset age and request frequency",
-                    "Seasonal variation in infrastructure issues"
+                    "Seasonal variation in infrastructure issues",
+                    "Photo documentation impact on resolution time"
                 ]
             },
             "equity_studies": {
-                "relevant_fields": ["zone_id", "total_hours_to_resolve", "business_hours_to_resolve", "submission_channel"],
+                "relevant_fields": ["zone_id", "total_hours_to_resolve", "business_hours_to_resolve", "submission_channel", "resolution_outcome"],
                 "suggested_analyses": [
                     "Geographic disparities in response times",
                     "Digital divide analysis (portal vs phone submissions)",
-                    "Business vs after-hours response time comparison"
+                    "Business vs after-hours response time comparison",
+                    "Resolution outcome equity across zones"
                 ]
             },
             "civics": {
-                "relevant_fields": ["submission_channel", "submission_hour", "is_weekend", "is_business_hours"],
+                "relevant_fields": ["submission_channel", "submission_hour", "is_weekend", "is_business_hours", "description_word_count"],
                 "suggested_analyses": [
                     "Civic engagement patterns by time of day",
                     "Channel preference analysis",
-                    "Weekend vs weekday submission behavior"
+                    "Weekend vs weekday submission behavior",
+                    "Citizen reporting quality over time"
+                ]
+            },
+            "ai_ml_research": {
+                "relevant_fields": ["ai_flagged", "ai_priority_score", "ai_classification", "ai_summary_sanitized", "ai_vs_manual_priority_diff", "ai_analyzed"],
+                "suggested_analyses": [
+                    "AI-human priority alignment study",
+                    "Flagging accuracy and false positive rates",
+                    "Classification accuracy compared to final service_code",
+                    "NLP summarization quality assessment",
+                    "AI adoption and override patterns"
                 ]
             }
         }
