@@ -187,6 +187,15 @@ export const ResearchLab: React.FC = () => {
         }
     }, [user, navigate]);
 
+    // Set browser tab title
+    useEffect(() => {
+        const previousTitle = document.title;
+        document.title = 'University Research Data Lab | ' + (settings?.township_name || '311');
+        return () => {
+            document.title = previousTitle;
+        };
+    }, [settings?.township_name]);
+
     // Query state
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
