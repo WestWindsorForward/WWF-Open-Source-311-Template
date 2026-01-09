@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
     Download,
@@ -18,11 +18,162 @@ import {
     Layers,
     Lock,
     ArrowLeft,
+    Users,
+    Cloud,
+    MessageSquare,
+    Building2,
+    Brain,
+    ChevronDown,
+    ChevronUp,
+    Database,
+    Microscope,
+    GraduationCap,
 } from 'lucide-react';
 import { Button, Card } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { api, ResearchAnalytics, ResearchCodeSnippets } from '../services/api';
+
+// Research pack definitions with all fields
+const RESEARCH_PACKS = [
+    {
+        id: 'social_equity',
+        name: 'Social Equity Pack',
+        icon: Users,
+        color: 'purple',
+        audience: 'Sociologists, Equity Researchers',
+        fields: [
+            { name: 'census_tract_geoid', type: 'string', description: '11-digit FIPS code for Census dataset joins', source: 'US Census Geocoder API (real)' },
+            { name: 'social_vulnerability_index', type: 'float (0-1)', description: 'CDC SVI (0=lowest, 1=highest vulnerability)', source: 'Derived from GEOID' },
+            { name: 'housing_tenure_renter_pct', type: 'float (0-1)', description: 'Renter % in zone (ownership patterns)', source: 'Derived from GEOID' },
+            { name: 'income_quintile', type: 'int (1-5)', description: 'Anonymized income quintile of zone', source: 'Zone-based proxy' },
+            { name: 'population_density', type: 'string', description: 'low / medium / high density category', source: 'Zone-based proxy' },
+        ],
+        suggestedAnalyses: [
+            'Join with Census ACS for demographic correlation',
+            'SVI vs response time regression',
+            'Renter vs owner reporting rate comparison',
+            'Income quintile service disparity analysis',
+        ],
+    },
+    {
+        id: 'environmental',
+        name: 'Environmental Context Pack',
+        icon: Cloud,
+        color: 'blue',
+        audience: 'Urban Planners, Civil Engineers',
+        fields: [
+            { name: 'weather_precip_24h_mm', type: 'float', description: 'Precipitation in 24h before report (mm)', source: 'Open-Meteo Archive API (real)' },
+            { name: 'weather_temp_max_c', type: 'float', description: 'Max temperature on report day (°C)', source: 'Open-Meteo Archive API (real)' },
+            { name: 'weather_temp_min_c', type: 'float', description: 'Min temperature on report day (°C)', source: 'Open-Meteo Archive API (real)' },
+            { name: 'weather_code', type: 'int', description: 'WMO weather code (e.g., 61=rain)', source: 'Open-Meteo Archive API (real)' },
+            { name: 'nearby_asset_age_years', type: 'float', description: 'Age of matched infrastructure asset', source: 'Asset properties (real)' },
+            { name: 'matched_asset_attributes', type: 'JSON string', description: 'Full properties of matched asset', source: 'GeoJSON layer (real)' },
+            { name: 'season', type: 'string', description: 'winter / spring / summer / fall', source: 'Calculated' },
+        ],
+        suggestedAnalyses: [
+            'Freeze-thaw cycle pothole correlation',
+            'Asset age survival analysis',
+            'Precipitation-drainage issue linkage',
+            'Seasonal maintenance optimization',
+        ],
+    },
+    {
+        id: 'sentiment_trust',
+        name: 'Sentiment & Trust Pack',
+        icon: MessageSquare,
+        color: 'pink',
+        audience: 'Political Scientists, Civic UX Researchers',
+        fields: [
+            { name: 'sentiment_score', type: 'float (-1 to +1)', description: 'NLP sentiment (-1=angry, +1=grateful)', source: 'Word-based NLP (real)' },
+            { name: 'is_repeat_report', type: 'boolean', description: 'Text indicates prior report of same issue', source: 'Regex detection (real)' },
+            { name: 'prior_report_mentioned', type: 'boolean', description: 'References ticket/case number', source: 'Regex detection (real)' },
+            { name: 'frustration_expressed', type: 'boolean', description: 'Trust erosion indicators present', source: 'Regex detection (real)' },
+        ],
+        suggestedAnalyses: [
+            'Sentiment vs income quintile correlation',
+            'Repeat report resolution success rates',
+            'Trust erosion indicators over time',
+            'Politeness variation by submission channel',
+        ],
+    },
+    {
+        id: 'bureaucratic_friction',
+        name: 'Bureaucratic Friction Pack',
+        icon: Building2,
+        color: 'orange',
+        audience: 'Public Administration Researchers',
+        fields: [
+            { name: 'time_to_triage_hours', type: 'float', description: 'Hours from submission to first "In Progress"', source: 'Audit logs (real)' },
+            { name: 'reassignment_count', type: 'int', description: 'Times request bounced between departments', source: 'Audit logs (real)' },
+            { name: 'off_hours_submission', type: 'boolean', description: 'Submitted before 6am or after 10pm', source: 'Timestamp (real)' },
+            { name: 'escalation_occurred', type: 'boolean', description: 'Priority was manually increased by staff', source: 'Audit logs (real)' },
+            { name: 'total_hours_to_resolve', type: 'float', description: 'Total hours from submission to closure', source: 'Calculated (real)' },
+            { name: 'business_hours_to_resolve', type: 'float', description: 'Business hours only (Mon-Fri 8am-5pm)', source: 'Calculated (real)' },
+            { name: 'days_to_first_update', type: 'float', description: 'Days until first staff action', source: 'Calculated (real)' },
+            { name: 'status_change_count', type: 'int', description: 'Number of status changes', source: 'Audit logs (real)' },
+        ],
+        suggestedAnalyses: [
+            'Triage time vs resolution outcome',
+            'Department routing efficiency audit',
+            'Off-hours urgent issue patterns',
+            'AI escalation accuracy study',
+        ],
+    },
+    {
+        id: 'ai_ml',
+        name: 'AI/ML Research Pack',
+        icon: Brain,
+        color: 'green',
+        audience: 'AI/ML Researchers, Data Scientists',
+        fields: [
+            { name: 'ai_flagged', type: 'boolean', description: 'AI flagged for staff review', source: 'Vertex AI (real)' },
+            { name: 'ai_flag_reason', type: 'string', description: 'Reason for AI flag (safety, urgent)', source: 'Vertex AI (real)' },
+            { name: 'ai_priority_score', type: 'float (1-10)', description: 'AI-generated priority', source: 'Vertex AI (real)' },
+            { name: 'ai_classification', type: 'string', description: 'AI-assigned category', source: 'Vertex AI (real)' },
+            { name: 'ai_summary_sanitized', type: 'string', description: 'AI summary (PII redacted)', source: 'Vertex AI (real)' },
+            { name: 'ai_analyzed', type: 'boolean', description: 'Whether AI processed this request', source: 'System (real)' },
+            { name: 'ai_vs_manual_priority_diff', type: 'float', description: 'manual_priority - ai_priority', source: 'Calculated (real)' },
+        ],
+        suggestedAnalyses: [
+            'AI-human priority alignment study',
+            'Flagging accuracy and false positive rates',
+            'Classification accuracy compared to final service_code',
+            'NLP summarization quality assessment',
+        ],
+    },
+];
+
+// Core fields always included
+const CORE_FIELDS = [
+    { name: 'request_id', type: 'string', description: 'Unique identifier for the service request' },
+    { name: 'service_code', type: 'string', description: 'Category code (e.g., pothole, streetlight)' },
+    { name: 'service_name', type: 'string', description: 'Human-readable category name' },
+    { name: 'infrastructure_category', type: 'string', description: 'Grouped infrastructure type' },
+    { name: 'matched_asset_type', type: 'string', description: 'Type of matched infrastructure asset' },
+    { name: 'description_sanitized', type: 'string', description: 'Issue description (PII redacted)' },
+    { name: 'description_word_count', type: 'int', description: 'Word count of description' },
+    { name: 'has_photos', type: 'boolean', description: 'Request includes photo attachments' },
+    { name: 'photo_count', type: 'int', description: 'Number of photos attached' },
+    { name: 'status', type: 'string', description: 'Current status (open, in_progress, closed)' },
+    { name: 'closed_substatus', type: 'string', description: 'Resolution type (resolved, no_action, etc.)' },
+    { name: 'priority', type: 'int (1-10)', description: 'Priority level (1=highest)' },
+    { name: 'resolution_outcome', type: 'string', description: 'Standardized resolution category' },
+    { name: 'address_anonymized', type: 'string', description: 'Generalized address (street only)' },
+    { name: 'latitude', type: 'float', description: 'Latitude (fuzzed in privacy mode)' },
+    { name: 'longitude', type: 'float', description: 'Longitude (fuzzed in privacy mode)' },
+    { name: 'zone_id', type: 'string', description: 'Geographic zone identifier' },
+    { name: 'submitted_datetime', type: 'ISO datetime', description: 'When request was submitted' },
+    { name: 'closed_datetime', type: 'ISO datetime', description: 'When request was closed' },
+    { name: 'submission_hour', type: 'int (0-23)', description: 'Hour of submission' },
+    { name: 'submission_day_of_week', type: 'int (0-6)', description: 'Day of week (0=Monday)' },
+    { name: 'is_weekend_submission', type: 'boolean', description: 'Submitted on weekend' },
+    { name: 'is_business_hours_submission', type: 'boolean', description: 'Submitted 8am-5pm Mon-Fri' },
+    { name: 'submission_channel', type: 'string', description: 'How submitted (portal, phone)' },
+    { name: 'department_id', type: 'int', description: 'Assigned department ID' },
+    { name: 'comment_count', type: 'int', description: 'Total comments on request' },
+    { name: 'public_comment_count', type: 'int', description: 'Public/external comments' },
+];
 
 export const ResearchLab: React.FC = () => {
     const navigate = useNavigate();
@@ -49,8 +200,10 @@ export const ResearchLab: React.FC = () => {
     const [isEnabled, setIsEnabled] = useState<boolean | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // Snippet display
+    // UI state
     const [activeSnippet, setActiveSnippet] = useState<'python' | 'r'>('python');
+    const [expandedPack, setExpandedPack] = useState<string | null>('social_equity');
+    const [showCoreFields, setShowCoreFields] = useState(false);
 
     // Check if research suite is enabled
     useEffect(() => {
@@ -138,6 +291,20 @@ export const ResearchLab: React.FC = () => {
         navigator.clipboard.writeText(text);
     };
 
+    const getPackColorClasses = (color: string) => {
+        const colors: Record<string, { bg: string; text: string; border: string }> = {
+            purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
+            blue: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30' },
+            pink: { bg: 'bg-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30' },
+            orange: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
+            green: { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' },
+        };
+        return colors[color] || colors.purple;
+    };
+
+    // Count total fields
+    const totalFields = CORE_FIELDS.length + RESEARCH_PACKS.reduce((sum, pack) => sum + pack.fields.length, 0);
+
     // Not enabled state
     if (isEnabled === false) {
         return (
@@ -178,24 +345,39 @@ export const ResearchLab: React.FC = () => {
                         </Button>
                         <div>
                             <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                                <BarChart3 className="w-6 h-6 text-amber-400" />
-                                Research Data Lab
+                                <Microscope className="w-6 h-6 text-amber-400" />
+                                University Research Data Lab
                             </h1>
                             <p className="text-sm text-white/50">
-                                {settings?.township_name} • Read-only research access
+                                {settings?.township_name} • {totalFields} research fields available
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 text-sm text-white/60">
-                            <Shield className="w-4 h-4" />
-                            <span>Logged in as {user?.username} ({user?.role})</span>
+                            <GraduationCap className="w-4 h-4" />
+                            <span>{user?.username} ({user?.role})</span>
                         </div>
                     </div>
                 </div>
             </header>
 
             <main className="max-w-7xl mx-auto px-6 py-8">
+                {/* Hero Section */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-8 text-center"
+                >
+                    <h2 className="text-3xl font-bold text-white mb-3">
+                        Academic Research Data Export
+                    </h2>
+                    <p className="text-white/60 max-w-2xl mx-auto">
+                        Export rich, privacy-preserving datasets for urban studies, public administration research,
+                        equity analysis, and AI/ML training. All {totalFields} fields computed on-the-fly with real data sources.
+                    </p>
+                </motion.div>
+
                 {/* Error display */}
                 {error && (
                     <motion.div
@@ -206,6 +388,169 @@ export const ResearchLab: React.FC = () => {
                         <p className="text-red-400">{error}</p>
                     </motion.div>
                 )}
+
+                {/* Research Packs Section */}
+                <div className="mb-8">
+                    <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Database className="w-5 h-5 text-amber-400" />
+                        Research Field Packs ({RESEARCH_PACKS.reduce((sum, p) => sum + p.fields.length, 0)} specialized fields)
+                    </h2>
+                    <div className="space-y-3">
+                        {RESEARCH_PACKS.map((pack) => {
+                            const colors = getPackColorClasses(pack.color);
+                            const isExpanded = expandedPack === pack.id;
+                            const Icon = pack.icon;
+
+                            return (
+                                <motion.div
+                                    key={pack.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`rounded-xl border ${colors.border} overflow-hidden`}
+                                >
+                                    <button
+                                        onClick={() => setExpandedPack(isExpanded ? null : pack.id)}
+                                        className={`w-full px-5 py-4 flex items-center justify-between ${colors.bg} hover:bg-white/5 transition-colors`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center`}>
+                                                <Icon className={`w-5 h-5 ${colors.text}`} />
+                                            </div>
+                                            <div className="text-left">
+                                                <h3 className={`font-semibold ${colors.text}`}>{pack.name}</h3>
+                                                <p className="text-sm text-white/50">
+                                                    {pack.audience} • {pack.fields.length} fields
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {isExpanded ? (
+                                            <ChevronUp className="w-5 h-5 text-white/40" />
+                                        ) : (
+                                            <ChevronDown className="w-5 h-5 text-white/40" />
+                                        )}
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {isExpanded && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="p-5 bg-white/5 border-t border-white/10">
+                                                    {/* Fields Table */}
+                                                    <div className="overflow-x-auto mb-4">
+                                                        <table className="w-full text-sm">
+                                                            <thead>
+                                                                <tr className="text-left text-white/50 border-b border-white/10">
+                                                                    <th className="pb-2 pr-4">Field Name</th>
+                                                                    <th className="pb-2 pr-4">Type</th>
+                                                                    <th className="pb-2 pr-4">Description</th>
+                                                                    <th className="pb-2">Data Source</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {pack.fields.map((field) => (
+                                                                    <tr key={field.name} className="border-b border-white/5">
+                                                                        <td className="py-2 pr-4">
+                                                                            <code className={`px-2 py-0.5 rounded ${colors.bg} ${colors.text} text-xs`}>
+                                                                                {field.name}
+                                                                            </code>
+                                                                        </td>
+                                                                        <td className="py-2 pr-4 text-white/70 font-mono text-xs">
+                                                                            {field.type}
+                                                                        </td>
+                                                                        <td className="py-2 pr-4 text-white/60">
+                                                                            {field.description}
+                                                                        </td>
+                                                                        <td className="py-2 text-white/50 text-xs">
+                                                                            {field.source}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    {/* Suggested Analyses */}
+                                                    <div>
+                                                        <h4 className="text-sm font-medium text-white/70 mb-2">Suggested Analyses:</h4>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {pack.suggestedAnalyses.map((analysis, i) => (
+                                                                <span
+                                                                    key={i}
+                                                                    className="px-3 py-1 rounded-full bg-white/10 text-white/60 text-xs"
+                                                                >
+                                                                    {analysis}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.div>
+                            );
+                        })}
+
+                        {/* Core Fields Collapsible */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="rounded-xl border border-white/20 overflow-hidden"
+                        >
+                            <button
+                                onClick={() => setShowCoreFields(!showCoreFields)}
+                                className="w-full px-5 py-4 flex items-center justify-between bg-white/5 hover:bg-white/10 transition-colors"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                                        <Layers className="w-5 h-5 text-white/60" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="font-semibold text-white/80">Core Request Fields</h3>
+                                        <p className="text-sm text-white/50">
+                                            Standard fields included in all exports • {CORE_FIELDS.length} fields
+                                        </p>
+                                    </div>
+                                </div>
+                                {showCoreFields ? (
+                                    <ChevronUp className="w-5 h-5 text-white/40" />
+                                ) : (
+                                    <ChevronDown className="w-5 h-5 text-white/40" />
+                                )}
+                            </button>
+
+                            <AnimatePresence>
+                                {showCoreFields && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="p-5 bg-white/5 border-t border-white/10 max-h-64 overflow-y-auto">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                {CORE_FIELDS.map((field) => (
+                                                    <div key={field.name} className="flex items-start gap-2 text-sm">
+                                                        <code className="px-2 py-0.5 rounded bg-white/10 text-white/70 text-xs shrink-0">
+                                                            {field.name}
+                                                        </code>
+                                                        <span className="text-white/50 text-xs">{field.description}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    </div>
+                </div>
 
                 {/* Query Builder */}
                 <Card className="mb-8">
@@ -360,34 +705,6 @@ export const ResearchLab: React.FC = () => {
                     </motion.div>
                 )}
 
-                {/* Category Distribution */}
-                {analytics && analytics.category_distribution.length > 0 && (
-                    <Card className="mb-8">
-                        <h2 className="text-lg font-semibold text-white mb-4">Category Distribution</h2>
-                        <div className="space-y-3">
-                            {analytics.category_distribution.slice(0, 10).map((cat, i) => (
-                                <div key={cat.code} className="flex items-center gap-4">
-                                    <span className="text-white/60 w-6 text-sm">{i + 1}.</span>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between mb-1">
-                                            <span className="text-white">{cat.name}</span>
-                                            <span className="text-white/60">{cat.count}</span>
-                                        </div>
-                                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full"
-                                                style={{
-                                                    width: `${(cat.count / analytics.total_requests) * 100}%`
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </Card>
-                )}
-
                 {/* Export Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Export Buttons */}
@@ -396,19 +713,22 @@ export const ResearchLab: React.FC = () => {
                             <Download className="w-5 h-5 text-primary-400" />
                             Data Export
                         </h2>
-                        <p className="text-white/60 text-sm mb-6">
-                            Download sanitized data for offline analysis. All exports exclude PII
-                            and respect your chosen privacy mode.
+                        <p className="text-white/60 text-sm mb-4">
+                            Download all {totalFields} fields for offline analysis. Exports are PII-free and respect your privacy mode.
                         </p>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Button onClick={handleExportCSV} variant="secondary">
-                                <FileText className="w-4 h-4 mr-2" />
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <Button onClick={handleExportCSV} variant="secondary" size="lg">
+                                <FileText className="w-5 h-5 mr-2" />
                                 Export CSV
                             </Button>
-                            <Button onClick={handleExportGeoJSON} variant="secondary">
-                                <Map className="w-4 h-4 mr-2" />
+                            <Button onClick={handleExportGeoJSON} variant="secondary" size="lg">
+                                <Map className="w-5 h-5 mr-2" />
                                 Export GeoJSON
                             </Button>
+                        </div>
+                        <div className="text-xs text-white/40 flex items-center gap-2">
+                            <Shield className="w-3 h-3" />
+                            All exports exclude personal identifying information
                         </div>
                     </Card>
 
@@ -460,6 +780,29 @@ export const ResearchLab: React.FC = () => {
                             </div>
                         )}
                     </Card>
+                </div>
+
+                {/* Data Sources Footer */}
+                <div className="mt-8 p-6 rounded-xl bg-white/5 border border-white/10">
+                    <h3 className="text-sm font-semibold text-white/70 mb-3">Real-Time Data Sources</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-white/50">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                            <span>US Census Bureau Geocoder</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                            <span>Open-Meteo Archive API</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                            <span>NLP Sentiment Analysis</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                            <span>Vertex AI Analysis Data</span>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>

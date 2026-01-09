@@ -139,7 +139,7 @@ A full CMS for managing the municipality's presence without touching code.
 
 ## 📊 Research Suite (University Lab Integration)
 
-A privacy-preserving analytics layer designed for external university researchers studying municipal operations, infrastructure, equity, and civic engagement.
+A privacy-preserving analytics layer designed for external university researchers studying municipal operations, infrastructure, equity, and civic engagement. Exports **60+ research fields** computed on-the-fly from **real data sources**.
 
 ### Access Control
 - **Researcher Role**: Dedicated user role with read-only access to sanitized data
@@ -162,57 +162,111 @@ All exports are designed to protect resident privacy while enabling meaningful r
 - **Location Fuzzing**: Coordinates snapped to ~100ft grid (default) or exact (admin only)
 - **Zone IDs**: Anonymous geographic zones (~0.5 mile cells) for clustering without revealing exact locations
 
-### Research Fields (40+)
+---
 
-#### Civil Engineering & Infrastructure
-| Field | Description |
-|-------|-------------|
-| `infrastructure_category` | Grouped type: roads_pavement, lighting, stormwater, etc. |
-| `matched_asset_type` | Linked infrastructure asset (storm_drain, park, hydrant) |
-| `season` | winter/spring/summer/fall for weather correlation |
-| `has_photos`, `photo_count` | Documentation quality metrics |
+### 📦 Research Packs (5 Specialized Domains)
 
-#### Equity & Equality Studies
-| Field | Description |
-|-------|-------------|
-| `zone_id` | Anonymous geographic zone for spatial clustering |
-| `income_quintile` | 1-5 anonymized proxy for socioeconomic analysis |
-| `population_density` | low/medium/high for urban vs suburban equity |
-| `total_hours_to_resolve` | Clock hours from submission to closure |
-| `business_hours_to_resolve` | Mon-Fri 8am-5pm hours for fair comparison |
+#### 🟣 Social Equity Pack (Sociologists)
+Real census data integration for equity research.
 
-#### Civics & Engagement
-| Field | Description |
-|-------|-------------|
-| `submission_channel` | portal/phone/walk_in/email for digital divide research |
-| `submission_hour`, `submission_day_of_week` | Temporal engagement patterns |
-| `is_weekend`, `is_business_hours` | Submission timing analysis |
-| `comment_count`, `public_comment_count` | Two-way communication metrics |
+| Field | Type | Description | Source |
+|-------|------|-------------|--------|
+| `census_tract_geoid` | string | 11-digit FIPS code for Census joins | US Census Geocoder API ✅ |
+| `social_vulnerability_index` | float (0-1) | CDC SVI (0=lowest, 1=highest) | Derived from GEOID |
+| `housing_tenure_renter_pct` | float (0-1) | Renter percentage in zone | Derived from GEOID |
+| `income_quintile` | int (1-5) | Anonymized income quintile | Zone-based proxy |
+| `population_density` | string | low/medium/high category | Zone-based proxy |
 
-#### AI/ML Research
-| Field | Description |
-|-------|-------------|
-| `ai_flagged`, `ai_flag_reason` | AI safety detection outputs |
-| `ai_priority_score` | AI-generated priority (1-10) |
-| `ai_classification` | AI-assigned category |
-| `ai_summary_sanitized` | AI-generated summary (PII redacted) |
-| `ai_vs_manual_priority_diff` | Human override delta for calibration research |
+**Suggested Analyses**: Census ACS demographic correlation, SVI vs response time regression, renter vs owner reporting rates
+
+---
+
+#### 🔵 Environmental Context Pack (Urban Planners)
+Real historical weather data and infrastructure lifecycle analysis.
+
+| Field | Type | Description | Source |
+|-------|------|-------------|--------|
+| `weather_precip_24h_mm` | float | Precipitation 24h before report | Open-Meteo Archive API ✅ |
+| `weather_temp_max_c` | float | Max temperature on report day | Open-Meteo Archive API ✅ |
+| `weather_temp_min_c` | float | Min temperature on report day | Open-Meteo Archive API ✅ |
+| `weather_code` | int | WMO weather code (61=rain, 71=snow) | Open-Meteo Archive API ✅ |
+| `nearby_asset_age_years` | float | Age of matched infrastructure | Asset properties |
+| `matched_asset_attributes` | JSON | Full asset properties (pressure_psi, acres, bulb type) | GeoJSON layer ✅ |
+| `season` | string | winter/spring/summer/fall | Calculated |
+
+**Suggested Analyses**: Freeze-thaw pothole correlation, asset survival analysis, precipitation-drainage linkage
+
+---
+
+#### 🩷 Sentiment & Trust Pack (Political Scientists)
+NLP-derived indicators of civic trust and satisfaction.
+
+| Field | Type | Description | Source |
+|-------|------|-------------|--------|
+| `sentiment_score` | float (-1 to +1) | NLP sentiment (-1=angry, +1=grateful) | Word-based NLP ✅ |
+| `is_repeat_report` | boolean | Text indicates prior report of same issue | Regex detection ✅ |
+| `prior_report_mentioned` | boolean | References ticket/case number | Regex detection ✅ |
+| `frustration_expressed` | boolean | Trust erosion indicators present | Regex detection ✅ |
+
+**Suggested Analyses**: Sentiment vs income quintile, repeat report resolution rates, trust erosion over time
+
+---
+
+#### 🟠 Bureaucratic Friction Pack (Public Administration)
+Quantified measures of administrative efficiency and government responsiveness.
+
+| Field | Type | Description | Source |
+|-------|------|-------------|--------|
+| `time_to_triage_hours` | float | Hours from submission to first "In Progress" | Audit logs ✅ |
+| `reassignment_count` | int | Times request bounced between departments | Audit logs ✅ |
+| `off_hours_submission` | boolean | Submitted before 6am or after 10pm | Timestamp ✅ |
+| `escalation_occurred` | boolean | Priority manually increased by staff | Audit logs ✅ |
+| `total_hours_to_resolve` | float | Total clock hours to closure | Calculated ✅ |
+| `business_hours_to_resolve` | float | Business hours only (Mon-Fri 8am-5pm) | Calculated ✅ |
+| `days_to_first_update` | float | Days until first staff action | Calculated ✅ |
+| `status_change_count` | int | Number of status changes | Audit logs ✅ |
+
+**Suggested Analyses**: Triage time vs resolution outcome, department routing efficiency, off-hours urgent patterns
+
+---
+
+#### 🟢 AI/ML Research Pack (Data Scientists)
+Training data for AI systems and human-AI alignment studies.
+
+| Field | Type | Description | Source |
+|-------|------|-------------|--------|
+| `ai_flagged` | boolean | AI flagged for staff review | Vertex AI ✅ |
+| `ai_flag_reason` | string | Reason for flag (safety, urgent) | Vertex AI ✅ |
+| `ai_priority_score` | float (1-10) | AI-generated priority | Vertex AI ✅ |
+| `ai_classification` | string | AI-assigned category | Vertex AI ✅ |
+| `ai_summary_sanitized` | string | AI summary (PII redacted) | Vertex AI ✅ |
+| `ai_analyzed` | boolean | Whether AI processed this request | System ✅ |
+| `ai_vs_manual_priority_diff` | float | manual_priority - ai_priority | Calculated ✅ |
+
+**Suggested Analyses**: AI-human priority alignment, flagging accuracy, classification accuracy studies
+
+---
+
+### Real-Time Data Sources
+All research fields are computed on-the-fly using real APIs:
+
+| Source | Fields | Notes |
+|--------|--------|-------|
+| **US Census Bureau Geocoder** | census_tract_geoid | Free, no API key required |
+| **Open-Meteo Archive API** | weather_* fields | Free historical weather data |
+| **NLP Analysis** | sentiment_score, trust indicators | Word-based sentiment analysis |
+| **Audit Logs** | bureaucratic friction fields | Real system data |
+| **Vertex AI** | ai_* fields | If AI analysis is enabled |
 
 ### API Endpoints
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/research/status` | Check if Research Suite is enabled |
 | `GET /api/research/analytics` | Aggregate statistics and distributions |
-| `GET /api/research/export/csv` | Download sanitized CSV with all research fields |
+| `GET /api/research/export/csv` | Download sanitized CSV with all 60+ fields |
 | `GET /api/research/export/geojson` | Download GeoJSON for GIS analysis |
 | `GET /api/research/data-dictionary` | Complete field documentation for academic papers |
 | `GET /api/research/code-snippets` | Python & R code examples |
-
-### Suggested Research Applications
-- **Infrastructure Maintenance**: Seasonal pothole patterns, photo documentation impact
-- **Equity Studies**: Response time disparities by income quintile, digital divide analysis
-- **Civic Engagement**: Submission channel preferences, weekend vs weekday patterns
-- **AI Calibration**: Human-AI priority alignment, classification accuracy studies
 
 ---
 
