@@ -272,37 +272,52 @@ def get_population_density_category(zone_id: str) -> str:
 # SOCIAL EQUITY PACK - For Sociologists
 # ============================================================================
 
-async def get_census_tract_geoid(lat: float, lng: float) -> Optional[str]:
+# Cache for Census GEOID lookups to avoid repeated API calls
+_census_geoid_cache: dict = {}
+
+def get_census_tract_geoid(lat: float, lng: float) -> Optional[str]:
     """
     Get 11-digit FIPS code (Census Tract GEOID) from coordinates.
     Uses US Census Bureau Geocoder API (free, no key required).
     Returns format: SSCCCTTTTTT (State + County + Tract)
+    
+    Results are cached to avoid repeated API calls for same location.
     """
     if lat is None or lng is None:
         return None
     
+    # Round to reduce cache key variations (within ~100m)
+    cache_key = f"{round(lat, 3)},{round(lng, 3)}"
+    
+    if cache_key in _census_geoid_cache:
+        return _census_geoid_cache[cache_key]
+    
     try:
-        import httpx
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(
-                "https://geocoding.geo.census.gov/geocoder/geographies/coordinates",
-                params={
-                    "x": lng,
-                    "y": lat,
-                    "benchmark": "Public_AR_Current",
-                    "vintage": "Current_Current",
-                    "layers": "Census Tracts",
-                    "format": "json"
-                }
-            )
-            if response.status_code == 200:
-                data = response.json()
-                geographies = data.get("result", {}).get("geographies", {})
-                tracts = geographies.get("Census Tracts", [])
-                if tracts:
-                    return tracts[0].get("GEOID")
+        import requests
+        response = requests.get(
+            "https://geocoding.geo.census.gov/geocoder/geographies/coordinates",
+            params={
+                "x": lng,
+                "y": lat,
+                "benchmark": "Public_AR_Current",
+                "vintage": "Current_Current",
+                "layers": "Census Tracts",
+                "format": "json"
+            },
+            timeout=3
+        )
+        if response.status_code == 200:
+            data = response.json()
+            geographies = data.get("result", {}).get("geographies", {})
+            tracts = geographies.get("Census Tracts", [])
+            if tracts:
+                geoid = tracts[0].get("GEOID")
+                _census_geoid_cache[cache_key] = geoid
+                return geoid
     except Exception as e:
         logger.warning(f"Census geocoder error: {e}")
+    
+    _census_geoid_cache[cache_key] = None
     return None
 
 
@@ -341,43 +356,86 @@ def get_housing_tenure_mix(census_geoid: str) -> Optional[float]:
 
 def get_weather_context(requested_datetime: datetime, lat: float, lng: float) -> dict:
     """
-    Get weather conditions around the time of the report.
+    Get weather conditions around the time of the report using Open-Meteo Archive API.
     
-    Note: In production, would query historical weather API (OpenWeather, etc.)
-    For now, generates seasonal estimates based on date and location.
+    Uses the same free API as the Vertex AI analysis but for historical dates.
+    Falls back to seasonal estimates if API fails.
     """
-    if not requested_datetime:
-        return {"precip_24h_mm": None, "temp_max_c": None, "temp_min_c": None}
+    if not requested_datetime or lat is None or lng is None:
+        return {"precip_24h_mm": None, "temp_max_c": None, "temp_min_c": None, "weather_code": None}
     
+    # Format date for API
+    date_str = requested_datetime.strftime("%Y-%m-%d")
+    
+    try:
+        import httpx
+        # Open-Meteo Archive API (free, no key required) - for dates up to 5 days ago
+        # For very recent dates, use forecast API with past_days parameter
+        days_ago = (datetime.now() - requested_datetime).days
+        
+        if days_ago > 5:
+            # Use archive API for historical data
+            url = f"https://archive-api.open-meteo.com/v1/archive"
+            params = {
+                "latitude": lat,
+                "longitude": lng,
+                "start_date": date_str,
+                "end_date": date_str,
+                "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
+                "timezone": "America/New_York"
+            }
+        else:
+            # Use forecast API with past_days for recent data
+            url = f"https://api.open-meteo.com/v1/forecast"
+            params = {
+                "latitude": lat,
+                "longitude": lng,
+                "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
+                "past_days": min(days_ago + 1, 7),
+                "timezone": "America/New_York"
+            }
+        
+        # Synchronous call (we're in a sync generator context)
+        import requests
+        response = requests.get(url, params=params, timeout=3)
+        
+        if response.status_code == 200:
+            data = response.json()
+            daily = data.get("daily", {})
+            
+            # Find the matching date index
+            dates = daily.get("time", [])
+            if date_str in dates:
+                idx = dates.index(date_str)
+                temp_max = daily.get("temperature_2m_max", [None])[idx]
+                temp_min = daily.get("temperature_2m_min", [None])[idx]
+                precip = daily.get("precipitation_sum", [None])[idx]
+                weather_code = daily.get("weather_code", [None])[idx]
+                
+                return {
+                    "precip_24h_mm": round(precip, 1) if precip is not None else None,
+                    "temp_max_c": round(temp_max, 1) if temp_max is not None else None,
+                    "temp_min_c": round(temp_min, 1) if temp_min is not None else None,
+                    "weather_code": weather_code
+                }
+    except Exception as e:
+        logger.warning(f"Weather API error, falling back to estimates: {e}")
+    
+    # Fallback to seasonal estimates
     month = requested_datetime.month
-    
-    # Seasonal temperature estimates (Celsius) for mid-Atlantic region
     seasonal_temps = {
         1: (-5, 5), 2: (-3, 7), 3: (2, 13), 4: (7, 18),
         5: (12, 24), 6: (17, 29), 7: (20, 32), 8: (19, 31),
         9: (15, 26), 10: (8, 19), 11: (3, 12), 12: (-2, 7)
     }
-    
     temp_min, temp_max = seasonal_temps.get(month, (10, 20))
-    
-    # Add some deterministic variance based on date
     day_hash = int(hashlib.md5(f"{requested_datetime.date()}".encode()).hexdigest()[:4], 16)
-    temp_variance = (day_hash % 10) - 5
-    
-    # Precipitation estimate (higher in spring/fall)
-    precip_likelihood = {
-        1: 0.3, 2: 0.3, 3: 0.4, 4: 0.5, 5: 0.4, 6: 0.3,
-        7: 0.3, 8: 0.3, 9: 0.4, 10: 0.4, 11: 0.4, 12: 0.3
-    }
-    
-    precip = 0.0
-    if (day_hash % 100) < (precip_likelihood.get(month, 0.3) * 100):
-        precip = round((day_hash % 50) / 10, 1)  # 0-5mm
     
     return {
-        "precip_24h_mm": precip,
-        "temp_max_c": temp_max + temp_variance,
-        "temp_min_c": temp_min + temp_variance
+        "precip_24h_mm": round((day_hash % 30) / 10, 1) if (day_hash % 100) < 30 else 0.0,
+        "temp_max_c": temp_max + (day_hash % 6) - 3,
+        "temp_min_c": temp_min + (day_hash % 6) - 3,
+        "weather_code": None  # Unknown when estimated
     }
 
 
@@ -417,6 +475,37 @@ def get_asset_age_years(matched_asset: dict) -> Optional[float]:
             pass
     
     return None
+
+
+def get_matched_asset_attributes(matched_asset: dict) -> str:
+    """
+    Serialize the full matched_asset properties to JSON string.
+    
+    This allows researchers to access 100% of the asset data (e.g., hydrant pressure_psi,
+    park acres, streetlight bulb type) without breaking CSV schema stability.
+    
+    Sanitizes by removing internal system keys if necessary.
+    
+    Example output: '{"bulb": "LED", "pole_id": "SL-99", "install_year": 2018}'
+    """
+    if not matched_asset or not isinstance(matched_asset, dict):
+        return "{}"
+    
+    properties = matched_asset.get("properties", {})
+    
+    if not properties:
+        return "{}"
+    
+    # Optionally remove internal/system keys (prefixed with _ or containing 'id')
+    sanitized = {
+        k: v for k, v in properties.items()
+        if not k.startswith("_") and k not in ["internal_id", "system_id", "layer_internal_id"]
+    }
+    
+    try:
+        return json.dumps(sanitized, default=str)
+    except Exception:
+        return "{}"
 
 
 # ============================================================================
@@ -760,6 +849,7 @@ async def export_csv(
             "request_id",
             # Category & Infrastructure
             "service_code", "service_name", "infrastructure_category", "matched_asset_type",
+            "matched_asset_attributes",  # Full JSON of asset properties
             # Issue Details (sanitized)
             "description_sanitized", "description_word_count", "has_photos", "photo_count",
             # AI Analysis (for ML/NLP research)
@@ -773,7 +863,7 @@ async def export_csv(
             "census_tract_geoid", "social_vulnerability_index", "housing_tenure_renter_pct",
             "income_quintile", "population_density",
             # ENVIRONMENTAL CONTEXT PACK (Urban Planners)
-            "weather_precip_24h_mm", "weather_temp_max_c", "weather_temp_min_c",
+            "weather_precip_24h_mm", "weather_temp_max_c", "weather_temp_min_c", "weather_code",
             "nearby_asset_age_years",
             # SENTIMENT & TRUST PACK (Political Science)
             "sentiment_score", "is_repeat_report", "prior_report_mentioned", "frustration_expressed",
@@ -858,15 +948,15 @@ async def export_csv(
             income_quintile = get_income_quintile_from_zone(zone_id)
             pop_density = get_population_density_category(zone_id)
             
-            # SOCIAL EQUITY PACK - Census-based metrics
-            # Note: census_tract_geoid lookup is done in batch for performance
-            census_geoid = None  # Placeholder - expensive API call
-            svi = get_social_vulnerability_index(zone_id)  # Use zone as proxy
-            housing_tenure = get_housing_tenure_mix(zone_id)
+            # SOCIAL EQUITY PACK - Real Census-based metrics
+            census_geoid = get_census_tract_geoid(req.lat, req.long)  # Real API call (cached)
+            svi = get_social_vulnerability_index(census_geoid or zone_id)  # Use GEOID if available
+            housing_tenure = get_housing_tenure_mix(census_geoid or zone_id)
             
-            # ENVIRONMENTAL CONTEXT PACK
+            # ENVIRONMENTAL CONTEXT PACK - Real weather data
             weather = get_weather_context(req.requested_datetime, req.lat, req.long)
             asset_age = get_asset_age_years(req.matched_asset)
+            asset_attributes = get_matched_asset_attributes(req.matched_asset)
             
             # SENTIMENT & TRUST PACK
             sentiment = analyze_sentiment(req.description)
@@ -892,6 +982,7 @@ async def export_csv(
                 req.service_name,
                 infra_category,
                 asset_type,
+                asset_attributes,  # Full JSON of asset properties
                 sanitize_description(req.description),
                 desc_word_count,
                 has_photos,
@@ -921,6 +1012,7 @@ async def export_csv(
                 weather.get('precip_24h_mm'),
                 weather.get('temp_max_c'),
                 weather.get('temp_min_c'),
+                weather.get('weather_code'),
                 asset_age,
                 # Sentiment & Trust Pack
                 sentiment,
@@ -1080,13 +1172,15 @@ async def export_geojson(
         total_comments = len(req.comments) if req.comments else 0
         public_comments = len([c for c in req.comments if c.visibility == 'external']) if req.comments else 0
         
-        # SOCIAL EQUITY PACK
-        svi = get_social_vulnerability_index(zone_id)
-        housing_tenure = get_housing_tenure_mix(zone_id)
+        # SOCIAL EQUITY PACK - Real Census lookup
+        census_geoid = get_census_tract_geoid(req.lat, req.long)
+        svi = get_social_vulnerability_index(census_geoid or zone_id)
+        housing_tenure = get_housing_tenure_mix(census_geoid or zone_id)
         
-        # ENVIRONMENTAL CONTEXT PACK
+        # ENVIRONMENTAL CONTEXT PACK - Real weather data
         weather = get_weather_context(req.requested_datetime, req.lat, req.long)
         asset_age = get_asset_age_years(req.matched_asset)
+        asset_attributes = get_matched_asset_attributes(req.matched_asset)
         
         # SENTIMENT & TRUST PACK
         sentiment = analyze_sentiment(req.description)
@@ -1114,6 +1208,7 @@ async def export_geojson(
                 "service_name": req.service_name,
                 "infrastructure_category": infra_category,
                 "matched_asset_type": asset_type,
+                "matched_asset_attributes": asset_attributes,  # Full JSON of asset properties
                 
                 # Issue Details
                 "description_word_count": desc_word_count,
@@ -1135,6 +1230,7 @@ async def export_geojson(
                 "resolution_outcome": resolution_outcome,
                 
                 # SOCIAL EQUITY PACK
+                "census_tract_geoid": census_geoid,
                 "social_vulnerability_index": svi,
                 "housing_tenure_renter_pct": housing_tenure,
                 "income_quintile": income_quintile,
@@ -1144,6 +1240,7 @@ async def export_geojson(
                 "weather_precip_24h_mm": weather.get('precip_24h_mm'),
                 "weather_temp_max_c": weather.get('temp_max_c'),
                 "weather_temp_min_c": weather.get('temp_min_c'),
+                "weather_code": weather.get('weather_code'),
                 "nearby_asset_age_years": asset_age,
                 
                 # SENTIMENT & TRUST PACK
