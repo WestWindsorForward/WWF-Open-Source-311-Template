@@ -137,6 +137,85 @@ A full CMS for managing the municipality's presence without touching code.
 
 ---
 
+## 📊 Research Suite (University Lab Integration)
+
+A privacy-preserving analytics layer designed for external university researchers studying municipal operations, infrastructure, equity, and civic engagement.
+
+### Access Control
+- **Researcher Role**: Dedicated user role with read-only access to sanitized data
+- **Admin Toggle**: Enable/disable via Admin Console → Modules → Research Portal
+- **Audit Logging**: All data access is logged for governance compliance
+
+### Data Exports
+Two export formats optimized for different research toolchains:
+
+| Format | Use Case | Tools |
+|--------|----------|-------|
+| **CSV** | Statistical analysis | Python (pandas), R, SPSS, Excel |
+| **GeoJSON** | Spatial analysis | QGIS, ArcGIS, GeoPandas, Mapbox |
+
+### Privacy Preservation
+All exports are designed to protect resident privacy while enabling meaningful research:
+
+- **PII Redaction**: Phone numbers, emails, and names are masked in descriptions
+- **Address Anonymization**: House numbers removed, street names preserved (e.g., "123 Main St" → "Main Street (Block)")
+- **Location Fuzzing**: Coordinates snapped to ~100ft grid (default) or exact (admin only)
+- **Zone IDs**: Anonymous geographic zones (~0.5 mile cells) for clustering without revealing exact locations
+
+### Research Fields (40+)
+
+#### Civil Engineering & Infrastructure
+| Field | Description |
+|-------|-------------|
+| `infrastructure_category` | Grouped type: roads_pavement, lighting, stormwater, etc. |
+| `matched_asset_type` | Linked infrastructure asset (storm_drain, park, hydrant) |
+| `season` | winter/spring/summer/fall for weather correlation |
+| `has_photos`, `photo_count` | Documentation quality metrics |
+
+#### Equity & Equality Studies
+| Field | Description |
+|-------|-------------|
+| `zone_id` | Anonymous geographic zone for spatial clustering |
+| `income_quintile` | 1-5 anonymized proxy for socioeconomic analysis |
+| `population_density` | low/medium/high for urban vs suburban equity |
+| `total_hours_to_resolve` | Clock hours from submission to closure |
+| `business_hours_to_resolve` | Mon-Fri 8am-5pm hours for fair comparison |
+
+#### Civics & Engagement
+| Field | Description |
+|-------|-------------|
+| `submission_channel` | portal/phone/walk_in/email for digital divide research |
+| `submission_hour`, `submission_day_of_week` | Temporal engagement patterns |
+| `is_weekend`, `is_business_hours` | Submission timing analysis |
+| `comment_count`, `public_comment_count` | Two-way communication metrics |
+
+#### AI/ML Research
+| Field | Description |
+|-------|-------------|
+| `ai_flagged`, `ai_flag_reason` | AI safety detection outputs |
+| `ai_priority_score` | AI-generated priority (1-10) |
+| `ai_classification` | AI-assigned category |
+| `ai_summary_sanitized` | AI-generated summary (PII redacted) |
+| `ai_vs_manual_priority_diff` | Human override delta for calibration research |
+
+### API Endpoints
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/research/status` | Check if Research Suite is enabled |
+| `GET /api/research/analytics` | Aggregate statistics and distributions |
+| `GET /api/research/export/csv` | Download sanitized CSV with all research fields |
+| `GET /api/research/export/geojson` | Download GeoJSON for GIS analysis |
+| `GET /api/research/data-dictionary` | Complete field documentation for academic papers |
+| `GET /api/research/code-snippets` | Python & R code examples |
+
+### Suggested Research Applications
+- **Infrastructure Maintenance**: Seasonal pothole patterns, photo documentation impact
+- **Equity Studies**: Response time disparities by income quintile, digital divide analysis
+- **Civic Engagement**: Submission channel preferences, weekend vs weekday patterns
+- **AI Calibration**: Human-AI priority alignment, classification accuracy studies
+
+---
+
 ## 🚀 Technical Architecture
 
 ### Communication Engine
@@ -168,7 +247,10 @@ The frontend uses a unique **Atomic Page Architecture**. Instead of deep compone
 
 ### 🔒 Security Standards
 - **PII Protection**: Personally Identifiable Information is encrypted at rest and redacted from public API feeds.
-- **RBAC**: Role-Based Access Control separates `Staff` (view/edit) from `Admin` (config/delete).
+- **RBAC**: Role-Based Access Control with three tiers:
+  - `Staff`: View requests, add comments, update status
+  - `Researcher`: Read-only access to sanitized, anonymized data exports
+  - `Admin`: Full system configuration, user management, exact location access
 - **Rate Limiting**: API endpoints are protected against flood attacks.
 - **SQL Injection Proof**: Usage of SQLAlchemy ORM prevents injection vulnerabilities.
 
@@ -198,6 +280,7 @@ docker-compose up --build -d
 - **Resident Portal**: `http://localhost/`
 - **Staff Dashboard**: `http://localhost/staff`
 - **Admin Console**: `http://localhost/admin`
+- **Research Lab**: `http://localhost/research` *(requires researcher role)*
 - **API Documentation**: `http://localhost/api/docs`
 
 ### Default Credentials
