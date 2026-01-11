@@ -735,7 +735,7 @@ export default function ResidentPortal() {
                                                                         href={contact.url.startsWith('http') ? contact.url : `https://${contact.url}`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 font-medium underline"
+                                                                        className="inline-flex items-center gap-2 text-white hover:text-primary-200 font-medium underline"
                                                                     >
                                                                         <ExternalLink className="w-4 h-4" />
                                                                         Visit Website
@@ -756,7 +756,7 @@ export default function ResidentPortal() {
                                         <Card>
                                             <div className="space-y-5">
                                                 <Textarea
-                                                    label="Description *"
+                                                    label="Description"
                                                     placeholder="Please describe the issue in detail..."
                                                     value={formData.description}
                                                     onChange={(e) =>
@@ -867,7 +867,7 @@ export default function ResidentPortal() {
                                                                                         href={contact.url.startsWith('http') ? contact.url : `https://${contact.url}`}
                                                                                         target="_blank"
                                                                                         rel="noopener noreferrer"
-                                                                                        className="text-primary-400 hover:text-primary-300 underline"
+                                                                                        className="text-white hover:text-primary-200 underline"
                                                                                     >
                                                                                         🔗 Visit Website
                                                                                     </a>
@@ -1093,7 +1093,7 @@ export default function ResidentPortal() {
                                                 </div>
 
                                                 <Input
-                                                    label="Email *"
+                                                    label="Email"
                                                     type="email"
                                                     placeholder="you@example.com"
                                                     value={formData.email}
