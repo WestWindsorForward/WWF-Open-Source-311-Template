@@ -592,3 +592,80 @@ New Request: {request.service_name}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
+
+@celery_app.task
+def enforce_retention_policy():
+    """
+    Enforce document retention policy by archiving expired records.
+    
+    Should be scheduled to run daily via Celery Beat.
+    Respects legal holds (flagged records are never archived).
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    async def _enforce():
+        from app.models import SystemSettings
+        from app.services.retention_service import (
+            get_records_for_archival,
+            archive_record,
+            get_retention_policy
+        )
+        
+        async with SessionLocal() as db:
+            # Get retention settings
+            settings_result = await db.execute(select(SystemSettings).limit(1))
+            settings = settings_result.scalar_one_or_none()
+            
+            if not settings:
+                logger.warning("[Retention] No system settings found, using defaults")
+                state_code = "NJ"
+                override_days = None
+                archive_mode = "anonymize"
+            else:
+                state_code = settings.retention_state_code or "NJ"
+                override_days = settings.retention_days_override
+                archive_mode = settings.retention_mode or "anonymize"
+            
+            policy = get_retention_policy(state_code)
+            logger.info(f"[Retention] Enforcing policy: {policy['name']} ({policy['retention_years']} years)")
+            
+            # Get records eligible for archival (limit 100 per run to avoid overwhelming)
+            records = await get_records_for_archival(db, state_code, override_days, limit=100)
+            
+            if not records:
+                logger.info("[Retention] No records eligible for archival")
+                return {"status": "success", "archived": 0, "policy": policy}
+            
+            logger.info(f"[Retention] Found {len(records)} records eligible for archival")
+            
+            archived_count = 0
+            skipped_count = 0
+            errors = []
+            
+            for record in records:
+                try:
+                    result = await archive_record(db, record.id, archive_mode)
+                    if result["status"] in ["anonymized", "deleted"]:
+                        archived_count += 1
+                        logger.info(f"[Retention] Archived record {record.service_request_id}")
+                    else:
+                        skipped_count += 1
+                        logger.info(f"[Retention] Skipped record {record.service_request_id}: {result.get('message')}")
+                except Exception as e:
+                    errors.append({"record_id": record.id, "error": str(e)})
+                    logger.error(f"[Retention] Error archiving {record.id}: {e}")
+            
+            return {
+                "status": "success",
+                "policy": policy,
+                "archived": archived_count,
+                "skipped": skipped_count,
+                "errors": len(errors)
+            }
+    
+    try:
+        return run_async(_enforce())
+    except Exception as e:
+        logger.error(f"[Retention] Task failed: {e}")
+        return {"status": "error", "error": str(e)}

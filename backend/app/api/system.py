@@ -147,6 +147,108 @@ async def sync_secrets(
     return {"status": "success", "added_secrets": added, "count": len(added)}
 
 
+# ============ Document Retention ============
+
+@router.get("/retention/states")
+async def get_retention_states(
+    _: User = Depends(get_current_admin)
+):
+    """Get all supported states with their retention policies"""
+    from app.services.retention_service import get_all_states
+    return get_all_states()
+
+
+@router.get("/retention/policy")
+async def get_current_retention_policy(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin)
+):
+    """Get current retention policy configuration"""
+    from app.services.retention_service import get_retention_policy, get_retention_stats
+    
+    result = await db.execute(select(SystemSettings).limit(1))
+    settings = result.scalar_one_or_none()
+    
+    state_code = settings.retention_state_code if settings else "NJ"
+    override_days = settings.retention_days_override if settings else None
+    mode = settings.retention_mode if settings else "anonymize"
+    
+    policy = get_retention_policy(state_code)
+    stats = await get_retention_stats(db, state_code, override_days)
+    
+    return {
+        "state_code": state_code,
+        "policy": policy,
+        "override_days": override_days,
+        "effective_days": override_days if override_days else policy["retention_days"],
+        "mode": mode,
+        "stats": stats
+    }
+
+
+@router.post("/retention/policy")
+async def update_retention_policy(
+    state_code: str = None,
+    override_days: int = None,
+    mode: str = None,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin)
+):
+    """Update retention policy configuration (admin only)"""
+    from app.services.retention_service import get_retention_policy
+    
+    result = await db.execute(select(SystemSettings).limit(1))
+    settings = result.scalar_one_or_none()
+    
+    if not settings:
+        settings = SystemSettings()
+        db.add(settings)
+    
+    if state_code:
+        # Validate state code
+        policy = get_retention_policy(state_code)
+        if policy["state_code"] == "DEFAULT" and state_code != "DEFAULT":
+            raise HTTPException(400, f"Unknown state code: {state_code}")
+        settings.retention_state_code = state_code.upper()
+    
+    if override_days is not None:
+        if override_days < 365:
+            raise HTTPException(400, "Override must be at least 365 days (1 year)")
+        settings.retention_days_override = override_days
+    
+    if mode:
+        if mode not in ["anonymize", "delete"]:
+            raise HTTPException(400, "Mode must be 'anonymize' or 'delete'")
+        settings.retention_mode = mode
+    
+    await db.commit()
+    await db.refresh(settings)
+    
+    return {
+        "status": "updated",
+        "state_code": settings.retention_state_code,
+        "override_days": settings.retention_days_override,
+        "mode": settings.retention_mode
+    }
+
+
+@router.post("/retention/run")
+async def run_retention_now(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_admin)
+):
+    """Manually trigger retention enforcement (admin only)"""
+    from app.tasks.service_requests import enforce_retention_policy
+    
+    # Trigger async task
+    task = enforce_retention_policy.delay()
+    return {
+        "status": "triggered",
+        "task_id": task.id,
+        "message": "Retention enforcement task started"
+    }
+
+
 # ============ Statistics ============
 
 @router.get("/statistics", response_model=StatisticsResponse)

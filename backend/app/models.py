@@ -176,6 +176,9 @@ class ServiceRequest(Base):
     vertex_ai_priority_score = Column(Float)  # AI priority recommendation (1-10)
     manual_priority_score = Column(Float)  # Human override priority (1-10), takes precedence over AI
     vertex_ai_analyzed_at = Column(DateTime(timezone=True))
+    
+    # Document retention / archival
+    archived_at = Column(DateTime(timezone=True), index=True)  # When record was archived
 
 
 class RequestComment(Base):
@@ -244,6 +247,12 @@ class SystemSettings(Base):
     custom_domain = Column(String(255))  # For custom domain configuration
     modules = Column(JSON, default={"ai_analysis": False, "sms_alerts": False, "email_notifications": True})
     township_boundary = Column(JSON)  # GeoJSON boundary from OpenStreetMap
+    
+    # Document retention configuration
+    retention_state_code = Column(String(2), default="NJ")  # State for retention rules
+    retention_days_override = Column(Integer)  # Custom override (null = use state default)
+    retention_mode = Column(String(20), default="anonymize")  # "anonymize" or "delete"
+    
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 

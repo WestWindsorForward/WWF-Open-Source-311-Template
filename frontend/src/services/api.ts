@@ -587,6 +587,32 @@ class ApiClient {
         if (!response.ok) throw new Error('Export failed');
         return response.blob();
     }
+
+    // ========== Document Retention ==========
+
+    async getRetentionStates(): Promise<RetentionState[]> {
+        return this.request<RetentionState[]>('/system/retention/states');
+    }
+
+    async getRetentionPolicy(): Promise<RetentionPolicyConfig> {
+        return this.request<RetentionPolicyConfig>('/system/retention/policy');
+    }
+
+    async updateRetentionPolicy(params: {
+        state_code?: string;
+        override_days?: number;
+        mode?: 'anonymize' | 'delete';
+    }): Promise<{ status: string; state_code: string; override_days: number | null; mode: string }> {
+        const queryParams = new URLSearchParams();
+        if (params.state_code) queryParams.append('state_code', params.state_code);
+        if (params.override_days !== undefined) queryParams.append('override_days', params.override_days.toString());
+        if (params.mode) queryParams.append('mode', params.mode);
+        return this.request(`/system/retention/policy?${queryParams.toString()}`, { method: 'POST' });
+    }
+
+    async runRetentionNow(): Promise<{ status: string; task_id: string; message: string }> {
+        return this.request('/system/retention/run', { method: 'POST' });
+    }
 }
 
 // Notification Preferences type
@@ -650,4 +676,35 @@ export interface MapLayer {
     };
     created_at?: string;
     updated_at?: string;
+}
+
+// Document Retention types
+export interface RetentionState {
+    code: string;
+    name: string;
+    retention_days: number;
+    retention_years: number;
+    source: string;
+}
+
+export interface RetentionPolicyConfig {
+    state_code: string;
+    policy: {
+        state_code: string;
+        name: string;
+        retention_days: number;
+        retention_years: number;
+        source: string;
+    };
+    override_days: number | null;
+    effective_days: number;
+    mode: 'anonymize' | 'delete';
+    stats: {
+        retention_policy: object;
+        cutoff_date: string;
+        eligible_for_archival: number;
+        under_legal_hold: number;
+        already_archived: number;
+        next_run: string;
+    };
 }
