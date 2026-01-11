@@ -573,7 +573,7 @@ export default function GoogleMapsLocationPicker({
                                         icon: {
                                             url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-                                                    <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="#3b82f6" stroke="white" stroke-width="2"/>
+                                                    <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="#2563eb" stroke="white" stroke-width="2"/>
                                                     <text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="white" font-family="Arial" font-weight="bold" font-size="${size > 40 ? 14 : 12}">${count}</text>
                                                 </svg>
                                             `)}`,

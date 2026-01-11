@@ -289,7 +289,7 @@ export default function ResidentMapView({
                         position,
                         icon: {
                             path: window.google.maps.SymbolPath.CIRCLE,
-                            fillColor: '#6366f1',
+                            fillColor: '#4f46e5',  // Was #6366f1, darker for WCAG AA contrast
                             fillOpacity: 0.95,
                             strokeColor: '#ffffff',
                             strokeWeight: 2,
