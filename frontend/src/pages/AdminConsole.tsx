@@ -275,6 +275,7 @@ export default function AdminConsole() {
     } | null>(null);
     const [selectedStateCode, setSelectedStateCode] = useState<string>('');
     const [selectedMode, setSelectedMode] = useState<'anonymize' | 'delete'>('anonymize');
+    const [overrideDays, setOverrideDays] = useState<string>('');
     const [isSavingRetention, setIsSavingRetention] = useState(false);
     const [isRunningRetention, setIsRunningRetention] = useState(false);
 
@@ -2194,6 +2195,20 @@ export default function AdminConsole() {
                                                 <option value="delete" className="bg-slate-800">Delete (Permanent removal)</option>
                                             </select>
                                         </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-white/70 mb-2">Override Days (Optional)</label>
+                                            <input
+                                                type="number"
+                                                value={overrideDays}
+                                                onChange={(e) => setOverrideDays(e.target.value)}
+                                                placeholder="Leave blank to use state default"
+                                                min="365"
+                                                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:text-white/40"
+                                                aria-label="Custom retention days override"
+                                            />
+                                            <p className="text-white/40 text-xs mt-1">Min 365 days. Must be ≥ state requirement.</p>
+                                        </div>
                                     </div>
 
                                     {/* Selected State Preview */}
@@ -2221,7 +2236,8 @@ export default function AdminConsole() {
                                                 try {
                                                     await api.updateRetentionPolicy({
                                                         state_code: selectedStateCode,
-                                                        mode: selectedMode
+                                                        mode: selectedMode,
+                                                        override_days: overrideDays ? parseInt(overrideDays) : undefined
                                                     });
                                                     await loadTabData();
                                                     setSaveMessage('Retention policy updated successfully');
