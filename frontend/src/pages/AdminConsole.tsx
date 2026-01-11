@@ -2162,7 +2162,7 @@ export default function AdminConsole() {
 
                                 {/* State Selection */}
                                 <Card className="p-6">
-                                    <h3 className="text-lg font-semibold text-white mb-4">Select State Policy</h3>
+                                    <h3 className="text-lg font-semibold text-white mb-4">Recommended Retention Policy</h3>
                                     <p className="text-white/60 mb-4">Choose your state to apply the appropriate record retention requirements.</p>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
