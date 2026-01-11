@@ -278,6 +278,8 @@ export default function AdminConsole() {
     const [overrideDays, setOverrideDays] = useState<string>('');
     const [isSavingRetention, setIsSavingRetention] = useState(false);
     const [isRunningRetention, setIsRunningRetention] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [deletedRequests, setDeletedRequests] = useState<any[]>([]);
 
     useEffect(() => {
         if (settings) {
@@ -350,14 +352,18 @@ export default function AdminConsole() {
                     break;
                 case 'retention':
                     try {
-                        const [states, policy] = await Promise.all([
+                        const [states, policy, allRequests] = await Promise.all([
                             api.getRetentionStates(),
-                            api.getRetentionPolicy()
+                            api.getRetentionPolicy(),
+                            api.getRequests(undefined, true) // include_deleted=true for admins
                         ]);
                         setRetentionStates(states);
                         setRetentionPolicy(policy);
                         setSelectedStateCode(policy.state_code);
                         setSelectedMode(policy.mode);
+                        // Filter for deleted requests only
+                        const deleted = allRequests.filter((r: { deleted_at?: string | null }) => r.deleted_at != null);
+                        setDeletedRequests(deleted);
                     } catch (err) {
                         console.error('Failed to load retention config:', err);
                     }
@@ -2169,6 +2175,43 @@ export default function AdminConsole() {
                                         <p className="text-white/40 text-sm mt-4">
                                             Source: {retentionPolicy.policy.source}
                                         </p>
+                                    </Card>
+                                )}
+
+                                {/* Soft-Deleted Requests */}
+                                {deletedRequests.length > 0 && (
+                                    <Card className="p-6">
+                                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                            <Trash2 className="w-5 h-5 text-red-400" />
+                                            Soft-Deleted Requests ({deletedRequests.length})
+                                        </h3>
+                                        <p className="text-white/60 mb-4 text-sm">
+                                            These requests have been soft-deleted by administrators and are no longer visible to staff.
+                                        </p>
+                                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                                            {deletedRequests.map((req) => (
+                                                <div key={req.id} className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <span className="text-white font-medium">{req.service_request_id}</span>
+                                                            <p className="text-white/60 text-sm mt-1 line-clamp-1">{req.description}</p>
+                                                        </div>
+                                                        <span className="text-red-400 text-xs">
+                                                            {req.deleted_at ? new Date(req.deleted_at).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                    {req.deletion_reason && (
+                                                        <div className="mt-2 bg-black/20 rounded p-2">
+                                                            <span className="text-xs text-white/50">Deletion Reason:</span>
+                                                            <p className="text-sm text-red-300">{req.deletion_reason}</p>
+                                                        </div>
+                                                    )}
+                                                    <p className="text-xs text-white/40 mt-2">
+                                                        Deleted by: {req.deleted_by || 'Unknown'}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </Card>
                                 )}
 
