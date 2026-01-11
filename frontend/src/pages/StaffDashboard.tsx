@@ -1348,6 +1348,7 @@ export default function StaffDashboard() {
                                     <input
                                         type="text"
                                         placeholder="Search by ID, description, address..."
+                                        aria-label="Search requests by ID, description, or address"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="glass-input pl-10 py-2 text-sm"
@@ -1356,8 +1357,9 @@ export default function StaffDashboard() {
                                         <button
                                             onClick={() => setSearchQuery('')}
                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                                            aria-label="Clear search"
                                         >
-                                            <X className="w-4 h-4" />
+                                            <X className="w-4 h-4" aria-hidden="true" />
                                         </button>
                                     )}
                                 </div>
@@ -2284,6 +2286,7 @@ export default function StaffDashboard() {
                                                     <input
                                                         type="text"
                                                         placeholder={commentVisibility === 'internal' ? 'Add internal note...' : 'Reply to reporter...'}
+                                                        aria-label={commentVisibility === 'internal' ? 'Add internal note' : 'Reply to reporter'}
                                                         value={newComment}
                                                         onChange={(e) => setNewComment(e.target.value)}
                                                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
@@ -2293,8 +2296,9 @@ export default function StaffDashboard() {
                                                         onClick={handleAddComment}
                                                         disabled={!newComment.trim() || isSubmittingComment}
                                                         className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2 transition-colors"
+                                                        aria-label="Send comment"
                                                     >
-                                                        <Send className="w-4 h-4" />
+                                                        <Send className="w-4 h-4" aria-hidden="true" />
                                                     </button>
                                                 </div>
                                             </div>
