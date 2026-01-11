@@ -2267,6 +2267,16 @@ export default function StaffDashboard() {
                                                                     color: isEnabled ? 'bg-amber-500' : 'bg-gray-500',
                                                                     text: isEnabled ? '⚖️ Legal Hold Enabled' : '⚖️ Legal Hold Removed'
                                                                 };
+                                                            } else if (entry.action === 'deleted') {
+                                                                actionConfig = {
+                                                                    color: 'bg-red-500',
+                                                                    text: `🗑️ Soft Deleted: ${entry.new_value || 'No reason given'}`
+                                                                };
+                                                            } else if (entry.action === 'restored') {
+                                                                actionConfig = {
+                                                                    color: 'bg-green-500',
+                                                                    text: '♻️ Request Restored'
+                                                                };
                                                             } else {
                                                                 actionConfig = { color: 'bg-gray-500', text: entry.action };
                                                             }

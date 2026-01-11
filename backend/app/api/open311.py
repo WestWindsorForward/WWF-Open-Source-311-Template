@@ -597,6 +597,18 @@ async def delete_request(
     request.delete_justification = delete_data.justification
     request.updated_datetime = datetime.utcnow()
     
+    # Add audit log entry
+    audit_entry = AuditLog(
+        service_request_id=request.id,
+        action="deleted",
+        actor_type="staff",
+        actor_id=current_user.id,
+        actor_name=current_user.username,
+        new_value=delete_data.justification,
+        timestamp=datetime.utcnow()
+    )
+    db.add(audit_entry)
+    
     await db.commit()
     await db.refresh(request)
     
