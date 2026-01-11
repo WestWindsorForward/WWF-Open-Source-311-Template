@@ -670,7 +670,7 @@ export default function StaffDashboard() {
 
             {/* Sidebar */}
             <aside
-                className={`fixed lg:static inset-y-0 left-0 z-50 w-72 glass-sidebar transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                className={`fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50 w-72 h-screen glass-sidebar transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
                 aria-label="Staff portal navigation"
             >
@@ -807,11 +807,12 @@ export default function StaffDashboard() {
                             {user?.role === 'admin' && (
                                 <button
                                     onClick={() => window.location.href = '/admin'}
-                                    className="flex-shrink-0 p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                    className="flex items-center gap-1.5 px-2 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-lg hover:bg-amber-500/30 transition-colors"
                                     title="Admin Console"
                                     aria-label="Go to Admin Console"
                                 >
-                                    <Settings className="w-5 h-5 text-amber-400" aria-hidden="true" />
+                                    <Settings className="w-4 h-4 text-amber-400" aria-hidden="true" />
+                                    <span className="text-xs font-medium text-amber-400">Admin</span>
                                 </button>
                             )}
                             <button
@@ -1596,7 +1597,7 @@ export default function StaffDashboard() {
                                             <>
                                                 <button
                                                     onClick={async () => {
-                                                        if (!selectedRequest.flagged) {
+                                                        if (selectedRequest.flagged !== true) {
                                                             // Show confirmation before placing on legal hold
                                                             if (window.confirm('Place this request under Legal Hold?\n\nThis will prevent the record from being archived or deleted by the retention policy.\n\nContinue?')) {
                                                                 try {
@@ -1622,16 +1623,16 @@ export default function StaffDashboard() {
                                                             }
                                                         }
                                                     }}
-                                                    className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${selectedRequest.flagged
+                                                    className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${selectedRequest.flagged === true
                                                         ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30 ring-2 ring-white/20'
                                                         : 'bg-white/5 border border-white/10 text-white/70 hover:bg-amber-500/20 hover:text-amber-400 hover:border-amber-500/30'
                                                         }`}
-                                                    aria-label={selectedRequest.flagged ? 'Remove legal hold' : 'Place on legal hold'}
+                                                    aria-label={selectedRequest.flagged === true ? 'Remove legal hold' : 'Place on legal hold'}
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
                                                     </svg>
-                                                    {selectedRequest.flagged ? 'Under Legal Hold (Click to Remove)' : 'Place on Legal Hold'}
+                                                    {selectedRequest.flagged === true ? 'Under Legal Hold (Click to Remove)' : 'Place on Legal Hold'}
                                                 </button>
                                             </>
                                         )}
