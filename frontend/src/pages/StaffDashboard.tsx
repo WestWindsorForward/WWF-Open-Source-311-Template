@@ -668,9 +668,9 @@ export default function StaffDashboard() {
                 )}
             </AnimatePresence>
 
-            {/* Sidebar */}
+            {/* Sidebar - Fixed position on both mobile and desktop */}
             <aside
-                className={`fixed lg:static lg:flex-shrink-0 inset-y-0 left-0 z-50 w-72 h-full glass-sidebar transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                className={`fixed inset-y-0 left-0 z-50 w-72 glass-sidebar transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
                 aria-label="Staff portal navigation"
             >
@@ -828,8 +828,8 @@ export default function StaffDashboard() {
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <div id="main-content" role="main" className="flex-1 flex flex-col min-w-0">
+            {/* Main Content - offset by sidebar width on desktop */}
+            <div id="main-content" role="main" className="flex-1 flex flex-col min-w-0 lg:ml-72">
                 {/* Mobile Header */}
                 <header className="lg:hidden glass-sidebar p-4 flex items-center justify-between sticky top-0 z-30">
                     <button

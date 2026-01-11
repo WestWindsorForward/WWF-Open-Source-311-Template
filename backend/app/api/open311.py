@@ -437,10 +437,15 @@ async def update_request_status(
                     request.closed_datetime = datetime.utcnow()
             elif field == "closed_substatus":
                 value = value.value  # Convert enum to string
+            # Special handling for boolean flagged field
+            if field == "flagged":
+                print(f"[LEGAL HOLD DEBUG] Setting flagged from {request.flagged} to {value} for request {request.service_request_id}")
             setattr(request, field, value)
     
     request.updated_datetime = datetime.utcnow()
     
+    # Force flush to ensure changes are written
+    await db.flush()
     await db.commit()
     
     # Create audit log entries for changes
