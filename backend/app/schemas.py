@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -211,6 +211,12 @@ class ServiceRequestResponse(BaseModel):
     updated_datetime: Optional[datetime] = None
     source: str
     flagged: bool = False
+    
+    @field_validator('flagged', mode='before')
+    @classmethod
+    def coalesce_flagged(cls, v):
+        return v if v is not None else False
+    
     matched_asset: Optional[Dict[str, Any]] = None
     # Assignment
     assigned_department_id: Optional[int] = None

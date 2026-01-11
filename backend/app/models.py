@@ -140,7 +140,7 @@ class ServiceRequest(Base):
     
     # AI Analysis
     ai_analysis = Column(JSON)
-    flagged = Column(Boolean, default=False)
+    flagged = Column(Boolean, default=False, server_default='false', nullable=False)
     flag_reason = Column(String(255))
     
     # Timestamps

@@ -654,7 +654,7 @@ export default function StaffDashboard() {
     };
 
     return (
-        <div className="min-h-screen flex">
+        <div className="h-screen flex overflow-hidden">
             {/* Mobile sidebar backdrop */}
             <AnimatePresence>
                 {sidebarOpen && (
@@ -670,11 +670,11 @@ export default function StaffDashboard() {
 
             {/* Sidebar */}
             <aside
-                className={`fixed lg:static lg:flex-shrink-0 inset-y-0 left-0 z-50 w-72 glass-sidebar transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                className={`fixed lg:static lg:flex-shrink-0 inset-y-0 left-0 z-50 w-72 h-full glass-sidebar transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
                 aria-label="Staff portal navigation"
             >
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col h-full overflow-y-auto">
                     {/* Sidebar Header */}
                     <div className="p-6 border-b border-white/10">
                         <div className="flex items-center justify-between">
