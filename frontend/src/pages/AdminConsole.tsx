@@ -2269,6 +2269,7 @@ export default function AdminConsole() {
                                         routing_config: { ...p.routing_config, staff_ids: [] }
                                     }))}
                                     className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
+                                    aria-label="Assign to department"
                                 >
                                     <option value="">Select department...</option>
                                     {departments.map(d => (
@@ -2367,6 +2368,7 @@ export default function AdminConsole() {
                                         routing_config: { ...p.routing_config, message: e.target.value }
                                     }))}
                                     className="w-full rounded-lg bg-white/10 border border-white/20 text-white px-3 py-2"
+                                    aria-label="Message to display to users"
                                 />
                             </div>
 
@@ -2427,6 +2429,7 @@ export default function AdminConsole() {
                                         routing_config: { ...p.routing_config, default_handler: e.target.value as any }
                                     }))}
                                     className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
+                                    aria-label="Default handler"
                                 >
                                     <option value="township">Township handles by default</option>
                                     <option value="third_party">Third party handles by default</option>

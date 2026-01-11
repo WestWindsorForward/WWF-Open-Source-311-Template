@@ -1011,6 +1011,7 @@ export default function ResidentPortal() {
                                                                         onChange={(e) => setCustomAnswers(p => ({ ...p, [q.label]: e.target.value }))}
                                                                         className="w-full h-10 rounded-lg bg-white/10 border border-white/20 text-white px-3"
                                                                         required={q.required}
+                                                                        aria-label={q.label}
                                                                     >
                                                                         <option value="">Select...</option>
                                                                         {q.options?.map(opt => (

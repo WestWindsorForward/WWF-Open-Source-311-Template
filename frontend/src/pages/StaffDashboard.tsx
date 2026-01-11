@@ -1375,6 +1375,7 @@ export default function StaffDashboard() {
                                                 value={filterDepartment ?? ''}
                                                 onChange={(e) => setFilterDepartment(e.target.value ? Number(e.target.value) : null)}
                                                 className="glass-input text-sm py-2"
+                                                aria-label="Filter by department"
                                             >
                                                 <option value="">All Departments</option>
                                                 {departments.map(d => (
@@ -1390,6 +1391,7 @@ export default function StaffDashboard() {
                                                 value={filterService ?? ''}
                                                 onChange={(e) => setFilterService(e.target.value || null)}
                                                 className="glass-input text-sm py-2"
+                                                aria-label="Filter by category"
                                             >
                                                 <option value="">All Categories</option>
                                                 {services.map(s => (
@@ -1405,6 +1407,7 @@ export default function StaffDashboard() {
                                                 value={mapPriorityFilter}
                                                 onChange={(e) => setMapPriorityFilter(e.target.value as 'all' | 'high' | 'medium' | 'low')}
                                                 className="glass-input text-sm py-2"
+                                                aria-label="Filter by priority level"
                                             >
                                                 <option value="all">All Priorities</option>
                                                 <option value="high">🔴 High (8-10)</option>
@@ -1525,6 +1528,7 @@ export default function StaffDashboard() {
                                                 value={editAssignment?.departmentId ?? selectedRequest.assigned_department_id ?? ''}
                                                 onChange={(e) => { const val = e.target.value ? Number(e.target.value) : null; setEditAssignment(prev => ({ departmentId: val, assignedTo: prev?.assignedTo ?? selectedRequest.assigned_to ?? null })); }}
                                                 className="flex-1 min-w-0 w-full sm:w-auto py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
+                                                aria-label="Assign to department"
                                             >
                                                 <option value="" className="text-white/50">Select a department...</option>
                                                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -1533,6 +1537,7 @@ export default function StaffDashboard() {
                                                 value={editAssignment?.assignedTo ?? selectedRequest.assigned_to ?? ''}
                                                 onChange={(e) => { const val = e.target.value; setEditAssignment(prev => ({ departmentId: prev?.departmentId ?? selectedRequest.assigned_department_id ?? null, assignedTo: val })); }}
                                                 className="flex-1 min-w-0 w-full sm:w-auto py-2 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/25 transition-all [&>option]:bg-slate-800 [&>option]:text-white"
+                                                aria-label="Assign to staff member"
                                             >
                                                 <option value="">All staff in department</option>
                                                 {(() => {
