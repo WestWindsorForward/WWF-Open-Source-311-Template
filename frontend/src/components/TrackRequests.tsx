@@ -318,9 +318,9 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                             <button
                                 onClick={copyLink}
                                 className="text-white/40 hover:text-white transition-colors"
-                                title="Copy link"
+                                aria-label="Copy link to this request"
                             >
-                                <Copy className="w-3.5 h-3.5" />
+                                <Copy className="w-3.5 h-3.5" aria-hidden="true" />
                             </button>
                         </p>
                     </div>
@@ -650,8 +650,9 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                         <button
                             onClick={() => setLightboxUrl(null)}
                             className="absolute top-4 right-4 md:top-6 md:right-6 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 transition-all duration-300 group"
+                            aria-label="Close image preview"
                         >
-                            <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
+                            <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" aria-hidden="true" />
                         </button>
 
                         {/* Image container with premium styling */}
@@ -836,8 +837,9 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                     <button
                         onClick={() => setLightboxUrl(null)}
                         className="absolute top-4 right-4 md:top-6 md:right-6 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 transition-all duration-300 group"
+                        aria-label="Close image preview"
                     >
-                        <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
+                        <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" aria-hidden="true" />
                     </button>
 
                     {/* Image container with premium styling */}

@@ -355,8 +355,8 @@ export default function ResidentMapView({
                 <div className="absolute top-16 right-4 z-20 w-64 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
                     <div className="p-3 border-b border-gray-100 flex items-center justify-between">
                         <h3 className="font-semibold text-gray-800 text-sm">Filter Requests</h3>
-                        <button onClick={() => setShowFilters(false)} className="p-1 hover:bg-gray-100 rounded-lg">
-                            <X className="w-4 h-4 text-gray-400" />
+                        <button onClick={() => setShowFilters(false)} className="p-1 hover:bg-gray-100 rounded-lg" aria-label="Close filters">
+                            <X className="w-4 h-4 text-gray-400" aria-hidden="true" />
                         </button>
                     </div>
 

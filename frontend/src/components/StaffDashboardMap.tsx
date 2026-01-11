@@ -566,8 +566,9 @@ export default function StaffDashboardMap({
                     <button
                         onClick={() => setShowFilters(false)}
                         className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                        aria-label="Close filters"
                     >
-                        <X className="w-5 h-5 text-white/60" />
+                        <X className="w-5 h-5 text-white/60" aria-hidden="true" />
                     </button>
                 </div>
 

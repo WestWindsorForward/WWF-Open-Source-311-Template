@@ -1189,14 +1189,16 @@ export default function AdminConsole() {
                                                     <button
                                                         onClick={() => handleEditDepartment(dept)}
                                                         className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white/10 rounded-lg transition-all"
+                                                        aria-label={`Edit ${dept.name} department`}
                                                     >
-                                                        <Edit className="w-4 h-4 text-white/60" />
+                                                        <Edit className="w-4 h-4 text-white/60" aria-hidden="true" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteDepartment(dept.id)}
                                                         className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/20 rounded-lg transition-all"
+                                                        aria-label={`Delete ${dept.name} department`}
                                                     >
-                                                        <Trash2 className="w-4 h-4 text-red-400" />
+                                                        <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -1249,16 +1251,16 @@ export default function AdminConsole() {
                                                     <button
                                                         onClick={() => handleEditService(service)}
                                                         className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white/10 rounded-lg transition-all"
-                                                        title="Configure routing"
+                                                        aria-label={`Configure ${service.service_name} routing`}
                                                     >
-                                                        <Edit className="w-4 h-4 text-white/60" />
+                                                        <Edit className="w-4 h-4 text-white/60" aria-hidden="true" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteService(service.id)}
                                                         className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/20 rounded-lg transition-all"
-                                                        title="Delete"
+                                                        aria-label={`Delete ${service.service_name}`}
                                                     >
-                                                        <Trash2 className="w-4 h-4 text-red-400" />
+                                                        <Trash2 className="w-4 h-4 text-red-400" aria-hidden="true" />
                                                     </button>
                                                 </div>
                                             </div>

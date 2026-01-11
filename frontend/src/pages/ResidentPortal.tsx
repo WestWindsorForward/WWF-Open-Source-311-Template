@@ -899,8 +899,9 @@ export default function ResidentPortal() {
                                                                     type="button"
                                                                     onClick={() => handleRemovePhoto(idx)}
                                                                     className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                    aria-label={`Remove photo ${idx + 1}`}
                                                                 >
-                                                                    <X className="w-4 h-4 text-white" />
+                                                                    <X className="w-4 h-4 text-white" aria-hidden="true" />
                                                                 </button>
                                                             </div>
                                                         ))}

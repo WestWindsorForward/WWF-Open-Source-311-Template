@@ -105,8 +105,9 @@ export default function NotificationSettings({ isOpen, onClose, userName }: Noti
                             <button
                                 onClick={onClose}
                                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                aria-label="Close notification settings"
                             >
-                                <X className="w-5 h-5 text-white/60" />
+                                <X className="w-5 h-5 text-white/60" aria-hidden="true" />
                             </button>
                         </div>
                     </div>
@@ -262,10 +263,14 @@ function ToggleRow({
                 disabled={disabled}
                 className={`relative w-12 h-6 rounded-full transition-colors ${enabled ? 'bg-primary-500' : 'bg-white/20'
                     } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                role="switch"
+                aria-checked={enabled}
+                aria-label={`Toggle ${label}`}
             >
                 <span
                     className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${enabled ? 'translate-x-6' : 'translate-x-0'
                         }`}
+                    aria-hidden="true"
                 />
             </button>
         </div>

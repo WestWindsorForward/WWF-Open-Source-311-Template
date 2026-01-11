@@ -13,6 +13,7 @@ interface ButtonProps {
     type?: 'button' | 'submit' | 'reset';
     onClick?: React.MouseEventHandler<HTMLButtonElement>;
     'aria-label'?: string;
+    title?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -27,6 +28,7 @@ export const Button: React.FC<ButtonProps> = ({
     type = 'button',
     onClick,
     'aria-label': ariaLabel,
+    title,
 }) => {
     const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-300 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
 
@@ -61,6 +63,7 @@ export const Button: React.FC<ButtonProps> = ({
             aria-disabled={isDisabled || undefined}
             aria-busy={isLoading || undefined}
             aria-label={ariaLabel}
+            title={title}
         >
             {isLoading ? (
                 <>

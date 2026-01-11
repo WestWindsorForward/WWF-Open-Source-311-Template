@@ -189,8 +189,9 @@ export default function ActivityFeed({
                             <button
                                 onClick={onClose}
                                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                aria-label="Close activity feed"
                             >
-                                <X className="w-5 h-5 text-white/60" />
+                                <X className="w-5 h-5 text-white/60" aria-hidden="true" />
                             </button>
                         </div>
                     </div>

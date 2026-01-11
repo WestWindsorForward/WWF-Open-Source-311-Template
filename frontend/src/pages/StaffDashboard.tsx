@@ -2589,8 +2589,9 @@ export default function StaffDashboard() {
                     <button
                         onClick={() => setLightboxUrl(null)}
                         className="absolute top-4 right-4 md:top-6 md:right-6 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 transition-all duration-300 group"
+                        aria-label="Close image preview"
                     >
-                        <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" />
+                        <X className="w-6 h-6 text-white group-hover:rotate-90 transition-transform duration-300" aria-hidden="true" />
                     </button>
 
                     {/* Image container with premium styling */}
