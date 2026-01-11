@@ -807,8 +807,9 @@ export default function StaffDashboard() {
                                 onClick={handleLogout}
                                 className="flex-shrink-0 p-2 hover:bg-white/10 rounded-lg transition-colors"
                                 title="Sign out"
+                                aria-label="Sign out"
                             >
-                                <LogOut className="w-5 h-5 text-white/60" />
+                                <LogOut className="w-5 h-5 text-white/60" aria-hidden="true" />
                             </button>
                         </div>
                     </div>
