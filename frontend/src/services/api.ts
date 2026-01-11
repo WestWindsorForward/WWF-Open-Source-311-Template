@@ -206,6 +206,7 @@ class ApiClient {
     async restoreRequest(requestId: string): Promise<{ message: string }> {
         return this.request<{ message: string }>(`/open311/v2/requests/${requestId}/restore`, {
             method: 'POST',
+            body: JSON.stringify({}),
         });
     }
 
