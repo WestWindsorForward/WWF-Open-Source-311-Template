@@ -543,10 +543,11 @@ input[type="radio"] {
 }
 
 /* Ensure checkbox/radio labels have adequate touch area */
+/* Using flex (not inline-flex) to preserve block-level flow for vertical stacking */
 label:has(input[type="checkbox"]),
 label:has(input[type="radio"]) {
     min-height: 44px;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;

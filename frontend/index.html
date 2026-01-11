@@ -33,6 +33,19 @@
     </div>
   </noscript>
 
+  <!-- ADA: Enable Enter key to toggle checkboxes/radios (normally only Space works) -->
+  <script>
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        const el = document.activeElement;
+        if (el && (el.type === 'checkbox' || el.type === 'radio')) {
+          e.preventDefault();
+          el.click();
+        }
+      }
+    });
+  </script>
+
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
