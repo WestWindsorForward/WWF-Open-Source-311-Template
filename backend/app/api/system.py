@@ -91,19 +91,24 @@ async def create_or_update_secret(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin)
 ):
-    """Create or update a secret (admin only)"""
+    """Create or update a secret (admin only) - values are encrypted at rest"""
+    from app.core.encryption import encrypt
+    
     result = await db.execute(
         select(SystemSecret).where(SystemSecret.key_name == secret_data.key_name)
     )
     secret = result.scalar_one_or_none()
     
+    # Encrypt the secret value before storing
+    encrypted_value = encrypt(secret_data.key_value) if secret_data.key_value else None
+    
     if secret:
-        secret.key_value = secret_data.key_value
+        secret.key_value = encrypted_value
         secret.is_configured = bool(secret_data.key_value)
     else:
         secret = SystemSecret(
             key_name=secret_data.key_name,
-            key_value=secret_data.key_value,
+            key_value=encrypted_value,
             description=secret_data.description,
             is_configured=bool(secret_data.key_value)
         )

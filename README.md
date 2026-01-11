@@ -300,12 +300,14 @@ All research fields are computed on-the-fly using real APIs:
 The frontend uses a unique **Atomic Page Architecture**. Instead of deep component trees, pages like `ResidentPortal.tsx` and `StaffDashboard.tsx` are self-contained "atoms" that manage their own complex state. This reduces prop-drilling and makes the codebase easier to audit for security.
 
 ### 🔒 Security Standards
+- **Encryption at Rest**: All API keys and sensitive secrets are encrypted using Fernet (AES-128-CBC) before database storage. Encryption keys are derived from the application's `SECRET_KEY` using PBKDF2.
 - **PII Protection**: Personally Identifiable Information is encrypted at rest and redacted from public API feeds.
 - **RBAC**: Role-Based Access Control with three tiers:
   - `Staff`: View requests, add comments, update status
   - `Researcher`: Read-only access to sanitized, anonymized data exports
   - `Admin`: Full system configuration, user management, exact location access
-- **Rate Limiting**: API endpoints are protected against flood attacks.
+- **Rate Limiting**: API endpoints protected via slowapi (500 requests/minute default).
+- **Security Headers**: All responses include X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, and Content-Security-Policy headers.
 - **SQL Injection Proof**: Usage of SQLAlchemy ORM prevents injection vulnerabilities.
 
 ### ♿ Accessibility Compliance (WCAG 2.2 AA)

@@ -23,12 +23,19 @@ def run_async(coro):
 
 
 async def get_secret(db, key_name: str) -> str:
-    """Get a secret value from database"""
+    """Get a secret value from database (decrypts automatically)"""
+    from app.core.encryption import decrypt_safe
+    
     result = await db.execute(
         select(SystemSecret).where(SystemSecret.key_name == key_name)
     )
     secret = result.scalar_one_or_none()
-    return secret.key_value if secret and secret.is_configured else ""
+    if not secret or not secret.is_configured:
+        return ""
+    
+    # Decrypt the stored value (handles both encrypted and legacy plain text)
+    return decrypt_safe(secret.key_value) if secret.key_value else ""
+
 
 
 async def configure_notifications(db):

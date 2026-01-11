@@ -63,10 +63,11 @@ The Township 311 platform is designed for on-premises deployment within municipa
 | Area | Current State | Risk | Remediation |
 |------|---------------|------|-------------|
 | **MFA** | Single-factor only | Moderate | Integrate TOTP or SSO (OIDC/SAML) for staff |
-| **Rate Limiting** | Infrastructure-level only | Low | Add per-IP/per-user app-level limits on `/requests` |
-| **Encryption at Rest** | Host OS dependent | Low | Enable LUKS or EBS-level encryption for DB volume |
+| **Rate Limiting** | ✅ **Implemented** (slowapi 500/min) | Resolved | N/A |
+| **Encryption at Rest** | ✅ **Implemented** (Fernet AES-128-CBC) | Resolved | N/A |
 | **Audit Retention** | Permanent (no purge) | Low | Implement configurable archival policy |
 | **PII in Comments** | Text input only | Moderate | Add AI/regex PII scanning for public fields |
+
 
 ---
 
