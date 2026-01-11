@@ -316,11 +316,12 @@ export const ResearchLab: React.FC = () => {
 
     const getPackColorClasses = (color: string) => {
         const colors: Record<string, { bg: string; text: string; border: string }> = {
-            purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
-            blue: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30' },
-            pink: { bg: 'bg-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30' },
-            orange: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
-            green: { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' },
+            // Text colors brightened from *-400 to *-200 for WCAG AA contrast
+            purple: { bg: 'bg-purple-500/20', text: 'text-purple-200', border: 'border-purple-500/30' },
+            blue: { bg: 'bg-blue-500/20', text: 'text-blue-200', border: 'border-blue-500/30' },
+            pink: { bg: 'bg-pink-500/20', text: 'text-pink-200', border: 'border-pink-500/30' },
+            orange: { bg: 'bg-orange-500/20', text: 'text-orange-200', border: 'border-orange-500/30' },
+            green: { bg: 'bg-green-500/20', text: 'text-green-200', border: 'border-green-500/30' },
         };
         return colors[color] || colors.purple;
     };
