@@ -378,6 +378,14 @@ body {
     outline: none;
 }
 
+/* Ensure hidden action buttons are visible when focused via keyboard */
+/* This enables keyboard users to see & activate buttons that are normally hover-only */
+.opacity-0:focus-visible,
+.group:focus-within .opacity-0,
+.group:has(:focus-visible) .opacity-0 {
+    opacity: 1 !important;
+}
+
 /* Button focus states */
 button:focus-visible,
 [role="button"]:focus-visible,
@@ -508,20 +516,48 @@ table[role="grid"] tr:focus-within {
 }
 
 /* Ensure clickable elements have minimum touch target - WCAG 2.5.5 */
-button,
-[role="button"],
-input[type="checkbox"],
-input[type="radio"],
-select,
-a {
+/* Note: For checkboxes/radios, the touch target is achieved via label padding, not element size */
+button:not(.inline-btn),
+[role="button"]:not(.inline-btn),
+select {
     min-height: 44px;
-    min-width: 44px;
+}
+
+/* Links need min touch target only when standalone, not inline */
+a:not(p a):not(li a):not(td a):not(span a):not(.inline-link) {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Checkboxes/radios: use wrapper padding for touch target, not element size */
+input[type="checkbox"],
+input[type="radio"] {
+    /* Don't force min-width/height on the visual element */
+    min-height: auto;
+    min-width: auto;
+    /* Ensure adequate size but not oversized */
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Ensure checkbox/radio labels have adequate touch area */
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]) {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
 }
 
 /* Exception for inline links */
 p a,
 li a,
-td a {
+td a,
+span a,
+.inline-link {
     min-height: auto;
     min-width: auto;
     display: inline;
