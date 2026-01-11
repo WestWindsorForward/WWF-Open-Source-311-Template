@@ -300,20 +300,22 @@ async def export_for_public_records(
     writer = csv.writer(output)
     writer.writerow([
         "Request ID", "Service Type", "Status", "Submitted Date", 
-        "Street Address", "City", "State", "Description",
+        "Address", "Lat", "Long", "Description",
         "Resolution Date", "Resolution Notes"
     ])
     
     for r in records:
+        # Handle archived records - show [Archived] for description
+        desc = "[Content archived per retention policy]" if r.archived_at else (r.description or "")
         writer.writerow([
             r.service_request_id,
             r.service_name,
             r.status,
             r.requested_datetime.isoformat() if r.requested_datetime else "",
             r.address or "",
-            r.city or "",
-            r.state or "",
-            r.description or "[Archived]" if r.archived_at else r.description or "",
+            r.lat or "",
+            r.long or "",
+            desc,
             r.closed_datetime.isoformat() if r.closed_datetime else "",
             r.completion_message or ""
         ])
