@@ -34,21 +34,21 @@ interface TrackRequestsProps {
 const statusColors: Record<string, { bg: string; text: string; border: string; label: string; icon: React.ReactNode }> = {
     open: {
         bg: 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20',
-        text: 'text-amber-300',
+        text: 'text-amber-200',  // Was 300, now 200 for better contrast
         border: 'border-amber-500/30',
         label: 'Open',
         icon: <AlertCircle className="w-4 h-4" />
     },
     in_progress: {
         bg: 'bg-gradient-to-r from-blue-500/20 to-cyan-500/20',
-        text: 'text-blue-300',
+        text: 'text-blue-200',  // Was 300, now 200 for better contrast
         border: 'border-blue-500/30',
         label: 'In Progress',
         icon: <Clock className="w-4 h-4" />
     },
     closed: {
         bg: 'bg-gradient-to-r from-emerald-500/20 to-green-500/20',
-        text: 'text-emerald-300',
+        text: 'text-emerald-200',  // Was 300, now 200 for better contrast
         border: 'border-emerald-500/30',
         label: 'Resolved',
         icon: <CheckCircle className="w-4 h-4" />

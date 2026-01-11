@@ -14,10 +14,10 @@ export const Badge: React.FC<BadgeProps> = ({
 }) => {
     const variantStyles = {
         default: 'bg-white/10 text-white/80 border-white/20',
-        success: 'bg-green-500/20 text-green-300 border-green-500/30',
-        warning: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-        danger: 'bg-red-500/20 text-red-300 border-red-500/30',
-        info: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+        success: 'bg-green-500/20 text-green-200 border-green-500/30',  // Was 300, now 200
+        warning: 'bg-amber-500/20 text-amber-200 border-amber-500/30',  // Was 300, now 200
+        danger: 'bg-red-500/20 text-red-200 border-red-500/30',  // Was 300, now 200
+        info: 'bg-blue-500/20 text-blue-200 border-blue-500/30',  // Was 300, now 200
     };
 
     const sizeStyles = {

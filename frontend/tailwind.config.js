@@ -11,8 +11,9 @@ export default {
                     50: '#eef2ff',
                     100: '#e0e7ff',
                     200: '#c7d2fe',
-                    300: '#a5b4fc',
-                    400: '#818cf8',
+                    // Brightened for WCAG AA contrast on dark backgrounds
+                    300: '#c7d2fe',  // Was #a5b4fc, now matches 200 for 7:1+ contrast
+                    400: '#a5b4fc',  // Was #818cf8, now brighter
                     500: '#6366f1',
                     600: '#4f46e5',
                     700: '#4338ca',
