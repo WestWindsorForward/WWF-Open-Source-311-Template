@@ -792,7 +792,7 @@ export default function AdminConsole() {
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                className="w-full"
+                                className="w-full mb-2"
                                 leftIcon={<RefreshCw className={`w-4 h-4 ${isUpdating ? 'animate-spin' : ''}`} />}
                                 onClick={handleSystemUpdate}
                                 disabled={isUpdating}
@@ -802,6 +802,18 @@ export default function AdminConsole() {
                             {updateMessage && (
                                 <p className="mt-2 text-xs text-center text-white/60">{updateMessage}</p>
                             )}
+
+                            <p className="text-xs font-medium text-white/40 uppercase tracking-wider px-3 mt-4 mb-3">
+                                Quick Access
+                            </p>
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => navigate('/app')}
+                            >
+                                Staff Dashboard →
+                            </Button>
                         </div>
                     </nav>
 
