@@ -254,21 +254,23 @@ function ToggleRow({
         <div
             className={`flex items-center justify-between p-3 bg-white/5 rounded-lg ${disabled ? 'opacity-50' : ''}`}
         >
-            <div>
+            <div className="flex-1 mr-4">
                 <p className="text-sm font-medium text-white">{label}</p>
                 <p className="text-xs text-white/50">{description}</p>
             </div>
             <button
+                type="button"
                 onClick={onChange}
                 disabled={disabled}
-                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-primary-500' : 'bg-white/20'
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-900 ${enabled ? 'bg-primary-500' : 'bg-slate-600'
                     } ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 role="switch"
                 aria-checked={enabled}
                 aria-label={`Toggle ${label}`}
+                style={{ minWidth: '44px', maxWidth: '44px' }}
             >
                 <span
-                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-200 ${enabled ? 'left-[22px]' : 'left-0.5'
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform duration-200 ease-in-out ${enabled ? 'translate-x-6' : 'translate-x-1'
                         }`}
                     aria-hidden="true"
                 />
