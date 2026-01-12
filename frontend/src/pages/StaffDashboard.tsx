@@ -765,21 +765,7 @@ export default function StaffDashboard() {
                             </button>
                         ))}
 
-                        <div className="pt-4">
-                            <p className="text-xs font-medium text-white/40 uppercase tracking-wider px-3 mb-3">
-                                Tools
-                            </p>
-                            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/40 cursor-not-allowed">
-                                <Map className="w-5 h-5" />
-                                <span className="font-medium">GIS Maps</span>
-                                <Badge variant="default">Soon</Badge>
-                            </button>
-                            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/40 cursor-not-allowed">
-                                <Sparkles className="w-5 h-5" />
-                                <span className="font-medium">AI Analysis</span>
-                                <Badge variant="default">Soon</Badge>
-                            </button>
-                        </div>
+
                     </nav>
 
                     {/* User Footer - Sticky */}
