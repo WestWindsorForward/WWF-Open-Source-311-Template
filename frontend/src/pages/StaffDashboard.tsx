@@ -153,6 +153,7 @@ export default function StaffDashboard() {
     const [filterDepartment, setFilterDepartment] = useState<number | null>(null);
     const [filterService, setFilterService] = useState<string | null>(null);
     const [filterAssignment, setFilterAssignment] = useState<'all' | 'me' | 'department'>('all');
+    const [filterNeedsPriority, setFilterNeedsPriority] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
 
     // Asset-related requests (for matched assets)
@@ -230,6 +231,15 @@ export default function StaffDashboard() {
                 userDepartmentIds.includes(r.assigned_department_id) &&
                 !r.assigned_to  // No specific staff assigned = All Department Staff
             );
+        }
+
+        // Apply "Needs Priority Review" filter - requests with AI analysis but no manual priority
+        if (filterNeedsPriority) {
+            filtered = filtered.filter(r => {
+                const hasAiPriority = r.ai_analysis && (r.ai_analysis as any).priority_score != null;
+                const hasManualPriority = r.manual_priority_score != null;
+                return hasAiPriority && !hasManualPriority;
+            });
         }
 
         // Sort by assignment group FIRST (mine -> dept -> all), then by priority within each group
@@ -1355,6 +1365,26 @@ export default function StaffDashboard() {
                                     </button>
                                 </div>
 
+                                {/* Needs Priority Review Toggle */}
+                                <button
+                                    onClick={() => setFilterNeedsPriority(!filterNeedsPriority)}
+                                    className={`w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${filterNeedsPriority
+                                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/40 ring-2 ring-amber-400/60'
+                                        : 'bg-white/5 border border-white/15 text-white/60 hover:bg-white/10 hover:text-white hover:border-white/25'
+                                        }`}
+                                >
+                                    <AlertCircle className="w-4 h-4" />
+                                    Needs Priority Review
+                                    {(() => {
+                                        const needsPriorityCount = allRequests.filter(r => {
+                                            const hasAiPriority = r.ai_analysis && (r.ai_analysis as any).priority_score != null;
+                                            const hasManualPriority = r.manual_priority_score != null;
+                                            return hasAiPriority && !hasManualPriority;
+                                        }).length;
+                                        return needsPriorityCount > 0 ? <Badge variant="warning">{needsPriorityCount}</Badge> : null;
+                                    })()}
+                                </button>
+
                                 {/* Search Input */}
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -2302,6 +2332,11 @@ export default function StaffDashboard() {
                                                                 actionConfig = {
                                                                     color: 'bg-green-500',
                                                                     text: '♻️ Request Restored'
+                                                                };
+                                                            } else if (entry.action === 'priority_accepted') {
+                                                                actionConfig = {
+                                                                    color: 'bg-emerald-500',
+                                                                    text: `🤖 AI Priority Accepted: ${entry.new_value || ''}`
                                                                 };
                                                             } else {
                                                                 actionConfig = { color: 'bg-gray-500', text: entry.action };
