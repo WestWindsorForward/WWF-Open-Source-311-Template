@@ -1,6 +1,6 @@
 # Government Compliance & Security Posture
 
-The Township 311 platform is designed for on-premises deployment within municipal jurisdictions, prioritizing data sovereignty, administrative accountability, and regulatory compliance.
+The Pinpoint 311 platform is designed for on-premises deployment within municipal jurisdictions, prioritizing data sovereignty, administrative accountability, and regulatory compliance.
 
 ---
 

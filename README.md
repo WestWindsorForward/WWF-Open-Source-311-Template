@@ -1,4 +1,4 @@
-# Township 311 - Advanced Municipal Request System
+# Pinpoint 311 - Advanced Municipal Request System
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
@@ -11,7 +11,7 @@
 
 ## 🏛️ Introduction
 
-Township 311 is a production-grade, open-source platform designed for modern municipalities. It replaces legacy, clunky government forms with a **consumer-grade user experience** that feels as polished as a ride-sharing or food-delivery app.
+Pinpoint 311 is a production-grade, open-source platform designed for modern municipalities. It replaces legacy, clunky government forms with a **consumer-grade user experience** that feels as polished as a ride-sharing or food-delivery app.
 
 Beyond the UI, it features a sophisticated **AI & Geospatial Engine** that automates triage, detects duplicate reports, and routes requests based on precise location data—saving thousands of staff hours manually sorting tickets.
 
@@ -296,9 +296,6 @@ All research fields are computed on-the-fly using real APIs:
 | **AI** | Vertex AI (Gemini Flash) | Multimodal model for image/text analysis |
 | **Queue** | Celery + Redis | Background processing for emails and reports |
 | **Reverse Proxy** | Caddy | Automatic HTTPS and SSL termination |
-
-### The "Atomic Page" Pattern
-The frontend uses a unique **Atomic Page Architecture**. Instead of deep component trees, pages like `ResidentPortal.tsx` and `StaffDashboard.tsx` are self-contained "atoms" that manage their own complex state. This reduces prop-drilling and makes the codebase easier to audit for security.
 
 ### 🔒 Security Standards
 
