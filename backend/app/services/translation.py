@@ -2,7 +2,6 @@
 Translation service using Google Cloud Translation API.
 """
 from typing import Optional, Dict, List
-from functools import lru_cache
 import logging
 import httpx
 
@@ -43,7 +42,7 @@ async def get_api_key() -> Optional[str]:
         return None
 
 
-@lru_cache(maxsize=1000)
+
 async def translate_text(
     text: str,
     source_lang: str = "en",
@@ -51,7 +50,6 @@ async def translate_text(
 ) -> Optional[str]:
     """
     Translate text using Google Cloud Translation API.
-    Results are cached for performance.
     
     Args:
         text: Text to translate
