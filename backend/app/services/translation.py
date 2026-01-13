@@ -23,12 +23,12 @@ GOOGLE_TRANSLATE_API_URL = "https://translation.googleapis.com/language/translat
 async def get_api_key() -> Optional[str]:
     """Get Google Maps API key (also used for Translation API)"""
     try:
-        from app.db.session import AsyncSessionLocal
+        from app.db.session import SessionLocal
         from app.models import SystemSecret
         from app.core.encryption import decrypt
         from sqlalchemy import select
         
-        async with AsyncSessionLocal() as db:
+        async with SessionLocal() as db:
             result = await db.execute(
                 select(SystemSecret).where(SystemSecret.key_name == "GOOGLE_MAPS_API_KEY")
             )
