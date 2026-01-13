@@ -25,7 +25,7 @@ async def get_api_key() -> Optional[str]:
     try:
         from app.db.session import SessionLocal
         from app.models import SystemSecret
-        from app.core.encryption import decrypt
+        from app.core.encryption import decrypt_safe
         from sqlalchemy import select
         
         async with SessionLocal() as db:
@@ -37,14 +37,14 @@ async def get_api_key() -> Optional[str]:
             if secret:
                 logger.info(f"Found secret, is_configured={secret.is_configured}, key_value len={len(secret.key_value) if secret.key_value else 0}")
                 if secret.key_value:
-                    decrypted = decrypt(secret.key_value)
+                    decrypted = decrypt_safe(secret.key_value)
                     logger.info(f"Decrypted key length: {len(decrypted) if decrypted else 0}")
                     return decrypted
             else:
                 logger.warning("GOOGLE_MAPS_API_KEY not found in database")
             return None
     except Exception as e:
-        logger.error(f"Failed to get Google API key: {e}")
+        logger.error(f"Failed to get Google API key: {e}", exc_info=True)
         return None
 
 
