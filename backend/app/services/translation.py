@@ -125,3 +125,51 @@ async def check_translation_service() -> bool:
     """Check if Google Translate API key is configured."""
     api_key = await get_api_key()
     return api_key is not None
+
+
+async def ensure_translations(obj, db, target_lang: str):
+    """
+    Ensure translations exist in database for the given object.
+    Auto-populates missing translations on-the-fly.
+    
+    Args:
+        obj: Database object (ServiceDefinition, Department, etc.)
+        db: Database session
+        target_lang: Target language code
+    """
+    if not hasattr(obj, 'translations') or not hasattr(obj, 'service_name'):
+        return
+    
+    # Initialize translations if None
+    if obj.translations is None:
+        obj.translations = {}
+    
+    # Check if translation already exists
+    if target_lang in obj.translations and obj.translations[target_lang]:
+        # Return translated fields
+        obj.service_name = obj.translations[target_lang].get('service_name', obj.service_name)
+        if hasattr(obj, 'description'):
+            obj.description = obj.translations[target_lang].get('description', obj.description)
+        return
+    
+    # Translation missing - generate it
+    translated_name = await translate_text(obj.service_name, 'en', target_lang)
+    translated_desc = None
+    if hasattr(obj, 'description') and obj.description:
+        translated_desc = await translate_text(obj.description, 'en', target_lang)
+    
+    # Store in database
+    if translated_name:
+        obj.translations[target_lang] = {
+            'service_name': translated_name,
+            'description': translated_desc or obj.description
+        }
+        # Mark as modified for SQLAlchemy
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(obj, 'translations')
+        await db.commit()
+        
+        # Update current object fields
+        obj.service_name = translated_name
+        if translated_desc:
+            obj.description = translated_desc

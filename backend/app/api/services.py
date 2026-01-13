@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -12,8 +12,12 @@ from app.core.auth import get_current_admin
 router = APIRouter()
 
 
+
 @router.get("/", response_model=List[ServiceResponse])
-async def list_services(db: AsyncSession = Depends(get_db)):
+async def list_services(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
     """List all active service categories (public)"""
     result = await db.execute(
         select(ServiceDefinition)
@@ -21,7 +25,19 @@ async def list_services(db: AsyncSession = Depends(get_db)):
         .options(selectinload(ServiceDefinition.departments))
         .order_by(ServiceDefinition.service_name)
     )
-    return result.scalars().all()
+    services = result.scalars().all()
+    
+    # Auto-populate translations if requested language is not English
+    accept_language = request.headers.get('Accept-Language', 'en')
+    target_lang = accept_language.split(',')[0].split('-')[0].strip()
+    
+    if target_lang != 'en':
+        from app.services.translation import ensure_translations
+        for service in services:
+            await ensure_translations(service, db, target_lang)
+    
+    return services
+
 
 
 @router.get("/all", response_model=List[ServiceResponse])
