@@ -467,7 +467,7 @@ export default function ResidentPortal() {
                             aria-label="Go back to home page"
                         >
                             <ArrowLeft className="w-5 h-5" />
-                            <span>Back to Home</span>
+                            <span>{t('Back to Home')}</span>
                         </button>
                         <TrackRequests
                             initialRequestId={urlRequestId}
