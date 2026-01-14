@@ -3,6 +3,7 @@ import { MapPin, Layers, Search, X, ChevronDown, ChevronRight, Users } from 'luc
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { ServiceRequest, ServiceDefinition, User, Department } from '../types';
 import { MapLayer } from '../services/api';
+import { useTranslation } from '../context/TranslationContext';
 
 declare global {
     interface Window {
@@ -42,6 +43,7 @@ export default function StaffDashboardMap({
     defaultZoom = 14,
     onRequestSelect,
 }: StaffDashboardMapProps) {
+    const { t } = useTranslation();
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<google.maps.Map | null>(null);
     const markersRef = useRef<google.maps.Marker[]>([]);
@@ -561,7 +563,7 @@ export default function StaffDashboardMap({
                 <div className="p-4 border-b border-white/10 flex items-center justify-between bg-gradient-to-r from-primary-500/10 to-transparent">
                     <h3 className="font-bold text-white flex items-center gap-2 text-lg">
                         <Layers className="w-5 h-5 text-primary-400" />
-                        Filters
+                        {t('Filters')}
                     </h3>
                     <button
                         onClick={() => setShowFilters(false)}
@@ -579,7 +581,7 @@ export default function StaffDashboardMap({
                             onClick={() => toggleSection('status')}
                             className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <span className="text-sm font-semibold text-white">Request Status</span>
+                            <span className="text-sm font-semibold text-white">{t('Request Status')}</span>
                             {expandedSections.status ? (
                                 <ChevronDown className="w-4 h-4 text-white/50" />
                             ) : (
@@ -615,7 +617,7 @@ export default function StaffDashboardMap({
                             onClick={() => toggleSection('categories')}
                             className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <span className="text-sm font-semibold text-white">Categories</span>
+                            <span className="text-sm font-semibold text-white">{t('Categories')}</span>
                             {expandedSections.categories ? (
                                 <ChevronDown className="w-4 h-4 text-white/50" />
                             ) : (
@@ -629,7 +631,7 @@ export default function StaffDashboardMap({
                                         onClick={() => toggleAllCategories(true)}
                                         className="text-xs text-primary-400 hover:text-primary-300 font-medium"
                                     >
-                                        Select All
+                                        {t('Select All')}
                                     </button>
                                     <span className="text-white/20">|</span>
                                     <button
@@ -662,7 +664,7 @@ export default function StaffDashboardMap({
                             onClick={() => toggleSection('departments')}
                             className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <span className="text-sm font-semibold text-white">Departments</span>
+                            <span className="text-sm font-semibold text-white">{t('Departments')}</span>
                             {expandedSections.departments ? (
                                 <ChevronDown className="w-4 h-4 text-white/50" />
                             ) : (
@@ -720,7 +722,7 @@ export default function StaffDashboardMap({
                             onClick={() => toggleSection('staff')}
                             className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <span className="text-sm font-semibold text-white">Assigned Staff</span>
+                            <span className="text-sm font-semibold text-white">{t(' Staff')}</span>
                             {expandedSections.staff ? (
                                 <ChevronDown className="w-4 h-4 text-white/50" />
                             ) : (
@@ -778,7 +780,7 @@ export default function StaffDashboardMap({
                             onClick={() => toggleSection('priority')}
                             className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                         >
-                            <span className="text-sm font-semibold text-white">Priority Level</span>
+                            <span className="text-sm font-semibold text-white">{t('Priority Level')}</span>
                             {expandedSections.priority ? (
                                 <ChevronDown className="w-4 h-4 text-white/50" />
                             ) : (
