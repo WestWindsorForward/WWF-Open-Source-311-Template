@@ -155,6 +155,10 @@ const UI_STRINGS = [
     'Date',
     'Newest first',
     'Oldest first',
+
+    // Translation disclaimer
+    'Translated by Google Translate',
+    'This page has been automatically translated and may contain inaccuracies. User-submitted content may not reflect the original meaning.',
 ];
 
 interface TranslationProviderProps {
@@ -250,20 +254,20 @@ export function TranslationProvider({ children }: TranslationProviderProps) {
             {/* Translation Disclaimer */}
             {showDisclaimer && language !== 'en' && (
                 <div className="fixed bottom-4 right-4 z-[9999] max-w-sm">
-                    <div className="bg-gradient-to-r from-blue-500/90 to-purple-500/90 backdrop-blur-lg border border-white/20 rounded-xl shadow-2xl p-4">
+                    <div className="bg-slate-900 border-2 border-blue-400/60 rounded-xl shadow-2xl p-4">
                         <div className="flex items-start gap-3">
-                            <div className="p-2 bg-white/10 rounded-lg">
-                                <Languages className="w-5 h-5 text-white" />
+                            <div className="p-2 bg-blue-500/20 rounded-lg">
+                                <Languages className="w-5 h-5 text-blue-400" />
                             </div>
                             <div className="flex-1">
-                                <p className="text-white text-sm font-medium mb-1">Translated by Google Translate</p>
-                                <p className="text-white/80 text-xs leading-relaxed">
-                                    This page has been automatically translated and may contain inaccuracies. User-submitted content may not reflect the original meaning.
+                                <p className="text-white text-sm font-semibold mb-1">{t('Translated by Google Translate')}</p>
+                                <p className="text-white/90 text-xs leading-relaxed">
+                                    {t('This page has been automatically translated and may contain inaccuracies. User-submitted content may not reflect the original meaning.')}
                                 </p>
                             </div>
                             <button
                                 onClick={() => setShowDisclaimer(false)}
-                                className="text-white/60 hover:text-white transition-colors"
+                                className="text-white/60 hover:text-white transition-colors flex-shrink-0"
                                 aria-label="Close disclaimer"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

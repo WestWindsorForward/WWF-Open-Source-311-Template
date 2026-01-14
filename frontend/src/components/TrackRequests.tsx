@@ -23,6 +23,7 @@ import { Card, Input, Button, Textarea } from './ui';
 import { api } from '../services/api';
 import { PublicServiceRequest, RequestComment, AuditLogEntry } from '../types';
 import { useTranslation } from '../context/TranslationContext';
+import { TranslatedContent } from './TranslatedContent';
 
 type StatusFilter = 'all' | 'open' | 'in_progress' | 'closed';
 
@@ -550,7 +551,10 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                         {t('Description')}
                     </h3>
                     <p className="text-white/80 text-lg leading-relaxed whitespace-pre-wrap">
-                        {selectedRequest.description}
+                        <TranslatedContent
+                            text={selectedRequest.description}
+                            contentId={`desc_${selectedRequest.service_request_id}`}
+                        />
                     </p>
                 </Card>
 
@@ -631,7 +635,12 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                                             </div>
                                             <span className="text-white/40 text-xs">{formatDate(comment.created_at)}</span>
                                         </div>
-                                        <p className="text-white/70 pl-11">{comment.content}</p>
+                                        <p className="text-white/70 pl-11">
+                                            <TranslatedContent
+                                                text={comment.content}
+                                                contentId={`comment_${comment.id}`}
+                                            />
+                                        </p>
                                     </motion.div>
                                 );
                             })
