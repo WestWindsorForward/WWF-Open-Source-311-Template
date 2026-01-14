@@ -212,13 +212,6 @@ export function TranslationProvider({ children }: TranslationProviderProps) {
         localStorage.setItem('preferredLanguage', lang);
         // Trigger refresh in dependent components
         setRefreshKey(prev => prev + 1);
-
-        // Show disclaimer if switching to non-English
-        if (lang !== 'en') {
-            setShowDisclaimer(true);
-            // Auto-hide after 8 seconds
-            setTimeout(() => setShowDisclaimer(false), 8000);
-        }
     }, []);
 
     // Load translations when language changes
@@ -234,6 +227,11 @@ export function TranslationProvider({ children }: TranslationProviderProps) {
         if (cached) {
             try {
                 setTranslations(JSON.parse(cached));
+                // Show disclaimer after loading cached translations
+                if (language !== 'en') {
+                    setShowDisclaimer(true);
+                    setTimeout(() => setShowDisclaimer(false), 8000);
+                }
                 return;
             } catch {
                 // Invalid cache, fetch fresh
@@ -264,6 +262,11 @@ export function TranslationProvider({ children }: TranslationProviderProps) {
                     setTranslations(translationMap);
                     // Cache in localStorage
                     localStorage.setItem(cacheKey, JSON.stringify(translationMap));
+                    // Show disclaimer after translations are loaded
+                    if (language !== 'en') {
+                        setShowDisclaimer(true);
+                        setTimeout(() => setShowDisclaimer(false), 8000);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch translations:', error);

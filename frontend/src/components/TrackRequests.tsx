@@ -798,7 +798,10 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                                             <div className="flex items-start justify-between gap-4 mb-3">
                                                 <div>
                                                     <h3 className="font-semibold text-white text-xl group-hover:text-primary-300 transition-colors">
-                                                        {request.service_name}
+                                                        <TranslatedContent
+                                                            text={request.service_name}
+                                                            contentId={`service_${request.service_code}`}
+                                                        />
                                                     </h3>
                                                     <p className="text-xs text-primary-400/70 font-mono mt-1">
                                                         {request.service_request_id}
