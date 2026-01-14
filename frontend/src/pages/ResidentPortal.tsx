@@ -49,9 +49,11 @@ const iconMap: Record<string, React.FC<{ className?: string }>> = {
 type Step = 'categories' | 'form' | 'success';
 
 
+
+
 export default function ResidentPortal() {
     const { settings } = useSettings();
-    const { t } = useTranslation();
+    const { t, language, refreshKey } = useTranslation();
     const { requestId: urlRequestId } = useParams<{ requestId?: string }>();
 
     // Initialize state based on URL hash (not pathname)
@@ -196,9 +198,10 @@ export default function ResidentPortal() {
 
 
 
+    // Reload services when language changes
     useEffect(() => {
         loadServices();
-    }, []);
+    }, [language, refreshKey]);
 
     const loadServices = async () => {
         try {
@@ -627,10 +630,10 @@ export default function ResidentPortal() {
                                     className="space-y-4"
                                 >
                                     <h2 className="text-2xl font-bold text-white text-center">
-                                        Community Requests Map
+                                        {t('Community Requests Map')}
                                     </h2>
                                     <p className="text-white/60 text-center mb-6">
-                                        View all reported issues and service requests in our community
+                                        {t('View all reported issues and service requests in our community')}
                                     </p>
                                     <div className="h-[500px] rounded-2xl overflow-hidden">
                                         <StaffDashboardMap
@@ -1197,24 +1200,24 @@ export default function ResidentPortal() {
             <footer className="glass-sidebar py-6 px-4 mt-auto">
                 <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-white/40 text-sm">
-                        © {new Date().getFullYear()} {settings?.township_name || 'Township 311'}. All rights reserved.
+                        © {new Date().getFullYear()} {settings?.township_name || 'Township 311'}. {t('All rights reserved')}
                     </p>
                     <div className="flex items-center gap-6 text-sm">
                         <a href="#" className="text-white/40 hover:text-white/80 transition-colors">
-                            Privacy Policy
+                            {t('Privacy Policy')}
                         </a>
                         <a href="#" className="text-white/40 hover:text-white/80 transition-colors">
-                            Accessibility
+                            {t('Accessibility')}
                         </a>
                         <a href="#" className="text-white/40 hover:text-white/80 transition-colors">
-                            Terms of Service
+                            {t('Terms of Service')}
                         </a>
                     </div>
                 </div>
                 {/* Powered by Pinpoint 311 */}
                 <div className="max-w-6xl mx-auto mt-4 pt-4 border-t border-white/10 text-center">
                     <p className="text-white/30 text-xs">
-                        Powered by{' '}
+                        {t('Powered by')}{' '}
                         <a
                             href="https://github.com/WestWindsorForward/WWF-Open-Source-311-Template"
                             target="_blank"
@@ -1223,7 +1226,7 @@ export default function ResidentPortal() {
                         >
                             Pinpoint 311
                         </a>
-                        {' '}— Free &amp; Open Source Municipal Platform
+                        {' '}— {t('Free & Open Source Municipal Platform')}
                     </p>
                 </div>
             </footer>
