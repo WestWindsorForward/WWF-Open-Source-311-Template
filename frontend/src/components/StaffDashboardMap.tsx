@@ -825,7 +825,7 @@ export default function StaffDashboardMap({
                                 onClick={() => toggleSection('layers')}
                                 className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                             >
-                                <span className="text-sm font-semibold text-white">Map Layers</span>
+                                <span className="text-sm font-semibold text-white">{t('Map Layers')}</span>
                                 {expandedSections.layers ? (
                                     <ChevronDown className="w-4 h-4 text-white/50" />
                                 ) : (
@@ -839,14 +839,14 @@ export default function StaffDashboardMap({
                                             onClick={() => toggleAllLayers(true)}
                                             className="text-xs text-primary-400 hover:text-primary-300 font-medium"
                                         >
-                                            Show All
+                                            {t('Show All')}
                                         </button>
                                         <span className="text-white/20">|</span>
                                         <button
                                             onClick={() => toggleAllLayers(false)}
                                             className="text-xs text-primary-400 hover:text-primary-300 font-medium"
                                         >
-                                            Hide All
+                                            {t('Hide All')}
                                         </button>
                                     </div>
                                     {mapLayers.map(layer => (
@@ -883,7 +883,7 @@ export default function StaffDashboardMap({
                         >
                             <span className="text-sm font-semibold text-white flex items-center gap-2">
                                 <Users className="w-4 h-4 text-white/50" />
-                                Search Requests
+                                {t('Search Requests')}
                             </span>
                             {expandedSections.assignment ? (
                                 <ChevronDown className="w-4 h-4 text-white/50" />
@@ -897,7 +897,7 @@ export default function StaffDashboardMap({
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                                     <input
                                         type="text"
-                                        placeholder="Staff, address, description..."
+                                        placeholder={t('Staff, address, description...')}
                                         value={assignmentFilter}
                                         onChange={(e) => setAssignmentFilter(e.target.value)}
                                         className="w-full pl-10 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/40 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/50 transition-all"
@@ -912,7 +912,7 @@ export default function StaffDashboardMap({
                                     )}
                                 </div>
                                 <p className="text-xs text-white/40 mt-2">
-                                    Filter by assigned staff, address, or description
+                                    {t('Filter by assigned staff, address, or description')}
                                 </p>
                             </div>
                         )}

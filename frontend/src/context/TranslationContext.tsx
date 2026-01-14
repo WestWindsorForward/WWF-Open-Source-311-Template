@@ -200,6 +200,15 @@ const UI_STRINGS = [
     'High (8-10)',
     'Medium (5-7)',
     'Low (1-4)',
+
+    // Map component
+    'Map Layers',
+    'Show All',
+    'Hide All',
+    'Search Requests',
+    'Staff, address, description...',
+    'Filter by assigned staff, address, or description',
+    'Search services...',
 ];
 
 interface TranslationProviderProps {

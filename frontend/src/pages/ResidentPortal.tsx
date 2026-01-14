@@ -540,7 +540,7 @@ export default function ResidentPortal() {
                                             <input
                                                 id="service-search"
                                                 type="text"
-                                                placeholder="Search services..."
+                                                placeholder={t('Search services...')}
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 className="glass-input pl-12"
