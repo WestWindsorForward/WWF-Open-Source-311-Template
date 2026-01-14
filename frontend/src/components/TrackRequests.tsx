@@ -708,7 +708,7 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                     <div className="relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                         <Input
-                            placeholder="Search by ID, category, or address..."
+                            placeholder={t('Search by ID, category, or address...')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-12 h-12 text-base"
@@ -730,7 +730,7 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                                     : 'bg-white/5 text-white/60 hover:bg-white/10 border border-transparent'
                                     }`}
                             >
-                                {filterStatus === 'all' ? 'All Requests' : colors?.label || filterStatus}
+                                {filterStatus === 'all' ? t('All Requests') : colors?.label || filterStatus}
                             </button>
                         );
                     })}
@@ -740,9 +740,9 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
             {/* Stats Summary - Moved above list */}
             <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
-                    { status: 'open', color: 'amber', label: 'Open' },
-                    { status: 'in_progress', color: 'blue', label: 'In Progress' },
-                    { status: 'closed', color: 'emerald', label: 'Resolved' },
+                    { status: 'open', color: 'amber', label: t('Open') },
+                    { status: 'in_progress', color: 'blue', label: t('In Progress') },
+                    { status: 'closed', color: 'emerald', label: t('Resolved') },
                 ].map(({ status, color, label }) => (
                     <button
                         key={status}
@@ -821,7 +821,10 @@ export default function TrackRequests({ initialRequestId, selectedRequestId, onR
                                             )}
 
                                             <p className="text-white/50 line-clamp-2 mb-4">
-                                                {request.description}
+                                                <TranslatedContent
+                                                    text={request.description}
+                                                    contentId={`list_desc_${request.service_request_id}`}
+                                                />
                                             </p>
 
                                             <div className="flex items-center gap-4 text-sm text-white/40">

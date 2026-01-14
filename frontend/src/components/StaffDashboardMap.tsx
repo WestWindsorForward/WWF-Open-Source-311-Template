@@ -790,10 +790,10 @@ export default function StaffDashboardMap({
                         {expandedSections.priority && (
                             <div className="px-4 pb-4 space-y-2">
                                 {[
-                                    { value: 'all', label: 'All Priorities', color: null },
-                                    { value: 'high', label: 'High (8-10)', color: '#ef4444' },
-                                    { value: 'medium', label: 'Medium (5-7)', color: '#f59e0b' },
-                                    { value: 'low', label: 'Low (1-4)', color: '#22c55e' },
+                                    { value: 'all', label: t('All Priorities'), color: null },
+                                    { value: 'high', label: t('High (8-10)'), color: '#ef4444' },
+                                    { value: 'medium', label: t('Medium (5-7)'), color: '#f59e0b' },
+                                    { value: 'low', label: t('Low (1-4)'), color: '#22c55e' },
                                 ].map(option => (
                                     <label key={option.value} className="flex items-center gap-3 cursor-pointer group">
                                         <input

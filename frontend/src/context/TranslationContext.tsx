@@ -192,6 +192,14 @@ const UI_STRINGS = [
     'Closed - No Action Needed',
     'Closed - Third Party',
     'Comment added',
+
+    // Search and filter UI
+    'Search by ID, category, or address...',
+    'All Requests',
+    'All Priorities',
+    'High (8-10)',
+    'Medium (5-7)',
+    'Low (1-4)',
 ];
 
 interface TranslationProviderProps {
