@@ -179,7 +179,7 @@ export function TranslationProvider({ children }: TranslationProviderProps) {
         const fetchTranslations = async () => {
             setIsLoading(true);
             try {
-                const response = await fetch('/api/translate/batch', {
+                const response = await fetch('/api/system/translate/batch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
