@@ -1,50 +1,86 @@
-import { useState } from 'react';
-import { Globe, Check, ChevronDown, Search } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslation } from '../context/TranslationContext';
+import { useEffect, useState } from 'react';
+import { Globe, ChevronDown } from 'lucide-react';
 
-// Languages supported by LibreTranslate (self-hosted, free)
+// Languages supported (matching Google Translate widget config)
 const LANGUAGES = [
-    { code: 'en', name: 'English', nativeName: 'English' },
-    { code: 'es', name: 'Spanish', nativeName: 'Español' },
-    { code: 'zh', name: 'Chinese', nativeName: '中文' },
-    { code: 'fr', name: 'French', nativeName: 'Français' },
-    { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
-    { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
+    { code: 'en', name: 'English', nativeName: 'English', googleCode: 'en' },
+    { code: 'es', name: 'Spanish', nativeName: 'Español', googleCode: 'es' },
+    { code: 'zh', name: 'Chinese', nativeName: '中文', googleCode: 'zh-CN' },
+    { code: 'fr', name: 'French', nativeName: 'Français', googleCode: 'fr' },
+    { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', googleCode: 'hi' },
+    { code: 'ar', name: 'Arabic', nativeName: 'العربية', googleCode: 'ar' },
 ];
 
+// Trigger Google Translate language change
+function triggerGoogleTranslate(langCode: string) {
+    // Find the Google Translate combo box
+    const combo = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+    if (combo) {
+        combo.value = langCode;
+        combo.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
+
+// Get current Google Translate language
+function getCurrentGoogleLanguage(): string {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'googtrans') {
+            // Cookie format: /en/es or /auto/es
+            const match = value.match(/\/([a-z-]+)$/i);
+            if (match) return match[1];
+        }
+    }
+    return 'en';
+}
 
 export default function LanguageSelector() {
     const [isOpen, setIsOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const { language, setLanguage } = useTranslation();
+    const [currentLang, setCurrentLang] = useState('en');
 
-    const currentLanguage = LANGUAGES.find(lang => lang.code === language) || LANGUAGES.find(l => l.code === 'en')!;
+    // Check current language on mount
+    useEffect(() => {
+        const checkLanguage = () => {
+            const lang = getCurrentGoogleLanguage();
+            const mapped = LANGUAGES.find(l => l.googleCode === lang || l.code === lang);
+            if (mapped) {
+                setCurrentLang(mapped.code);
+            }
+        };
 
-    // Filter languages based on search
-    const filteredLanguages = LANGUAGES.filter(lang =>
-        lang.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lang.nativeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lang.code.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+        // Check immediately and periodically
+        checkLanguage();
+        const interval = setInterval(checkLanguage, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const currentLanguage = LANGUAGES.find(lang => lang.code === currentLang) || LANGUAGES[0];
 
     const changeLanguage = (code: string) => {
-        if (code === language) {
-            setIsOpen(false);
-            setSearchQuery('');
-            return;
-        }
-        setLanguage(code);
-        setIsOpen(false);
-        setSearchQuery('');
-        // Refresh the page to apply translations cleanly
-        setTimeout(() => {
+        const lang = LANGUAGES.find(l => l.code === code);
+        if (!lang) return;
+
+        if (code === 'en') {
+            // Reset to English - clear the cookie and reload
+            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname;
             window.location.reload();
-        }, 100);
+        } else {
+            // Trigger Google Translate
+            triggerGoogleTranslate(lang.googleCode);
+            setCurrentLang(code);
+        }
+
+        setIsOpen(false);
     };
 
     return (
         <div className="relative">
+            {/* Hidden Google Translate element */}
+            <div id="google_translate_element" className="hidden"></div>
+
+            {/* Custom styled selector */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 transition-all text-white shadow-lg"
@@ -56,80 +92,34 @@ export default function LanguageSelector() {
                 <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <AnimatePresence>
-                {isOpen && (
-                    <>
-                        {/* Backdrop */}
-                        <div
-                            className="fixed inset-0 z-40"
-                            onClick={() => {
-                                setIsOpen(false);
-                                setSearchQuery('');
-                            }}
-                        />
+            {isOpen && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setIsOpen(false)}
+                    />
 
-                        {/* Dropdown */}
-                        <motion.div
-                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute right-0 mt-2 w-80 rounded-xl bg-slate-800 border border-white/20 shadow-2xl z-50"
-                            style={{
-                                boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(0,0,0,0.3)'
-                            }}
-                        >
-                            {/* Search Header */}
-                            <div className="p-3 border-b border-white/10 sticky top-0 bg-slate-800 rounded-t-xl">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search languages..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50"
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                </div>
-                                <div className="mt-2 text-xs text-white/40">
-                                    {filteredLanguages.length} of {LANGUAGES.length} languages
-                                </div>
-                            </div>
-
-                            {/* Language List */}
-                            <div className="max-h-[400px] overflow-y-auto p-2">
-                                {filteredLanguages.length === 0 ? (
-                                    <div className="text-center py-8 text-white/40 text-sm">
-                                        No languages found
-                                    </div>
-                                ) : (
-                                    filteredLanguages.map((lang) => (
-                                        <button
-                                            key={lang.code}
-                                            onClick={() => changeLanguage(lang.code)}
-                                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left ${language === lang.code
-                                                ? 'bg-primary-500/30 text-white border border-primary-400/30'
-                                                : 'text-white/80 hover:bg-white/10 hover:text-white'
-                                                }`}
-                                        >
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-sm truncate">{lang.nativeName}</div>
-                                                {lang.nativeName !== lang.name && (
-                                                    <div className="text-xs text-white/50 truncate">{lang.name}</div>
-                                                )}
-                                            </div>
-                                            {language === lang.code && (
-                                                <Check className="w-4 h-4 text-primary-400 flex-shrink-0" />
-                                            )}
-                                        </button>
-                                    ))
+                    {/* Dropdown */}
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl bg-slate-800 border border-white/20 shadow-2xl z-50 py-2">
+                        {LANGUAGES.map((lang) => (
+                            <button
+                                key={lang.code}
+                                onClick={() => changeLanguage(lang.code)}
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all ${currentLang === lang.code
+                                        ? 'bg-primary-500/30 text-white'
+                                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                                    }`}
+                            >
+                                <span className="font-medium text-sm">{lang.nativeName}</span>
+                                {lang.nativeName !== lang.name && (
+                                    <span className="text-xs text-white/50">({lang.name})</span>
                                 )}
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 }
