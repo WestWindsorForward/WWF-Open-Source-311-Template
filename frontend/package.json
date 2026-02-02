@@ -19,7 +19,7 @@
         "react-dom": "^18.3.1",
         "react-i18next": "^16.5.4",
         "react-router-dom": "^7.1.0",
-        "recharts": "^2.15.0"
+        "recharts": "^3.7.0"
     },
     "devDependencies": {
         "@types/google.maps": "^3.58.1",
