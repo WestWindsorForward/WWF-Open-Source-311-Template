@@ -11,7 +11,7 @@
     },
     "dependencies": {
         "@googlemaps/markerclusterer": "^2.6.2",
-        "framer-motion": "^11.15.0",
+        "framer-motion": "^12.29.2",
         "i18next": "^25.8.0",
         "i18next-browser-languagedetector": "^8.2.0",
         "lucide-react": "^0.468.0",
