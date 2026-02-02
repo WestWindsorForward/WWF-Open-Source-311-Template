@@ -1,40 +1,20 @@
 """
-Translation service using Google Cloud Translation API.
-Uses in-memory cache to minimize API calls.
+Translation service using LibreTranslate (self-hosted, free).
+Uses in-memory cache to minimize translation calls.
+Falls back gracefully when translation service is unavailable.
 """
 from typing import Optional, Dict, List
 import logging
 import httpx
+import os
 
 logger = logging.getLogger(__name__)
 
 # In-memory translation cache: {("text", "target_lang"): "translated_text"}
 _translation_cache: Dict[tuple, str] = {}
 
-GOOGLE_TRANSLATE_API_URL = "https://translation.googleapis.com/language/translate/v2"
-
-
-async def get_api_key() -> Optional[str]:
-    """Get Google Maps API key (also used for Translation API)"""
-    try:
-        from app.db.session import SessionLocal
-        from app.models import SystemSecret
-        from app.core.encryption import decrypt_safe
-        from sqlalchemy import select
-        
-        async with SessionLocal() as db:
-            result = await db.execute(
-                select(SystemSecret).where(SystemSecret.key_name == "GOOGLE_MAPS_API_KEY")
-            )
-            secret = result.scalar_one_or_none()
-            
-            if secret and secret.key_value:
-                decrypted = decrypt_safe(secret.key_value)
-                return decrypted if decrypted else None
-            return None
-    except Exception as e:
-        logger.error(f"Failed to get Google API key: {e}")
-        return None
+# LibreTranslate API URL (internal Docker network)
+LIBRETRANSLATE_URL = os.getenv("LIBRETRANSLATE_URL", "http://libretranslate:5000")
 
 
 async def translate_text(
@@ -43,8 +23,9 @@ async def translate_text(
     target_lang: str = "es"
 ) -> Optional[str]:
     """
-    Translate text using Google Cloud Translation API.
-    Uses in-memory cache to minimize API usage.
+    Translate text using LibreTranslate API.
+    Uses in-memory cache to minimize API calls.
+    Returns None if translation fails (graceful degradation).
     """
     if not text or not text.strip():
         return text
@@ -57,16 +38,10 @@ async def translate_text(
     if cache_key in _translation_cache:
         return _translation_cache[cache_key]
     
-    api_key = await get_api_key()
-    if not api_key:
-        logger.warning("Google Translate API key not configured")
-        return None
-    
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
-                GOOGLE_TRANSLATE_API_URL,
-                params={"key": api_key},
+                f"{LIBRETRANSLATE_URL}/translate",
                 json={
                     "q": text,
                     "source": source_lang,
@@ -77,13 +52,16 @@ async def translate_text(
             response.raise_for_status()
             result = response.json()
             
-            if "data" in result and "translations" in result["data"]:
-                translated = result["data"]["translations"][0]["translatedText"]
+            if "translatedText" in result:
+                translated = result["translatedText"]
                 # Cache the result
                 _translation_cache[cache_key] = translated
                 logger.info(f"Translated and cached: '{text[:30]}...' -> '{translated[:30]}...'")
                 return translated
             return None
+    except httpx.ConnectError:
+        logger.warning("LibreTranslate not available - translation service offline")
+        return None
     except Exception as e:
         logger.error(f"Translation failed ({source_lang} -> {target_lang}): {e}")
         return None
@@ -114,6 +92,32 @@ async def translate_service_response(service_dict: dict, target_lang: str) -> di
     return result
 
 
+async def auto_translate_object(
+    obj: dict, 
+    fields: List[str],
+    target_languages: Optional[List[str]] = None
+) -> Dict[str, dict]:
+    """
+    Auto-translate specific fields of an object to multiple languages.
+    Returns a dict of {lang_code: translated_object}.
+    """
+    if target_languages is None:
+        target_languages = list(get_supported_languages().keys())
+        target_languages.remove("en")  # Don't translate to English
+    
+    translations = {}
+    for lang in target_languages:
+        translated_obj = dict(obj)
+        for field in fields:
+            if field in obj and obj[field]:
+                translated = await translate_text(obj[field], "en", lang)
+                if translated:
+                    translated_obj[field] = translated
+        translations[lang] = translated_obj
+    
+    return translations
+
+
 def get_supported_languages() -> Dict[str, str]:
     """Get list of supported language codes and names."""
     return {
@@ -127,6 +131,17 @@ def get_supported_languages() -> Dict[str, str]:
 
 
 async def check_translation_service() -> bool:
-    """Check if Google Translate API key is configured."""
-    api_key = await get_api_key()
-    return api_key is not None
+    """Check if LibreTranslate is available."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{LIBRETRANSLATE_URL}/languages")
+            return response.status_code == 200
+    except Exception:
+        return False
+
+
+def clear_translation_cache():
+    """Clear the translation cache."""
+    global _translation_cache
+    _translation_cache = {}
+    logger.info("Translation cache cleared")
