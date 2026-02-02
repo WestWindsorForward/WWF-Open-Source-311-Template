@@ -99,7 +99,22 @@ services:
     environment:
       - VITE_API_URL=/api
 
+  # LibreTranslate - Free self-hosted translation
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    environment:
+      - LT_LOAD_ONLY=en,es,zh,fr,hi,ar # Only load needed languages to save memory
+      - LT_DISABLE_WEB_UI=true # Disable web UI, only use API
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/languages" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Models take time to load
+
   caddy:
+
     image: caddy:2-alpine
     restart: unless-stopped
     ports:

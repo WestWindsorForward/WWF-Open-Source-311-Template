@@ -7,14 +7,22 @@ services:
     build: !reset null
     volumes:
       - .:/project # Keep project mount for config access
+    environment:
+      LIBRETRANSLATE_URL: http://libretranslate:5000
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   worker:
     image: ghcr.io/westwindsorforward/wwf-311-backend:latest
     build: !reset null
     volumes: !reset []
+    environment:
+      LIBRETRANSLATE_URL: http://libretranslate:5000
 
   frontend:
     image: ghcr.io/westwindsorforward/wwf-311-frontend:latest
     build: !reset null
     volumes: !reset []
+
+  # Production LibreTranslate (uses same image from base compose)
+  libretranslate:
+    restart: unless-stopped
